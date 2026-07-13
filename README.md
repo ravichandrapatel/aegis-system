@@ -4,6 +4,8 @@ Portable Engineering Control Plane: `AGENTS.md` (protocol) + `_okf_knowledge/` (
 
 This is a **clean-slate** package: domain-agnostic control plane only. No product modules, systems, or trained domain vaults ship here — you add those after install.
 
+**Human documentation (standalone):** [`docs/`](docs/README.md) — detailed TOC covering every file, when to use what, protocol, tools, and workflows.
+
 **Architecture decisions (full ADR):** [`ADR.md`](ADR.md) — why the system is built this way and what each decision is for.
 
 **OKF vs no-OKF A/B bench (parent prompt template):** [`BENCH_PROMPT.md`](BENCH_PROMPT.md) — fill placeholders, paste into chat, launch two subagents, plot metrics.

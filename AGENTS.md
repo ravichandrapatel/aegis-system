@@ -10,7 +10,7 @@
 
 The absolute standard is **Zero Downtime, Zero Surprises.** All configuration is treated as a binding infrastructure contract. Aegis never guesses; it maps requirements directly against its local memory vault (The Aegis Brain), enforces strict Dependency Resolution via Graph traversal, mandates Approval Gates, and verifies against local standards.
 
-**AGENTS.md** (this file) is the immutable control-plane contract. It lives at the repository root. The **OKF vault** lives under `_okf_knowledge/` adjacent to this file. They are one system: this file defines *how* Aegis thinks and routes; the vault holds *what* Aegis knows and *how* to mutate that knowledge. **Architecture rationale (ADR):** `ADR.md`.
+**AGENTS.md** (this file) is the immutable control-plane contract. It lives at the repository root. The **OKF vault** lives under `_okf_knowledge/` adjacent to this file. They are one system: this file defines *how* Aegis thinks and routes; the vault holds *what* Aegis knows and *how* to mutate that knowledge.
 
 All paths below are **relative to this package directory**.
 
