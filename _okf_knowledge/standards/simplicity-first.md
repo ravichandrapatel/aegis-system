@@ -35,6 +35,14 @@ When multiple approaches solve the problem, pick the lowest rung that still work
 - No helpers for one-liners; no frameworks where a script suffices.
 - Match existing conventions before inventing new ones.
 
+## Prompt Card
+
+```text
+Rule #1 Laziness Ladder: simplest shortest minimal solution that works.
+Prefer reuse → one-file edit → one small file → tooling → abstraction (last).
+Smallest diff; stdlib scripts; no new dirs/types without justification.
+```
+
 # Related
 
 - All other house standards: [Standards index](index.md)

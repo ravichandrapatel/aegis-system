@@ -36,6 +36,14 @@ def slugify(text: str) -> str:
     """
 ```
 
+## Prompt Card
+
+```text
+Metadata MUST on new files: file_name, description, version, authors.
+On new functions/classes: intent, input, output, role, side_effects.
+Snake_case field names; match existing kernel header style.
+```
+
 # Related
 
 - [Simplicity First](/standards/simplicity-first.md)

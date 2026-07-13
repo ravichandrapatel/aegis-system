@@ -69,7 +69,8 @@ status: active
 
 - Prefer headings, tables, lists, and fenced code over long prose.
 - Standards: normative **MUST** / **SHOULD** / **FORBIDDEN** language.
-- Binding standards (and agent-facing concepts) **SHOULD** include a `## Prompt Card` section (≤150 tokens) for slim injection — see [OKF Prompt Injection](/standards/okf-prompt-injection.md).
+- Binding standards **MUST** include a non-empty `## Prompt Card` section (≤150 tokens / ~600 chars) — enforced by `okf_lint.py` (`DBG-308` / `DBG-309`). See [OKF Prompt Injection](/standards/okf-prompt-injection.md).
+- Other agent-facing concepts **SHOULD** include a `## Prompt Card` for slim injection.
 - External claims: `# Citations` with numbered `[1] [title](url)` entries.
 - Link to related concepts with bundle-absolute paths.
 
@@ -99,7 +100,7 @@ Scripts live in `kernel/`; they are **not** OKF concepts.
 | Script | Role |
 |--------|------|
 | `graph_compiler.py` | Regenerate `graph.json`, embed graph in `aegis-brain.html` |
-| `okf_lint.py` | Conformance + broken links + orphans → `lint.json` |
+| `okf_lint.py` | Conformance + broken links + orphans + **standards Prompt Card gate** → `lint.json` |
 | `prompt_card.py` | Extract `## Prompt Card` sections for slim agent injection |
 | `okf_lookup.py` | Search vault by query; list hits or emit Prompt Cards (`--card`) |
 | `registry_scraper.py` | JIT upstream fetch → `vault/` |

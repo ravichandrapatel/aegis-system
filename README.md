@@ -26,7 +26,7 @@ This is a **clean-slate** package: domain-agnostic control plane only. No produc
 | [`okf-prompt-injection.md`](_okf_knowledge/standards/okf-prompt-injection.md) | Rule #2 — slim Prompt Cards only; never paste the whole brain |
 | [`metadata-headers.md`](_okf_knowledge/standards/metadata-headers.md) | Required file/function metadata for new kernel/code |
 
-`AGENTS.md` Path A binds generation to Rule #2. The kernel tools `okf_lookup.py --card` and `prompt_card.py` exist to enforce that rule — keep the standard next to them.
+`AGENTS.md` Path A binds generation to Rule #2. The kernel tools `okf_lookup.py --card` and `prompt_card.py` exist to enforce that rule — keep the standard next to them. `okf_lint.py` fails CI if any `standards/*` concept lacks a `## Prompt Card` (see `.github/workflows/okf-lint.yml`).
 
 ### Starter vault docs
 

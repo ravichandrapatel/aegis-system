@@ -450,8 +450,8 @@ serve_vault.py → aegis-brain.html → fetch/embed graph.json + lint.json
 
 ### Costs / tradeoffs
 
-- Authors must maintain `## Prompt Card` sections on binding docs.
-- Protocol compliance is **behavioral** (agents must run lookup); not enforced by a compiler gate on chat.
+- Authors must maintain `## Prompt Card` sections on binding docs — **mechanically enforced** for `standards/*` via `okf_lint.py` / CI (`DBG-308`).
+- Protocol compliance for *running* lookup before generate remains **behavioral** (agents must run lookup); chat itself is not a compiler gate.
 - Maintain playbook adds ceremony versus casual edits.
 - Dual-lane code-index still needs a wrapper implementation to be real.
 
@@ -459,7 +459,7 @@ serve_vault.py → aegis-brain.html → fetch/embed graph.json + lint.json
 
 1. Implement `aegis-okf` (or similar) wrapper: `lookup` / `code` / `gen` / `pack`.
 2. Optionally make `graph.json`/`lint.json` gitignored caches with server/CLI regenerate-only — only if offline HTML story is preserved via embed.
-3. Add mechanical checks (hook/CI) that Prompt Cards exist on all `standards/*`.
+3. ~~Add mechanical checks (hook/CI) that Prompt Cards exist on all `standards/*`.~~ **Done** — `okf_lint.py` emits `DBG-308` (error) when a `standards/*` concept lacks a non-empty `## Prompt Card`; oversized cards warn as `DBG-309`. CI: `.github/workflows/okf-lint.yml`.
 
 ---
 
@@ -480,6 +480,7 @@ serve_vault.py → aegis-brain.html → fetch/embed graph.json + lint.json
 
 | Version | Date | Notes |
 | --- | --- | --- |
+| 1.2 | 2026-07-13 | Follow-up #3 done: standards Prompt Card gate in `okf_lint.py` + `okf-lint` CI workflow. |
 | 1.1 | 2026-07-13 | Clean-slate ADR: D7 documents empty domain slots; D2/D3 examples de-domainized; Rule #2 (`okf-prompt-injection`) called out as non-optional shipped standard. |
 | 1.0 | 2026-07-13 | Initial full ADR at package root (Accepted). Aligns with protocol 4.3.1 and removal of `context.toon`. |
 

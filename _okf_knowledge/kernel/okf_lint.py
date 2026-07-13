@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # file_name: okf_lint.py
 # description: Health check for the Aegis OKF vault — OKF v0.1 conformance
-#              (errors) plus broken links, orphans, and schema drift (warnings).
+#              (errors) plus broken links, orphans, schema drift (warnings),
+#              and the standards Prompt Card gate (ADR follow-up #3).
 #              Writes lint.json at the vault root for aegis-brain.
-# version: 0.3.0
+# version: 0.4.0
 # authors: contributors
 from __future__ import annotations
 
@@ -22,6 +23,7 @@ from okf_common import (
     load_vault,
     resolve_link,
 )
+from prompt_card import extract_prompt_card
 
 # Taxonomy from AGENTS.md — drift is a warning, not an error (OKF tolerates unknown types).
 # Vault taxonomy (Zone 4) + kernel execution types (Zone 2). Keep them distinct
@@ -36,6 +38,8 @@ KNOWN_TYPES = {
     "Vendor",
 }
 HOUSE_REQUIRED_FIELDS = ("title", "description")
+# Rule #2 target: ≤150 tokens ≈ 600 characters (see prompt_card.py --max-chars).
+PROMPT_CARD_MAX_CHARS = 600
 
 
 def collect_findings() -> tuple[list[dict[str, str]], int]:
@@ -74,6 +78,26 @@ def collect_findings() -> tuple[list[dict[str, str]], int]:
             if not str(c.frontmatter.get(fld, "")).strip():
                 add("warning", c.concept_id, "DBG-303",
                     f"missing house-required field '{fld}'")
+
+        # -- Standards Prompt Card gate (ADR follow-up #3 / Rule #2) --
+        # Binding house law under standards/* MUST expose a non-empty ## Prompt Card.
+        if c.concept_id.startswith("standards/"):
+            card = extract_prompt_card(c.body)
+            if card is None:
+                add(
+                    "error",
+                    c.concept_id,
+                    "DBG-308",
+                    "standards/* MUST include a non-empty ## Prompt Card section",
+                )
+            elif len(card) > PROMPT_CARD_MAX_CHARS:
+                add(
+                    "warning",
+                    c.concept_id,
+                    "DBG-309",
+                    f"Prompt Card is {len(card)} chars "
+                    f"(target ≤{PROMPT_CARD_MAX_CHARS} ≈150 tokens)",
+                )
 
         # -- Links --
         for target in extract_links(c.body):

@@ -1,0 +1,26 @@
+# file_name: okf-lint.yml
+# description: CI gate — run okf_lint.py (incl. standards Prompt Card check).
+# version: 0.1.0
+# authors: contributors
+name: OKF lint
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  okf-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Lint vault (Prompt Card gate)
+        working-directory: .
+        run: python3 _okf_knowledge/kernel/okf_lint.py
