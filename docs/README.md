@@ -22,7 +22,7 @@ This folder explains **what every file is for**, **when to use it**, and **how t
 | 4 | [Document types](04-document-types.md) | Concept vs Playbook vs Module vs Vendor vs Profile — **when to use which** |
 | 5 | [Frontmatter schema](05-frontmatter-schema.md) | Required YAML fields, `owns`, `priority`, status |
 | 6 | [Protocol & routing](06-protocol-routing.md) | Intent matrix, pre-flight state machine, knowledge precedence |
-| 7 | [Profiles](07-profiles.md) | Operational contexts (`kernel/profiles/`) |
+| 7 | [Profiles](07-profiles.md) | Dynamic Profiles (`_schema.md`), RBAC capabilities, Capability Check |
 | 8 | [Compiled artifacts](08-compiled-artifacts.md) | `graph.json`, `index.json`, `prompt_cards.json`, `lint.json` |
 | 9 | [Lookup & Prompt Cards](09-lookup-and-prompt-cards.md) | Cheap retrieval → slim injection (Rule #2) |
 | 10 | [Kernel tools](10-kernel-tools.md) | Every `kernel/*.py` script — purpose and CLI |

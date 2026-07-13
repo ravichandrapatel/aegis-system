@@ -15,7 +15,8 @@
 | **Playbook** | Step-by-step executable procedure |
 | **Module** | Core domain execution / ownership doc under `kernel/modules/` |
 | **Vendor** | Cloud/tool execution extension under `kernel/vendors/` |
-| **Profile** | Operational context gating capabilities under `kernel/profiles/` |
+| **Profile** | Dynamic operational context (`type: Profile`) under `kernel/profiles/`; schema in `_schema.md` |
+| **Dynamic Profile** | Role-specific Profile instantiated from `_schema.md` (intents, modes, modules, standards) |
 | **System** | Documented running system in the workspace |
 | **Incident** | Post-mortem record |
 | **Reference** | Cached upstream documentation |

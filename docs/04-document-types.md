@@ -15,7 +15,7 @@ Every durable markdown concept under the brain **MUST** declare a `type` in YAML
 | `Reference` | 4 | `vault/references/` | Cached upstream documentation |
 | `Module` | 2 | `kernel/modules/` | Core domain execution + artifact ownership |
 | `Vendor` | 2 | `kernel/vendors/` | Cloud/tool execution extension |
-| `Profile` | 2 | `kernel/profiles/` | Operational context (allowed modules/standards/roles) |
+| `Profile` | 2 | `kernel/profiles/` | Dynamic role context from `_schema.md` (intents, modes, modules, standards) |
 
 ## Decision table (practical)
 
@@ -89,11 +89,11 @@ On conflict, **vendors beat vault** in knowledge precedence (`AGENTS.md` §2.2).
 
 ## Deep dive: Profile
 
-**Use when:** you need a named operational context such as `operator`, `architect`, or `migration`.
+**Use when:** you need a named **dynamic** operational context (any role), authored from `kernel/profiles/_schema.md`.
 
-Profiles gate the **Capability Registry Check** (`AGENTS.md` §4.1): if a required module/vendor/standard for the profile is missing, Aegis **HALTs** with exit code `4` (Unsupported).
+Profiles gate the **Capability Registry Check** (`AGENTS.md` §4.1): authorized intents, execution modes, required modules, and enforced standards. If a required module or standard is missing, Aegis **HALTs** with exit code `4` (Unsupported).
 
-See [Profiles](07-profiles.md).
+See [Profiles](07-profiles.md) for the full dynamic schema, RBAC sections, and authoring steps.
 
 ## Precedence reminder (conflicts)
 
