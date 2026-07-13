@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<!--
+FILE_NAME: aegis-brain.html
+DESCRIPTION: Self-contained OKF bundle graph (aegis-brain). No backend, no CDN, no
+             dependencies. Loads graph.json (from kernel/graph_compiler.py) and
+             lint.json (from kernel/okf_lint.py) via fetch when served locally,
+             or via file picker / drag-and-drop when opened as file://.
+             Features: force-directed graph, interactive type legend (click to
+             filter), navigator sidebar with search, and a lint panel that
+             highlights problem nodes.
+VERSION: 0.2.1
+AUTHORS: contributors
+-->
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>aegis knowledge system</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --panel: #171a23;
+      --panel2: #1c202c;
+      --text: #d7dae2;
+      --muted: #8b90a0;
+      --accent: #6aa2ff;
+      --border: #262a36;
+      --error: #f26d78;
+      --warning: #f0c674;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+
+    #topbar {
+      position: fixed;
+      inset: 0 0 auto 0;
+      z-index: 10;
+      height: 46px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+    }
+
+    #topbar h1 {
+      font-size: 18px;
+      margin: 0;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    #topbar h1 span {
+      color: var(--accent);
+    }
+
+    #legend {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      overflow: hidden;
+    }
+
+    .key {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      cursor: pointer;
+      user-select: none;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2px 9px;
+      background: var(--panel2);
+      transition: opacity .15s;
+    }
+
+    .key:hover {
+      border-color: #3a4157;
+    }
+
+    .key.off {
+      opacity: 0.35;
+      text-decoration: line-through;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex: none;
+    }
+
+    #load {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    #load input[type=file] {
+      display: none;
+    }
+
+    #load label {
+      cursor: pointer;
+      background: #232838;
+      color: var(--text);
+      border: 1px solid #313749;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 12px;
+    }
+
+    #status {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    #run-compile {
+      cursor: pointer;
+      background: #232838;
+      color: var(--text);
+      border: 1px solid #313749;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 12px;
+    }
+
+    #run-compile:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    #run-compile:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+
+    #side {
+      position: fixed;
+      top: 46px;
+      left: 0;
+      bottom: 0;
+      width: 300px;
+      z-index: 9;
+      display: flex;
+      flex-direction: column;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+    }
+
+    #searchbox {
+      padding: 10px 12px 6px;
+    }
+
+    #searchbox input {
+      width: 100%;
+      background: var(--panel2);
+      color: var(--text);
+      border: 1px solid #313749;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    #searchbox input:focus {
+      border-color: var(--accent);
+    }
+
+    #navlist {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 6px 8px;
+      min-height: 80px;
+    }
+
+    .navgroup summary {
+      cursor: pointer;
+      list-style: none;
+      display: grid;
+      grid-template-columns: 12px 10px 1fr;
+      gap: 6px;
+      align-items: center;
+      padding: 6px 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      user-select: none;
+    }
+
+    .navgroup summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .navgroup summary::before {
+      content: "▸";
+      font-size: 12px;
+      grid-column: 1;
+      justify-self: center;
+      transition: transform .1s;
+    }
+
+    .navgroup.zone-group {
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 6px;
+      padding-bottom: 6px;
+    }
+
+    .navgroup.zone-group>summary {
+      color: var(--accent);
+      font-size: 14px;
+    }
+
+    .navgroup.folder-group>summary {
+      color: var(--muted);
+      font-size: 12px;
+      margin-left: 0;
+    }
+
+    .navgroup[open] summary::before {
+      transform: rotate(90deg);
+    }
+
+    .navgroup summary .dot {
+      grid-column: 2;
+      width: 8px;
+      height: 8px;
+    }
+
+    .navgroup summary .nav-label {
+      grid-column: 3;
+      min-width: 0;
+    }
+
+    .navitem {
+      display: grid;
+      grid-template-columns: 12px 10px 1fr auto;
+      gap: 6px;
+      align-items: center;
+      cursor: pointer;
+      padding: 5px 10px;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .navitem:hover {
+      background: var(--panel2);
+    }
+
+    .navitem.selected {
+      background: #23304d;
+    }
+
+    .navitem .dot {
+      grid-column: 2;
+      width: 8px;
+      height: 8px;
+    }
+
+    .navitem .arrow {
+      grid-column: 2;
+      color: var(--muted);
+      font-size: 14px;
+      justify-self: center;
+      font-weight: 700;
+    }
+
+    .navitem .nav-label {
+      grid-column: 3;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .navitem .mark {
+      grid-column: 4;
+      font-size: 13px;
+    }
+
+    #details {
+      border-top: 1px solid var(--border);
+      padding: 10px 14px;
+      font-size: 12px;
+      display: none;
+      background: var(--panel2);
+    }
+
+    #details .d-title {
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    #details .d-meta {
+      color: var(--muted);
+      word-break: break-all;
+    }
+
+    #lintpanel {
+      border-top: 1px solid var(--border);
+      max-height: 34%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #linthead {
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    #linthead .cnt {
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    #run-lint {
+      margin-left: auto;
+      cursor: pointer;
+      background: #232838;
+      color: var(--text);
+      border: 1px solid #313749;
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    #run-lint:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    #run-lint:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+
+    .cnt.err {
+      color: var(--error);
+    }
+
+    .cnt.warn {
+      color: var(--warning);
+    }
+
+    .cnt.ok {
+      color: #a3d977;
+    }
+
+    #lintlist {
+      overflow-y: auto;
+      padding: 0 6px 10px;
+    }
+
+    .lintitem {
+      display: flex;
+      gap: 7px;
+      align-items: baseline;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+    }
+
+    .lintitem:hover {
+      background: var(--panel2);
+    }
+
+    .lintitem .sev {
+      flex: none;
+      font-weight: 700;
+      font-size: 11px;
+    }
+
+    .lintitem .sev.error {
+      color: var(--error);
+    }
+
+    .lintitem .sev.warning {
+      color: var(--warning);
+    }
+
+    .lintitem .msg {
+      color: var(--muted);
+    }
+
+    .lintitem b {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    #reader {
+      position: fixed;
+      top: 46px;
+      right: 0;
+      bottom: 0;
+      width: 440px;
+      z-index: 9;
+      display: none;
+      flex-direction: column;
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+    }
+
+    #r-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 14px 4px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #r-title {
+      font-size: 15px;
+      font-weight: 600;
+      flex: 1;
+    }
+
+    #r-close {
+      cursor: pointer;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 15px;
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+
+    #r-close:hover {
+      background: var(--panel2);
+      color: var(--text);
+    }
+
+    #r-meta {
+      padding: 0 14px 10px;
+      font-size: 12px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      word-break: break-all;
+    }
+
+    #r-meta .tag {
+      display: inline-block;
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0 8px;
+      margin: 2px 3px 0 0;
+      font-size: 11px;
+    }
+
+    #r-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 16px 24px;
+      font-size: 13px;
+    }
+
+    #r-body h1 {
+      font-size: 15px;
+      margin: 16px 0 6px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 4px;
+    }
+
+    #r-body h2 {
+      font-size: 14px;
+      margin: 14px 0 5px;
+    }
+
+    #r-body h3,
+    #r-body h4 {
+      font-size: 13px;
+      margin: 12px 0 4px;
+    }
+
+    #r-body p {
+      margin: 6px 0;
+    }
+
+    #r-body ul,
+    #r-body ol {
+      margin: 6px 0;
+      padding-left: 1.5em;
+      list-style-position: outside;
+    }
+
+    #r-body li {
+      margin: 3px 0;
+    }
+
+    #r-body li>ul,
+    #r-body li>ol {
+      margin: 4px 0 2px;
+      padding-left: 1.5em;
+    }
+
+    #r-body .li-cont {
+      display: block;
+      margin: 2px 0 0 1em;
+    }
+
+    #r-body code {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0 4px;
+      font-size: 12px;
+    }
+
+    #r-body pre {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      overflow-x: auto;
+      font-size: 12px;
+    }
+
+    #r-body pre code {
+      background: none;
+      border: none;
+      padding: 0;
+    }
+
+    #r-body table {
+      border-collapse: collapse;
+      margin: 8px 0;
+      font-size: 12px;
+    }
+
+    #r-body th,
+    #r-body td {
+      border: 1px solid var(--border);
+      padding: 4px 8px;
+      text-align: left;
+    }
+
+    #r-body th {
+      background: var(--panel2);
+    }
+
+    #r-body a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    #r-body a:hover {
+      text-decoration: underline;
+    }
+
+    #r-body a.dead {
+      color: var(--muted);
+      border-bottom: 1px dashed var(--muted);
+      cursor: help;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    #tip {
+      position: fixed;
+      z-index: 20;
+      pointer-events: none;
+      display: none;
+      background: var(--panel);
+      border: 1px solid #313749;
+      border-radius: 8px;
+      padding: 8px 12px;
+      max-width: 340px;
+      font-size: 12px;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, .5);
+    }
+
+    #tip .t-title {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    #tip .t-meta {
+      color: var(--muted);
+    }
+
+    #tip .t-lint.error {
+      color: var(--error);
+    }
+
+    #tip .t-lint.warning {
+      color: var(--warning);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="topbar">
+    <h1>aegis knowledge system</h1>
+    <div id="legend"></div>
+    <div id="load">
+      <span id="status">loading…</span>
+      <button id="run-compile" type="button"
+        title="Regenerate graph.json (when served via kernel/serve_vault.py)">Run Compile</button>
+      <label for="filepick">Open graph.json / lint.json…</label>
+      <input id="filepick" type="file" accept=".json" multiple>
+    </div>
+  </div>
+  <div id="side">
+    <div id="searchbox"><input id="search" type="search" placeholder="Search concepts…"></div>
+    <div id="navlist"></div>
+    <div id="details"></div>
+    <div id="lintpanel">
+      <div id="linthead">
+        <span>Lint</span>
+        <span id="lintcounts" class="cnt">not loaded</span>
+        <button id="run-lint" type="button"
+          title="Run lint on the loaded graph (full vault scan when served via kernel/scripts/serve_vault.py)">Run
+          Lint</button>
+      </div>
+      <div id="lintlist"></div>
+    </div>
+  </div>
+  <canvas id="c"></canvas>
+  <div id="tip"></div>
+  <div id="reader">
+    <div id="r-head">
+      <div id="r-title"></div>
+      <button id="r-close" title="Close (Esc)">✕</button>
+    </div>
+    <div id="r-meta"></div>
+    <div id="r-body"></div>
+  </div>
+  <!-- Data embedded by kernel/graph_compiler.py and kernel/okf_lint.py so
+     aegis-brain auto-loads even when opened as file:// (where fetch is blocked). -->
+  <script id="graph-data" type="application/json">{
+  "nodes": [
+    {
+      "id": "standards/metadata-headers",
+      "type": "Concept",
+      "title": "Metadata Headers",
+      "description": "Required metadata blocks on every new file, function, and class across all languages.",
+      "tags": [
+        "standard",
+        "code-quality",
+        "documentation",
+        "conventions"
+      ],
+      "content": "Every new file, function, and class MUST carry a metadata block. This makes code\nself-describing for both humans and agents.\n\n# File header\n\nFields: `file_name`, `description`, `version`, `authors` (snake_case).\n\n```python\n# file_name: registry_scraper.py\n# description: JIT fetch of upstream docs into OKF Reference concepts.\n# version: 0.1.0\n# authors: contributors\n```\n\n# Function / class header\n\nFields: `intent`, `input`, `output`, `role`, `side_effects` (snake_case).\n\n```python\ndef slugify(text: str) -> str:\n    \"\"\"\n    intent: Turn a free-text query into a safe filename slug.\n    input: text \u2014 arbitrary user query string.\n    output: lowercase kebab-case slug.\n    role: pure helper.\n    side_effects: none.\n    \"\"\"\n```\n\n# Related\n\n- [Simplicity First](/standards/simplicity-first.md)"
+    },
+    {
+      "id": "standards/okf-prompt-injection",
+      "type": "Concept",
+      "title": "OKF Prompt Injection",
+      "description": "Binding rule \u2014 agents MUST inject slim Prompt Cards from the vault, never paste the whole brain or full standards into generation context.",
+      "tags": [
+        "standard",
+        "okf",
+        "prompting",
+        "tokens",
+        "aegis"
+      ],
+      "content": "# OKF Prompt Injection (Rule #2)\n\n**Rule #2.** Curated OKF stays in the vault. Generation context gets **slim Prompt Cards only**.\n\nThis fixes the fat-dump tax: pasting full standards / `graph.json` / entire concept bodies into every authoring turn.\n\n## MUST\n\n1. Before **Artifact Generation** (Path A), assemble a **Prompt Pack** from relevant documents' `## Prompt Card` sections only.\n2. Each card **MUST** target **\u2264150 tokens** (~600 characters). Prefer shorter.\n3. Total Prompt Pack for one generation turn **SHOULD** stay **\u2264400 tokens** unless the user explicitly expands scope.\n4. Encyclopedic bodies (full tables, citations, bench notes) **MUST** remain in the vault for lookup \u2014 **MUST NOT** be copied wholesale into the generation prompt.\n5. Binding house rules for agents **MUST** expose a `## Prompt Card` section (standards especially).\n\n## SHOULD\n\n1. Build cards with: `python3 _okf_knowledge/kernel/prompt_card.py <path> [<path>...]`\n2. Find paths without pasting indexes: `python3 _okf_knowledge/kernel/okf_lookup.py \"<query>\"` then `--card` for injection.\n3. Prefer one-shot validation pass over generate \u2192 fail \u2192 remediate loops when a Prompt Card already encodes the binding rules.\n\n## FORBIDDEN\n\n1. Pasting `_okf_knowledge/graph.json`, or full standard/concept files into the generation prompt by default.\n2. Using \u201cload the whole Aegis brain\u201d as the default authoring strategy.\n3. Treating no-OKF + multi-turn fix loops as the preferred path when a Prompt Card one-shot exists.\n\n## Prompt Card\n\n```text\nOKF inject MUST: ## Prompt Card only (\u2264150 tok each); pack SHOULD \u2264400 tok.\nFORBIDDEN: paste graph.json/full standards into generation by default.\nBuild: `okf_lookup.py \"<q>\"` then `--card` (or `prompt_card.py <paths>`).\n```\n\n## How to load knowledge (procedure)\n\n| Step | Action |\n| :--- | :--- |\n| 1 | Route module/playbook \u2192 list 1\u20133 binding docs (`okf_lookup.py \"<intent>\"`) |\n| 2 | Extract each `## Prompt Card` via `prompt_card.py` or `okf_lookup.py --card` |\n| 3 | Concatenate into Prompt Pack; drop duplicates |\n| 4 | Generate artifacts against the pack |\n| 5 | Validate (lint / domain gates); if fail, remediate with failure text \u2014 not a fat re-dump |\n\n## Related\n\n- Principle: [Simplicity First](/standards/simplicity-first.md)\n- Control plane: [AGENTS.md](/AGENTS.md) Path A\n- Architecture ADR (package root, outside vault): `/ADR.md`\n- Playbook: [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md)\n- Starter: [Extending Aegis](/vault/concepts/extending-aegis.md)"
+    },
+    {
+      "id": "standards/simplicity-first",
+      "type": "Concept",
+      "title": "Simplicity First (Rule #1)",
+      "description": "The Laziness Ladder \u2014 always choose the simplest, shortest, minimal solution that works. Overrides complexity in design, code, and vault structure.",
+      "tags": [
+        "standard",
+        "simplicity",
+        "laziness-ladder",
+        "principles"
+      ],
+      "content": "**Rule #1.** Apply the Laziness Ladder as the primary lens for every decision in\nthis vault and in code: the simplest, shortest, most minimal solution that works.\n\n# Laziness Ladder\n\nWhen multiple approaches solve the problem, pick the lowest rung that still works:\n\n| Rung | Approach | Example |\n|------|----------|---------|\n| 1 | Do nothing new | Reuse an existing concept, playbook, or reference |\n| 2 | Edit one file | Fix a link, add one paragraph, patch one script |\n| 3 | Add one small file | One new concept \u2014 not a new directory tree |\n| 4 | Add tooling | Only when manual steps repeat and hurt |\n| 5 | Add abstraction | Last resort \u2014 never start here |\n\n# In the vault\n\n- One concept per file; cross-link instead of duplicating prose.\n- Prefer `index.md` progressive disclosure over bulk-reading the tree.\n- Scripts are stdlib-only unless a dependency is unavoidable.\n- New types, directories, or tooling require justification against this rule.\n\n# In code\n\n- Smallest diff that fixes the root cause \u2014 no drive-by refactors.\n- No helpers for one-liners; no frameworks where a script suffices.\n- Match existing conventions before inventing new ones.\n\n# Related\n\n- All other house standards: [Standards index](index.md)\n- Metadata discipline: [Metadata Headers](metadata-headers.md)\n- Prompt discipline: [OKF Prompt Injection](okf-prompt-injection.md)"
+    },
+    {
+      "id": "vault/concepts/extending-aegis",
+      "type": "Concept",
+      "title": "Extending Aegis",
+      "description": "How to grow this empty framework with your own modules, vendors, standards, and vault knowledge.",
+      "tags": [
+        "aegis-system",
+        "getting-started",
+        "framework"
+      ],
+      "content": "# Extending Aegis\n\nThis package is an **empty control plane**: `AGENTS.md` + `_okf_knowledge/`. Zip it, drop the folder into an IDE agents directory, then add your knowledge.\n\n## Add durable knowledge\n\n1. Drop raw material in [`_inbox/`](/_inbox/).\n2. Follow [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md).\n3. From the package directory:\n\n```bash\npython3 _okf_knowledge/kernel/graph_compiler.py\npython3 _okf_knowledge/kernel/okf_lint.py\n```\n\n## Where things go\n\n| Content | Directory (under `_okf_knowledge/`) | `type` |\n| :--- | :--- | :--- |\n| House rule | `standards/` | `Concept` + tag `standard` |\n| Evergreen fact / pattern | `vault/concepts/` | `Concept` |\n| Procedure | `vault/playbooks/` | `Playbook` |\n| Running system | `vault/systems/` | `System` |\n| Post-mortem | `vault/incidents/` | `Incident` |\n| Cached upstream docs | `vault/references/` | `Reference` |\n| Execution logic | `kernel/modules/` | `Module` |\n| Cloud/tool extension | `kernel/vendors/` | `Vendor` |\n\n## Frontmatter (required)\n\n```yaml\n---\ntype: Concept\ntitle: Human-readable name\ndescription: One-line summary for indexes and okf_lookup\ntags: [kebab-case, topic]\ntimestamp: 2026-07-13T00:00:00Z\nstatus: active\n---\n```\n\n## Related\n\n- Control plane: [AGENTS.md](/AGENTS.md)\n- Maintenance: [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md)\n- Law: [Simplicity First](/standards/simplicity-first.md)\n- Architecture ADR (package root, outside vault): see `ADR.md` next to `README.md`"
+    },
+    {
+      "id": "vault/playbooks/maintain-aegis-system",
+      "type": "Playbook",
+      "title": "Maintain aegis-system",
+      "description": "How to add or update concepts, playbooks, references, scripts, and skills in the aegis-system OKF vault \u2014 with post-change verification.",
+      "tags": [
+        "aegis-system",
+        "ingest",
+        "maintenance",
+        "okf",
+        "procedure"
+      ],
+      "content": "# Trigger\n\nYou need to add or change durable knowledge in aegis-system: a concept, house standard,\nplaybook, reference, vault script, agent bridge, or Cursor skill.\n\n# Preconditions\n\n- [AGENTS.md](/AGENTS.md) \u00a71.2 binds all brain mutations to this playbook \u2014 follow it end-to-end.\n- Read [AGENTS.md](/AGENTS.md) \u00a71.3 for the OKF frontmatter schema before creating files.\n- Raw source material (if any) is in [`_inbox/`](/_inbox/) and has not been edited.\n- You know which `type` the content is (see decision table below).\n\n# What to create \u2014 decision table\n\n| You are documenting\u2026 | `type` | Directory | Also update |\n|----------------------|--------|-----------|-------------|\n| Evergreen knowledge, pattern, tool overview | `Concept` | `vault/` (by domain) | `vault/index.md` |\n| House rule (MUST/SHOULD) | `Concept` + tag `standard` | `standards/` | [standards/index.md](/standards/index.md) |\n| Executable agent procedure | `Playbook` | `vault/playbooks/` | [playbooks/index.md](/vault/playbooks/index.md) |\n| Cached upstream docs | `Reference` | `vault/references/` | Run `kernel/cache_optimizer.py` |\n| Running system in workspace | `System` | `vault/systems/` | [systems/index.md](/vault/systems/index.md) |\n| Post-mortem | `Incident` | `vault/incidents/` | Link to affected systems/playbooks |\n| Core execution logic / ownership | `Module` | `kernel/modules/` | [modules/index.md](/kernel/modules/index.md) |\n| Cloud/tool execution extension | `Vendor` | `kernel/vendors/` | [vendors/index.md](/kernel/vendors/index.md) |\n| Vault tooling (lint, compile, scrape) | Python script | `kernel/` | This playbook \u00a7 Scripts |\n| Control-plane schema / persona | Markdown | `AGENTS.md` (package root, next to `_okf_knowledge/`) | [_okf_knowledge/index.md](/index.md) |\n\n## Anti-collision rule (vendors vs vault)\n\n| Layer | Owns | MUST NOT |\n|-------|------|----------|\n| `kernel/vendors/` (`type: Vendor`) | Triggers, minimum evidence, execution pipelines, artifact ownership vs modules | Duplicate System/Concept encyclopedias of the product |\n| `vault/` (`Concept` / `System` / `Playbook` / \u2026) | Passive facts, architecture, runbooks, incidents, cached docs | Embed vendor routing/trigger tables |\n\nCross-link instead: Vendor \u2192 System/Concept; System \u2192 Vendor. Precedence on conflict: vendors beat vault ([AGENTS.md](/AGENTS.md) \u00a72.2).\n\n\n# Add or update a concept\n\n## 1. Choose path and filename\n\n- One concept per file; kebab-case filename matching the topic.\n- House standards go in `standards/` with `tags: [standard, \u2026]`.\n- Domain concepts go in `vault/`.\n\n## 2. Frontmatter (required)\n\n```yaml\n---\ntype: Concept\ntitle: Human-readable name\ndescription: One-line summary for indexes and okf_lookup.\ntags: [kebab-case, topic]\ntimestamp: 2026-07-13T00:00:00Z\nstatus: active\n---\n```\n\n## 3. Body\n\n- Prefer headings, tables, lists, and fenced code over long prose.\n- Standards: normative **MUST** / **SHOULD** / **FORBIDDEN** language.\n- Binding standards (and agent-facing concepts) **SHOULD** include a `## Prompt Card` section (\u2264150 tokens) for slim injection \u2014 see [OKF Prompt Injection](/standards/okf-prompt-injection.md).\n- External claims: `# Citations` with numbered `[1] [title](url)` entries.\n- Link to related concepts with bundle-absolute paths.\n\n## 4. Cross-links (both directions)\n\n- New concept MUST link to at least one existing related concept.\n- Update those existing files to link back.\n- Update every affected `index.md` on the path from root to the file.\n\n# Add or update a playbook\n\n## Required sections\n\n```markdown\n# Trigger\n# Preconditions\n# Steps\n# Verification\n```\n\n- Add a one-line entry to [playbooks/index.md](/vault/playbooks/index.md).\n\n# Add or update a script\n\nScripts live in `kernel/`; they are **not** OKF concepts.\n\n| Script | Role |\n|--------|------|\n| `graph_compiler.py` | Regenerate `graph.json`, embed graph in `aegis-brain.html` |\n| `okf_lint.py` | Conformance + broken links + orphans \u2192 `lint.json` |\n| `prompt_card.py` | Extract `## Prompt Card` sections \n\n\u2026"
+    }
+  ],
+  "edges": [
+    {
+      "source": "standards/metadata-headers",
+      "target": "standards/simplicity-first"
+    },
+    {
+      "source": "standards/okf-prompt-injection",
+      "target": "standards/simplicity-first"
+    },
+    {
+      "source": "standards/okf-prompt-injection",
+      "target": "vault/playbooks/maintain-aegis-system"
+    },
+    {
+      "source": "standards/okf-prompt-injection",
+      "target": "vault/concepts/extending-aegis"
+    },
+    {
+      "source": "standards/simplicity-first",
+      "target": "standards/metadata-headers"
+    },
+    {
+      "source": "standards/simplicity-first",
+      "target": "standards/okf-prompt-injection"
+    },
+    {
+      "source": "vault/concepts/extending-aegis",
+      "target": "vault/playbooks/maintain-aegis-system"
+    },
+    {
+      "source": "vault/concepts/extending-aegis",
+      "target": "vault/playbooks/maintain-aegis-system"
+    },
+    {
+      "source": "vault/concepts/extending-aegis",
+      "target": "standards/simplicity-first"
+    },
+    {
+      "source": "vault/playbooks/maintain-aegis-system",
+      "target": "standards/okf-prompt-injection"
+    },
+    {
+      "source": "vault/playbooks/maintain-aegis-system",
+      "target": "standards/simplicity-first"
+    },
+    {
+      "source": "vault/playbooks/maintain-aegis-system",
+      "target": "vault/concepts/extending-aegis"
+    }
+  ]
+}</script>
+  <script id="lint-data" type="application/json">{
+  "generated": "2026-07-13T18:18:56Z",
+  "vault": "_okf_knowledge",
+  "summary": {
+    "concepts": 5,
+    "errors": 0,
+    "warnings": 0
+  },
+  "findings": []
+}</script>
+  <script>
+    "use strict";
+    /* Palette assigned to `type` values in order of first appearance. */
+    const PALETTE = ["#6aa2ff", "#ffb454", "#4fd6be", "#f26d78", "#c792ea", "#a3d977", "#f0c674", "#7fb4c9"];
+    const KNOWN_TYPES = new Set(["Concept", "Playbook", "System", "Reference", "Incident"]);
+    const MD_LINK_RE = /\[[^\]]*\]\(([^)\s]+)\)/g;
+    const SIDEBAR_W = 300, TOPBAR_H = 46, READER_W = 440;
+    const canvas = document.getElementById("c");
+    const ctx = canvas.getContext("2d");
+    const tip = document.getElementById("tip");
+    const statusEl = document.getElementById("status");
+
+    let nodes = [], edges = [], typeColors = new Map();
+    let lint = null;                 // parsed lint.json
+    let lintByConcept = new Map();   // concept id -> "error" | "warning"
+    let hiddenTypes = new Set();     // toggled off via legend
+    let selected = null;
+    let view = { x: 0, y: 0, k: 1 };
+    let tween = null;                // {tx, ty, tk} camera target
+    let dragNode = null, panning = false, moved = false, last = { x: 0, y: 0 };
+    let alpha = 0;                   // simulation temperature
+
+    function resize() {
+      canvas.width = innerWidth * devicePixelRatio;
+      canvas.height = innerHeight * devicePixelRatio;
+      canvas.style.width = innerWidth + "px";
+      canvas.style.height = innerHeight + "px";
+    }
+    addEventListener("resize", resize); resize();
+
+    function colorFor(type) {
+      if (!typeColors.has(type)) typeColors.set(type, PALETTE[typeColors.size % PALETTE.length]);
+      return typeColors.get(type);
+    }
+
+    /* ---------- data loading ---------- */
+
+    function setGraph(data) {
+      const byId = new Map();
+      typeColors = new Map();
+      nodes = (data.nodes || []).map((n, i) => {
+        const angle = (i / Math.max(1, data.nodes.length)) * Math.PI * 2;
+        const node = {
+          ...n, color: colorFor(n.type || "?"),
+          x: Math.cos(angle) * 260 + (Math.random() - .5) * 40,
+          y: Math.sin(angle) * 260 + (Math.random() - .5) * 40,
+          vx: 0, vy: 0, deg: 0,
+        };
+        byId.set(n.id, node);
+        return node;
+      });
+      edges = (data.edges || [])
+        .map(e => ({ s: byId.get(e.source), t: byId.get(e.target) }))
+        .filter(e => e.s && e.t);
+      edges.forEach(e => { e.s.deg++; e.t.deg++; });
+      hiddenTypes.clear();
+      selected = null;
+      view = { x: SIDEBAR_W + (innerWidth - SIDEBAR_W) / 2, y: TOPBAR_H + (innerHeight - TOPBAR_H) / 2, k: 1 };
+      alpha = 1;
+      statusEl.textContent = `${nodes.length} concepts, ${edges.length} links`;
+      renderLegend(); renderNavigator(); renderDetails(); renderReader(); applyLint();
+    }
+
+    function setLint(data) {
+      lint = data;
+      lintByConcept = new Map();
+      for (const f of (data.findings || [])) {
+        const prev = lintByConcept.get(f.concept);
+        if (prev !== "error") lintByConcept.set(f.concept, f.severity);
+      }
+      applyLint(); renderLint(); renderNavigator();
+    }
+
+    function applyLint() {
+      for (const n of nodes) n.lint = lintByConcept.get(n.id) || null;
+    }
+
+    function loadText(text, label) {
+      let data;
+      try { data = JSON.parse(text); }
+      catch (err) { statusEl.textContent = `could not parse ${label}: ${err.message}`; return; }
+      if (Array.isArray(data.nodes)) setGraph(data);
+      else if (Array.isArray(data.findings)) setLint(data);
+      else statusEl.textContent = `${label}: not a graph.json or lint.json`;
+    }
+
+    document.getElementById("filepick").addEventListener("change", e => {
+      for (const f of e.target.files) f.text().then(t => loadText(t, f.name));
+    });
+    addEventListener("dragover", e => e.preventDefault());
+    addEventListener("drop", e => {
+      e.preventDefault();
+      for (const f of e.dataTransfer.files) f.text().then(t => loadText(t, f.name));
+    });
+    /* Prefer data embedded by the vault scripts; fall back to fetch (served mode),
+       then to the file picker / drag-and-drop. */
+    function loadEmbedded(id, label) {
+      const el = document.getElementById(id);
+      const text = el ? el.textContent.trim() : "";
+      if (!text || text === "null") return false;
+      loadText(text, label);
+      return true;
+    }
+    if (!loadEmbedded("graph-data", "embedded graph")) {
+      fetch("graph.json")
+        .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+        .then(t => loadText(t, "graph.json"))
+        .catch(() => { statusEl.textContent = "no embedded data (run kernel/graph_compiler.py) — or use the button / drop files here"; });
+    }
+    if (!loadEmbedded("lint-data", "embedded lint")) {
+      fetch("lint.json")
+        .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+        .then(t => loadText(t, "lint.json"))
+        .catch(() => { /* lint.json is optional — run kernel/okf_lint.py to create it */ });
+    }
+
+    /* ---------- legend (click to filter) ---------- */
+
+    function renderLegend() {
+      const legend = document.getElementById("legend");
+      legend.innerHTML = "";
+      for (const [type, color] of typeColors) {
+        const el = document.createElement("div");
+        el.className = "key" + (hiddenTypes.has(type) ? " off" : "");
+        el.innerHTML = `<span class="dot" style="background:${color}"></span>${type}`;
+        el.title = "Click to show/hide this type";
+        el.addEventListener("click", () => {
+          hiddenTypes.has(type) ? hiddenTypes.delete(type) : hiddenTypes.add(type);
+          if (selected && hiddenTypes.has(selected.type)) { selected = null; renderDetails(); renderReader(); }
+          renderLegend(); renderNavigator();
+        });
+        legend.appendChild(el);
+      }
+    }
+
+    /* ---------- navigator sidebar ---------- */
+
+    function getZone(id) {
+      const p = id.replace(/^knowledge\//, "");
+      if (p.startsWith("_inbox")) return "Zone 1: Untriaged";
+      if (p.startsWith("kernel")) return "Zone 2: Execution";
+      if (p.startsWith("standards")) return "Zone 3: Governance";
+      if (p.startsWith("vault")) return "Zone 4: Knowledge";
+      return "Other";
+    }
+
+    function renderNavigator() {
+      const list = document.getElementById("navlist");
+      const q = document.getElementById("search").value.trim().toLowerCase();
+      list.innerHTML = "";
+
+      const groups = new Map();
+      const zoneOrder = ["Zone 1: Untriaged", "Zone 2: Execution", "Zone 3: Governance", "Zone 4: Knowledge", "Other"];
+      zoneOrder.forEach(z => groups.set(z, new Map()));
+
+      for (const n of nodes) {
+        if (hiddenTypes.has(n.type)) continue;
+        if (q && !(n.title + " " + n.id).toLowerCase().includes(q)) continue;
+
+        const zone = getZone(n.id);
+        const zoneMap = groups.get(zone);
+
+        // Group by directory within zone
+        let parts = n.id.split("/");
+        let folder = parts.length > 2 ? parts.slice(0, -1).join("/") : "root";
+        if (!zoneMap.has(folder)) zoneMap.set(folder, []);
+        zoneMap.get(folder).push(n);
+      }
+
+      for (const zoneName of zoneOrder) {
+        const zoneMap = groups.get(zoneName);
+        if (!zoneMap.size) continue;
+
+        const zoneDet = document.createElement("details");
+        zoneDet.className = "navgroup zone-group"; zoneDet.open = true;
+        const zoneSum = document.createElement("summary");
+        zoneSum.innerHTML = `<span class="nav-label" style="color:var(--accent)">${zoneName}</span>`;
+        zoneDet.appendChild(zoneSum);
+
+        for (const [folder, members] of [...zoneMap].sort()) {
+          members.sort((a, b) => (a.title || a.id).localeCompare(b.title || b.id));
+
+          const folderDet = document.createElement("details");
+          folderDet.className = "navgroup folder-group"; folderDet.open = true;
+          folderDet.style.marginLeft = "8px";
+      const folderSum = document.createElement("summary");
+      folderSum.innerHTML = `<span class="nav-label" style="opacity:0.8;font-size:12px;grid-column:2/4">${folder.replace(/^knowledge\//, "")} (${members.length})</span>`;
+      folderDet.appendChild(folderSum);
+
+          for (const n of members) {
+            const item = document.createElement("div");
+            item.className = "navitem" + (selected === n ? " selected" : "");
+            const mark = n.lint === "error" ? `<span class="mark" style="color:var(--error)">●</span>`
+              : n.lint === "warning" ? `<span class="mark" style="color:var(--warning)">●</span>` : "";
+            item.innerHTML = `<span class="arrow" style="color:${n.color}">›</span>` +
+              `<span class="nav-label">${n.title || n.id.split("/").pop()}</span>${mark}`;
+            item.title = n.id + ".md";
+            item.addEventListener("click", () => selectNode(n, true));
+            folderDet.appendChild(item);
+          }
+          zoneDet.appendChild(folderDet);
+        }
+        list.appendChild(zoneDet);
+      }
+
+      if (!groups.size) {
+        list.innerHTML = `<div style="padding:10px 14px;color:var(--muted);font-size:12px">no matching concepts</div>`;
+      }
+    }
+    document.getElementById("search").addEventListener("input", renderNavigator);
+
+    /* ---------- selection & details ---------- */
+
+    function selectNode(n, focus) {
+      selected = n;
+      renderNavigator(); renderDetails(); renderReader();
+      if (focus && n) {
+        const readerW = readerOpen() ? READER_W : 0;
+        tween = {
+          tx: SIDEBAR_W + (innerWidth - SIDEBAR_W - readerW) / 2 - n.x * Math.max(view.k, 1),
+          ty: TOPBAR_H + (innerHeight - TOPBAR_H) / 2 - n.y * Math.max(view.k, 1),
+          tk: Math.max(view.k, 1),
+        };
+      }
+    }
+
+    function renderDetails() {
+      const el = document.getElementById("details");
+      if (!selected) { el.style.display = "none"; return; }
+      const n = selected;
+      const findings = lint ? lint.findings.filter(f => f.concept === n.id) : [];
+      el.style.display = "block";
+      el.innerHTML =
+        `<div class="d-title"><span class="dot" style="display:inline-block;background:${n.color}"></span> ${n.title || n.id}</div>` +
+        `<div class="d-meta">${n.type} &middot; ${n.id}.md &middot; ${n.deg} link(s)</div>` +
+        findings.map(f =>
+          `<div style="color:var(--${f.severity === "error" ? "error" : "warning"})">[${f.code}] ${f.message}</div>`
+        ).join("");
+    }
+
+    /* ---------- reading pane (markdown content) ---------- */
+
+    function readerOpen() { return !!(selected && typeof selected.content === "string"); }
+
+    function escapeHtml(s) {
+      return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    /* Resolve a markdown link target (bundle-absolute or relative) to a graph node. */
+    function resolveMdLink(url, baseId) {
+      if (/^([a-z]+:)?\/\//i.test(url) || /^(https?|mailto|file):/i.test(url)) return null;
+      let path = url.split("#")[0];
+      if (!path.endsWith(".md")) return null;
+      path = path.slice(0, -3);
+      let parts;
+      if (path.startsWith("/")) parts = path.slice(1).split("/");
+      else {
+        parts = baseId.split("/").slice(0, -1);
+        for (const seg of path.split("/")) {
+          if (seg === "." || seg === "") continue;
+          if (seg === "..") parts.pop();
+          else parts.push(seg);
+        }
+      }
+      const id = parts.join("/");
+      return nodes.find(n => n.id === id) || null;
+    }
+
+    function mdInline(s, baseId) {
+      s = escapeHtml(s);
+      s = s.replace(/`([^`]+)`/g, (m, c) => `<code>${c}</code>`);
+      s = s.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+      s = s.replace(/(^|[\s(])\*([^*\s][^*]*)\*/g, "$1<i>$2</i>");
+      s = s.replace(/\[([^\]]*)\]\(([^)\s]+)\)/g, (m, text, url) => {
+        const n = resolveMdLink(url, baseId);
+        if (n) return `<a href="#" data-node="${n.id}" title="${n.id}.md">${text}</a>`;
+        if (/^https?:/i.test(url)) return `<a href="${url}" target="_blank" rel="noopener">${text}</a>`;
+        return `<a class="dead" title="${url} (not in bundle)">${text}</a>`;
+      });
+      return s;
+    }
+
+    /* Parse a markdown list line; returns null if not a list item. */
+    function parseListLine(line) {
+      const m = line.match(/^(\s*)([-*]|\d+\.)\s+(.*)/);
+      return m ? { indent: m[1].length, marker: m[2], text: m[3] } : null;
+    }
+
+    /* Build nested <ul>/<ol> from lines starting at index i. */
+    function buildList(lines, i, baseId) {
+      const first = parseListLine(lines[i]);
+      const baseIndent = first.indent;
+      const ordered = /\d/.test(first.marker);
+      const items = [];
+
+      while (i < lines.length) {
+        const cur = parseListLine(lines[i]);
+        if (!cur) {
+          const cont = lines[i].match(/^(\s+)(\S.*)$/);
+          if (cont && cont[1].length > baseIndent && items.length) {
+            const last = items[items.length - 1];
+            last.extra.push(cont[2].trim());
+            i++; continue;
+          }
+          break;
+        }
+        if (cur.indent < baseIndent) break;
+        if (cur.indent > baseIndent) {
+          const nested = buildList(lines, i, baseId);
+          if (items.length) items[items.length - 1].nested = nested.html;
+          i = nested.next;
+          continue;
+        }
+        items.push({ text: cur.text, extra: [], nested: "" });
+        i++;
+        while (i < lines.length) {
+          if (parseListLine(lines[i])) break;
+          const cont = lines[i].match(/^(\s+)(\S.*)$/);
+          if (cont && cont[1].length > baseIndent) {
+            items[items.length - 1].extra.push(cont[2].trim());
+            i++;
+          } else break;
+        }
+      }
+
+      const body = items.map(it => {
+        let inner = mdInline(it.text, baseId);
+        if (it.extra.length) {
+          inner += it.extra.map(t => `<span class="li-cont">${mdInline(t, baseId)}</span>`).join("");
+        }
+        return `<li>${inner}${it.nested}</li>`;
+      }).join("");
+      const tag = ordered ? "ol" : "ul";
+      return { html: `<${tag}>${body}</${tag}>`, next: i };
+    }
+
+    /* Minimal markdown -> HTML: headings, fenced code, tables, lists, paragraphs. */
+    function mdToHtml(md, baseId) {
+      const lines = md.split("\n");
+      const out = [];
+      let i = 0;
+      while (i < lines.length) {
+        const line = lines[i];
+        if (line.trimStart().startsWith("```")) {
+          const code = [];
+          i++;
+          while (i < lines.length && !lines[i].trimStart().startsWith("```")) code.push(lines[i++]);
+          i++; // closing fence
+          out.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`);
+          continue;
+        }
+        const h = line.match(/^(#{1,4})\s+(.*)/);
+        if (h) {
+          out.push(`<h${h[1].length}>${mdInline(h[2], baseId)}</h${h[1].length}>`);
+          i++; continue;
+        }
+        if (line.trim().startsWith("|") && i + 1 < lines.length &&
+          /^\s*\|[\s|:-]+\|?\s*$/.test(lines[i + 1]) && lines[i + 1].includes("-")) {
+          const cells = row => row.trim().replace(/^\||\|$/g, "").split("|").map(c => mdInline(c.trim(), baseId));
+          const head = cells(line);
+          i += 2;
+          const rows = [];
+          while (i < lines.length && lines[i].trim().startsWith("|")) rows.push(cells(lines[i++]));
+          out.push("<table><thead><tr>" + head.map(c => `<th>${c}</th>`).join("") + "</tr></thead><tbody>" +
+            rows.map(r => "<tr>" + r.map(c => `<td>${c}</td>`).join("") + "</tr>").join("") + "</tbody></table>");
+          continue;
+        }
+        if (parseListLine(line)) {
+          const list = buildList(lines, i, baseId);
+          out.push(list.html);
+          i = list.next;
+          continue;
+        }
+        if (!line.trim()) { i++; continue; }
+        const para = [];
+        while (i < lines.length && lines[i].trim() &&
+          !/^(#{1,4}\s|\s*([-*]|\d+\.)\s|\s*\||\s*```)/.test(lines[i])) {
+          para.push(lines[i++]);
+        }
+        if (para.length) out.push(`<p>${mdInline(para.join(" "), baseId)}</p>`);
+        else i++;
+      }
+      return out.join("\n");
+    }
+
+    function renderReader() {
+      const el = document.getElementById("reader");
+      if (!readerOpen()) { el.style.display = "none"; return; }
+      const n = selected;
+      document.getElementById("r-title").innerHTML =
+        `<span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${n.color};margin-right:6px"></span>` +
+        escapeHtml(n.title || n.id);
+      const tags = (n.tags || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join("");
+      document.getElementById("r-meta").innerHTML =
+        `${escapeHtml(n.type)} &middot; ${escapeHtml(n.id)}.md` +
+        (n.description ? `<div>${escapeHtml(n.description)}</div>` : "") +
+        (tags ? `<div>${tags}</div>` : "");
+      document.getElementById("r-body").innerHTML =
+        n.content ? mdToHtml(n.content, n.id) : `<p style="color:var(--muted)">empty body</p>`;
+      document.getElementById("r-body").scrollTop = 0;
+      el.style.display = "flex";
+    }
+
+    function closeReader() {
+      selected = null;
+      renderNavigator(); renderDetails(); renderReader();
+    }
+    document.getElementById("r-close").addEventListener("click", closeReader);
+    addEventListener("keydown", e => { if (e.key === "Escape" && readerOpen()) closeReader(); });
+    /* Internal links inside rendered markdown jump to that concept's node. */
+    document.getElementById("r-body").addEventListener("click", e => {
+      const a = e.target.closest("a[data-node]");
+      if (!a) return;
+      e.preventDefault();
+      const n = nodes.find(n => n.id === a.dataset.node);
+      if (n) selectNode(n, true);
+    });
+
+    /* ---------- lint panel ---------- */
+
+    function extractMdLinks(content) {
+      const links = [];
+      let m;
+      const re = new RegExp(MD_LINK_RE.source, "g");
+      while ((m = re.exec(content)) !== null) {
+        const url = m[1];
+        if (/^(https?|mailto|file):/i.test(url)) continue;
+        links.push(url);
+      }
+      return links;
+    }
+
+    /* Mirror scripts/okf_lint.py checks against the loaded graph (no index.md scan). */
+    function runClientLint() {
+      const findings = [];
+      const inbound = new Set(edges.map(e => e.t.id));
+      const add = (severity, concept, code, message) =>
+        findings.push({ severity, concept, code, message });
+
+      for (const n of nodes) {
+        if (!String(n.type || "").trim())
+          add("error", n.id, "DBG-301", "missing required 'type' field");
+        if (n.type && !KNOWN_TYPES.has(n.type))
+          add("warning", n.id, "DBG-302", `unknown type '${n.type}' (not in AGENTS.md taxonomy)`);
+        if (!String(n.title || "").trim())
+          add("warning", n.id, "DBG-303", "missing house-required field 'title'");
+        if (!String(n.description || "").trim())
+          add("warning", n.id, "DBG-303", "missing house-required field 'description'");
+        for (const target of extractMdLinks(n.content || "")) {
+          if (!target.endsWith(".md")) continue;
+          if (!resolveMdLink(target, n.id))
+            add("warning", n.id, "DBG-304", `broken link -> ${target}`);
+        }
+      }
+      for (const n of nodes) {
+        if (!inbound.has(n.id))
+          add("warning", n.id, "DBG-306", "orphan — no inbound links in graph");
+      }
+      const errors = findings.filter(f => f.severity === "error").length;
+      const warnings = findings.filter(f => f.severity === "warning").length;
+      return {
+        generated: new Date().toISOString(),
+        source: "browser",
+        summary: { concepts: nodes.length, errors, warnings },
+        findings,
+      };
+    }
+
+    /* ---------- remote operations (when served via python) ---------- */
+
+    async function runCompile() {
+      const btn = document.getElementById("run-compile");
+      btn.disabled = true;
+      btn.textContent = "Compiling…";
+      try {
+        const resp = await fetch("/api/compile", { method: "POST" });
+        if (resp.ok) {
+          const data = await resp.json();
+          setGraph(data);
+          statusEl.textContent = `${nodes.length} concepts — graph compiled successfully`;
+        } else {
+          statusEl.textContent = "compile failed (is the server running with kernel/serve_vault.py?)";
+        }
+      } catch (err) {
+        statusEl.textContent = `compile error: ${err.message}`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Run Compile";
+      }
+    }
+    document.getElementById("run-compile").addEventListener("click", runCompile);
+
+    async function runLint() {
+      const btn = document.getElementById("run-lint");
+      if (!nodes.length) {
+        statusEl.textContent = "load a graph first, then run lint";
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = "Running…";
+      try {
+        const resp = await fetch("/api/lint", { method: "POST" });
+        if (resp.ok) {
+          const data = await resp.json();
+          data.source = "vault";
+          setLint(data);
+          statusEl.textContent = `${nodes.length} concepts — vault lint complete`;
+          return;
+        }
+        setLint(runClientLint());
+        statusEl.textContent = `${nodes.length} concepts — browser lint complete`;
+      } catch (_) {
+        setLint(runClientLint());
+        statusEl.textContent = `${nodes.length} concepts — browser lint complete`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Run Lint";
+      }
+    }
+    document.getElementById("run-lint").addEventListener("click", runLint);
+
+    function renderLint() {
+      const counts = document.getElementById("lintcounts");
+      const list = document.getElementById("lintlist");
+      if (!lint) { counts.textContent = "not loaded"; list.innerHTML = ""; return; }
+      const e = lint.summary.errors, w = lint.summary.warnings;
+      counts.innerHTML = (e || w)
+        ? `<span class="cnt err">${e} error(s)</span> &nbsp;<span class="cnt warn">${w} warning(s)</span>`
+        : `<span class="cnt ok">clean ✓</span>`;
+      counts.title = lint.source === "vault"
+        ? `vault scan · ${lint.generated}`
+        : `browser scan · ${lint.generated} (use kernel/serve_vault.py for full vault lint)`;
+      list.innerHTML = "";
+      for (const f of lint.findings) {
+        const item = document.createElement("div");
+        item.className = "lintitem";
+        item.innerHTML = `<span class="sev ${f.severity}">${f.severity === "error" ? "ERR" : "WARN"}</span>` +
+          `<span><b>${f.concept}</b> <span class="msg">[${f.code}] ${f.message}</span></span>`;
+        item.addEventListener("click", () => {
+          const n = nodes.find(n => n.id === f.concept);
+          if (n) selectNode(n, true);
+        });
+        list.appendChild(item);
+      }
+      if (!lint.findings.length) {
+        list.innerHTML = `<div style="padding:2px 14px 8px;color:var(--muted);font-size:12px">vault is conformant and healthy</div>`;
+      }
+    }
+
+    /* ---------- force simulation & drawing ---------- */
+
+    function visible(n) { return !hiddenTypes.has(n.type); }
+
+    function step() {
+      if (alpha > 0.005) {
+        for (const e of edges) {
+          const dx = e.t.x - e.s.x, dy = e.t.y - e.s.y;
+          const d = Math.hypot(dx, dy) || 1;
+          const f = (d - 120) * 0.02 * alpha;
+          e.s.vx += dx / d * f; e.s.vy += dy / d * f;
+          e.t.vx -= dx / d * f; e.t.vy -= dy / d * f;
+        }
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) {
+            const a = nodes[i], b = nodes[j];
+            const dx = b.x - a.x, dy = b.y - a.y;
+            const d2 = dx * dx + dy * dy || 1;
+            const f = Math.min(2000 / d2, 4) * alpha;
+            const d = Math.sqrt(d2);
+            a.vx -= dx / d * f; a.vy -= dy / d * f;
+            b.vx += dx / d * f; b.vy += dy / d * f;
+          }
+        }
+        for (const n of nodes) {
+          n.vx -= n.x * 0.002 * alpha; n.vy -= n.y * 0.002 * alpha;
+          if (n !== dragNode) { n.x += n.vx; n.y += n.vy; }
+          n.vx *= 0.85; n.vy *= 0.85;
+        }
+        alpha *= 0.995;
+      }
+      if (tween) {
+        view.x += (tween.tx - view.x) * 0.15;
+        view.y += (tween.ty - view.y) * 0.15;
+        view.k += (tween.tk - view.k) * 0.15;
+        if (Math.abs(tween.tx - view.x) < .5 && Math.abs(tween.ty - view.y) < .5) tween = null;
+      }
+      draw();
+      requestAnimationFrame(step);
+    }
+
+    function draw() {
+      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      ctx.translate(view.x, view.y);
+      ctx.scale(view.k, view.k);
+
+      const neighbors = new Set();
+      if (selected) {
+        for (const e of edges) {
+          if (e.s === selected) neighbors.add(e.t);
+          if (e.t === selected) neighbors.add(e.s);
+        }
+      }
+
+      ctx.lineWidth = 1 / view.k;
+      for (const e of edges) {
+        const dim = !visible(e.s) || !visible(e.t);
+        const hot = selected && (e.s === selected || e.t === selected);
+        ctx.strokeStyle = dim ? "rgba(140,150,180,0.05)"
+          : hot ? "rgba(106,162,255,0.7)" : "rgba(140,150,180,0.25)";
+        ctx.beginPath(); ctx.moveTo(e.s.x, e.s.y); ctx.lineTo(e.t.x, e.t.y); ctx.stroke();
+      }
+      for (const n of nodes) {
+        const dim = !visible(n);
+        const r = 5 + Math.min(n.deg, 10) * 1.2;
+        ctx.globalAlpha = dim ? 0.12 : 1;
+        ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = n.color; ctx.fill();
+        if (!dim && n.lint) {
+          ctx.strokeStyle = n.lint === "error" ? "#f26d78" : "#f0c674";
+          ctx.lineWidth = 2.5 / view.k;
+          ctx.beginPath(); ctx.arc(n.x, n.y, r + 3 / view.k, 0, Math.PI * 2); ctx.stroke();
+        }
+        if (n === selected) {
+          ctx.strokeStyle = "#ffffff";
+          ctx.lineWidth = 2 / view.k;
+          ctx.beginPath(); ctx.arc(n.x, n.y, r + 6 / view.k, 0, Math.PI * 2); ctx.stroke();
+        }
+        if (!dim && view.k > 0.6) {
+          ctx.fillStyle = (n === selected || neighbors.has(n))
+            ? "rgba(255,255,255,0.95)" : "rgba(215,218,226,0.85)";
+          ctx.font = `${11 / view.k}px system-ui`;
+          ctx.fillText(n.title || n.id, n.x + r + 4 / view.k, n.y + 4 / view.k);
+        }
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    /* ---------- pointer interaction ---------- */
+
+    function toWorld(px, py) { return { x: (px - view.x) / view.k, y: (py - view.y) / view.k }; }
+    function nodeAt(px, py) {
+      const p = toWorld(px, py);
+      return nodes.find(n => visible(n) &&
+        Math.hypot(n.x - p.x, n.y - p.y) < (6 + Math.min(n.deg, 10) * 1.2) + 4 / view.k);
+    }
+
+    canvas.addEventListener("mousedown", e => {
+      const n = nodeAt(e.clientX, e.clientY);
+      if (n) { dragNode = n; alpha = Math.max(alpha, 0.3); }
+      else panning = true;
+      moved = false; tween = null;
+      last = { x: e.clientX, y: e.clientY };
+    });
+    addEventListener("mousemove", e => {
+      const dx = e.clientX - last.x, dy = e.clientY - last.y;
+      if (dragNode) { dragNode.x += dx / view.k; dragNode.y += dy / view.k; moved = moved || dx || dy; }
+      else if (panning) { view.x += dx; view.y += dy; moved = moved || dx || dy; }
+      else {
+        const n = nodeAt(e.clientX, e.clientY);
+        if (n) {
+          const lintLine = n.lint
+            ? `<div class="t-lint ${n.lint}">${n.lint === "error" ? "has lint errors" : "has lint warnings"}</div>` : "";
+          tip.style.display = "block";
+          tip.style.left = (e.clientX + 14) + "px";
+          tip.style.top = (e.clientY + 14) + "px";
+          tip.innerHTML = `<div class="t-title">${n.title || n.id}</div>` +
+            `<div class="t-meta">${n.type} &middot; ${n.id}.md &middot; ${n.deg} link(s)</div>` + lintLine;
+          canvas.style.cursor = "pointer";
+        } else { tip.style.display = "none"; canvas.style.cursor = panning ? "grabbing" : "default"; }
+      }
+      last = { x: e.clientX, y: e.clientY };
+    });
+    addEventListener("mouseup", e => {
+      if (dragNode && !moved) selectNode(dragNode, false);
+      else if (panning && !moved && e.target === canvas) { selected = null; renderNavigator(); renderDetails(); renderReader(); }
+      dragNode = null; panning = false;
+    });
+    canvas.addEventListener("wheel", e => {
+      e.preventDefault(); tween = null;
+      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      const p = toWorld(e.clientX, e.clientY);
+      view.k = Math.min(4, Math.max(0.2, view.k * factor));
+      view.x = e.clientX - p.x * view.k;
+      view.y = e.clientY - p.y * view.k;
+    }, { passive: false });
+
+    step();
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,120 @@
+{
+  "nodes": [
+    {
+      "id": "standards/metadata-headers",
+      "type": "Concept",
+      "title": "Metadata Headers",
+      "description": "Required metadata blocks on every new file, function, and class across all languages.",
+      "tags": [
+        "standard",
+        "code-quality",
+        "documentation",
+        "conventions"
+      ],
+      "content": "Every new file, function, and class MUST carry a metadata block. This makes code\nself-describing for both humans and agents.\n\n# File header\n\nFields: `file_name`, `description`, `version`, `authors` (snake_case).\n\n```python\n# file_name: registry_scraper.py\n# description: JIT fetch of upstream docs into OKF Reference concepts.\n# version: 0.1.0\n# authors: contributors\n```\n\n# Function / class header\n\nFields: `intent`, `input`, `output`, `role`, `side_effects` (snake_case).\n\n```python\ndef slugify(text: str) -> str:\n    \"\"\"\n    intent: Turn a free-text query into a safe filename slug.\n    input: text \u2014 arbitrary user query string.\n    output: lowercase kebab-case slug.\n    role: pure helper.\n    side_effects: none.\n    \"\"\"\n```\n\n# Related\n\n- [Simplicity First](/standards/simplicity-first.md)"
+    },
+    {
+      "id": "standards/okf-prompt-injection",
+      "type": "Concept",
+      "title": "OKF Prompt Injection",
+      "description": "Binding rule \u2014 agents MUST inject slim Prompt Cards from the vault, never paste the whole brain or full standards into generation context.",
+      "tags": [
+        "standard",
+        "okf",
+        "prompting",
+        "tokens",
+        "aegis"
+      ],
+      "content": "# OKF Prompt Injection (Rule #2)\n\n**Rule #2.** Curated OKF stays in the vault. Generation context gets **slim Prompt Cards only**.\n\nThis fixes the fat-dump tax: pasting full standards / `graph.json` / entire concept bodies into every authoring turn.\n\n## MUST\n\n1. Before **Artifact Generation** (Path A), assemble a **Prompt Pack** from relevant documents' `## Prompt Card` sections only.\n2. Each card **MUST** target **\u2264150 tokens** (~600 characters). Prefer shorter.\n3. Total Prompt Pack for one generation turn **SHOULD** stay **\u2264400 tokens** unless the user explicitly expands scope.\n4. Encyclopedic bodies (full tables, citations, bench notes) **MUST** remain in the vault for lookup \u2014 **MUST NOT** be copied wholesale into the generation prompt.\n5. Binding house rules for agents **MUST** expose a `## Prompt Card` section (standards especially).\n\n## SHOULD\n\n1. Build cards with: `python3 _okf_knowledge/kernel/prompt_card.py <path> [<path>...]`\n2. Find paths without pasting indexes: `python3 _okf_knowledge/kernel/okf_lookup.py \"<query>\"` then `--card` for injection.\n3. Prefer one-shot validation pass over generate \u2192 fail \u2192 remediate loops when a Prompt Card already encodes the binding rules.\n\n## FORBIDDEN\n\n1. Pasting `_okf_knowledge/graph.json`, or full standard/concept files into the generation prompt by default.\n2. Using \u201cload the whole Aegis brain\u201d as the default authoring strategy.\n3. Treating no-OKF + multi-turn fix loops as the preferred path when a Prompt Card one-shot exists.\n\n## Prompt Card\n\n```text\nOKF inject MUST: ## Prompt Card only (\u2264150 tok each); pack SHOULD \u2264400 tok.\nFORBIDDEN: paste graph.json/full standards into generation by default.\nBuild: `okf_lookup.py \"<q>\"` then `--card` (or `prompt_card.py <paths>`).\n```\n\n## How to load knowledge (procedure)\n\n| Step | Action |\n| :--- | :--- |\n| 1 | Route module/playbook \u2192 list 1\u20133 binding docs (`okf_lookup.py \"<intent>\"`) |\n| 2 | Extract each `## Prompt Card` via `prompt_card.py` or `okf_lookup.py --card` |\n| 3 | Concatenate into Prompt Pack; drop duplicates |\n| 4 | Generate artifacts against the pack |\n| 5 | Validate (lint / domain gates); if fail, remediate with failure text \u2014 not a fat re-dump |\n\n## Related\n\n- Principle: [Simplicity First](/standards/simplicity-first.md)\n- Control plane: [AGENTS.md](/AGENTS.md) Path A\n- Architecture ADR (package root, outside vault): `/ADR.md`\n- Playbook: [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md)\n- Starter: [Extending Aegis](/vault/concepts/extending-aegis.md)"
+    },
+    {
+      "id": "standards/simplicity-first",
+      "type": "Concept",
+      "title": "Simplicity First (Rule #1)",
+      "description": "The Laziness Ladder \u2014 always choose the simplest, shortest, minimal solution that works. Overrides complexity in design, code, and vault structure.",
+      "tags": [
+        "standard",
+        "simplicity",
+        "laziness-ladder",
+        "principles"
+      ],
+      "content": "**Rule #1.** Apply the Laziness Ladder as the primary lens for every decision in\nthis vault and in code: the simplest, shortest, most minimal solution that works.\n\n# Laziness Ladder\n\nWhen multiple approaches solve the problem, pick the lowest rung that still works:\n\n| Rung | Approach | Example |\n|------|----------|---------|\n| 1 | Do nothing new | Reuse an existing concept, playbook, or reference |\n| 2 | Edit one file | Fix a link, add one paragraph, patch one script |\n| 3 | Add one small file | One new concept \u2014 not a new directory tree |\n| 4 | Add tooling | Only when manual steps repeat and hurt |\n| 5 | Add abstraction | Last resort \u2014 never start here |\n\n# In the vault\n\n- One concept per file; cross-link instead of duplicating prose.\n- Prefer `index.md` progressive disclosure over bulk-reading the tree.\n- Scripts are stdlib-only unless a dependency is unavoidable.\n- New types, directories, or tooling require justification against this rule.\n\n# In code\n\n- Smallest diff that fixes the root cause \u2014 no drive-by refactors.\n- No helpers for one-liners; no frameworks where a script suffices.\n- Match existing conventions before inventing new ones.\n\n# Related\n\n- All other house standards: [Standards index](index.md)\n- Metadata discipline: [Metadata Headers](metadata-headers.md)\n- Prompt discipline: [OKF Prompt Injection](okf-prompt-injection.md)"
+    },
+    {
+      "id": "vault/concepts/extending-aegis",
+      "type": "Concept",
+      "title": "Extending Aegis",
+      "description": "How to grow this empty framework with your own modules, vendors, standards, and vault knowledge.",
+      "tags": [
+        "aegis-system",
+        "getting-started",
+        "framework"
+      ],
+      "content": "# Extending Aegis\n\nThis package is an **empty control plane**: `AGENTS.md` + `_okf_knowledge/`. Zip it, drop the folder into an IDE agents directory, then add your knowledge.\n\n## Add durable knowledge\n\n1. Drop raw material in [`_inbox/`](/_inbox/).\n2. Follow [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md).\n3. From the package directory:\n\n```bash\npython3 _okf_knowledge/kernel/graph_compiler.py\npython3 _okf_knowledge/kernel/okf_lint.py\n```\n\n## Where things go\n\n| Content | Directory (under `_okf_knowledge/`) | `type` |\n| :--- | :--- | :--- |\n| House rule | `standards/` | `Concept` + tag `standard` |\n| Evergreen fact / pattern | `vault/concepts/` | `Concept` |\n| Procedure | `vault/playbooks/` | `Playbook` |\n| Running system | `vault/systems/` | `System` |\n| Post-mortem | `vault/incidents/` | `Incident` |\n| Cached upstream docs | `vault/references/` | `Reference` |\n| Execution logic | `kernel/modules/` | `Module` |\n| Cloud/tool extension | `kernel/vendors/` | `Vendor` |\n\n## Frontmatter (required)\n\n```yaml\n---\ntype: Concept\ntitle: Human-readable name\ndescription: One-line summary for indexes and okf_lookup\ntags: [kebab-case, topic]\ntimestamp: 2026-07-13T00:00:00Z\nstatus: active\n---\n```\n\n## Related\n\n- Control plane: [AGENTS.md](/AGENTS.md)\n- Maintenance: [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md)\n- Law: [Simplicity First](/standards/simplicity-first.md)\n- Architecture ADR (package root, outside vault): see `ADR.md` next to `README.md`"
+    },
+    {
+      "id": "vault/playbooks/maintain-aegis-system",
+      "type": "Playbook",
+      "title": "Maintain aegis-system",
+      "description": "How to add or update concepts, playbooks, references, scripts, and skills in the aegis-system OKF vault \u2014 with post-change verification.",
+      "tags": [
+        "aegis-system",
+        "ingest",
+        "maintenance",
+        "okf",
+        "procedure"
+      ],
+      "content": "# Trigger\n\nYou need to add or change durable knowledge in aegis-system: a concept, house standard,\nplaybook, reference, vault script, agent bridge, or Cursor skill.\n\n# Preconditions\n\n- [AGENTS.md](/AGENTS.md) \u00a71.2 binds all brain mutations to this playbook \u2014 follow it end-to-end.\n- Read [AGENTS.md](/AGENTS.md) \u00a71.3 for the OKF frontmatter schema before creating files.\n- Raw source material (if any) is in [`_inbox/`](/_inbox/) and has not been edited.\n- You know which `type` the content is (see decision table below).\n\n# What to create \u2014 decision table\n\n| You are documenting\u2026 | `type` | Directory | Also update |\n|----------------------|--------|-----------|-------------|\n| Evergreen knowledge, pattern, tool overview | `Concept` | `vault/` (by domain) | `vault/index.md` |\n| House rule (MUST/SHOULD) | `Concept` + tag `standard` | `standards/` | [standards/index.md](/standards/index.md) |\n| Executable agent procedure | `Playbook` | `vault/playbooks/` | [playbooks/index.md](/vault/playbooks/index.md) |\n| Cached upstream docs | `Reference` | `vault/references/` | Run `kernel/cache_optimizer.py` |\n| Running system in workspace | `System` | `vault/systems/` | [systems/index.md](/vault/systems/index.md) |\n| Post-mortem | `Incident` | `vault/incidents/` | Link to affected systems/playbooks |\n| Core execution logic / ownership | `Module` | `kernel/modules/` | [modules/index.md](/kernel/modules/index.md) |\n| Cloud/tool execution extension | `Vendor` | `kernel/vendors/` | [vendors/index.md](/kernel/vendors/index.md) |\n| Vault tooling (lint, compile, scrape) | Python script | `kernel/` | This playbook \u00a7 Scripts |\n| Control-plane schema / persona | Markdown | `AGENTS.md` (package root, next to `_okf_knowledge/`) | [_okf_knowledge/index.md](/index.md) |\n\n## Anti-collision rule (vendors vs vault)\n\n| Layer | Owns | MUST NOT |\n|-------|------|----------|\n| `kernel/vendors/` (`type: Vendor`) | Triggers, minimum evidence, execution pipelines, artifact ownership vs modules | Duplicate System/Concept encyclopedias of the product |\n| `vault/` (`Concept` / `System` / `Playbook` / \u2026) | Passive facts, architecture, runbooks, incidents, cached docs | Embed vendor routing/trigger tables |\n\nCross-link instead: Vendor \u2192 System/Concept; System \u2192 Vendor. Precedence on conflict: vendors beat vault ([AGENTS.md](/AGENTS.md) \u00a72.2).\n\n\n# Add or update a concept\n\n## 1. Choose path and filename\n\n- One concept per file; kebab-case filename matching the topic.\n- House standards go in `standards/` with `tags: [standard, \u2026]`.\n- Domain concepts go in `vault/`.\n\n## 2. Frontmatter (required)\n\n```yaml\n---\ntype: Concept\ntitle: Human-readable name\ndescription: One-line summary for indexes and okf_lookup.\ntags: [kebab-case, topic]\ntimestamp: 2026-07-13T00:00:00Z\nstatus: active\n---\n```\n\n## 3. Body\n\n- Prefer headings, tables, lists, and fenced code over long prose.\n- Standards: normative **MUST** / **SHOULD** / **FORBIDDEN** language.\n- Binding standards (and agent-facing concepts) **SHOULD** include a `## Prompt Card` section (\u2264150 tokens) for slim injection \u2014 see [OKF Prompt Injection](/standards/okf-prompt-injection.md).\n- External claims: `# Citations` with numbered `[1] [title](url)` entries.\n- Link to related concepts with bundle-absolute paths.\n\n## 4. Cross-links (both directions)\n\n- New concept MUST link to at least one existing related concept.\n- Update those existing files to link back.\n- Update every affected `index.md` on the path from root to the file.\n\n# Add or update a playbook\n\n## Required sections\n\n```markdown\n# Trigger\n# Preconditions\n# Steps\n# Verification\n```\n\n- Add a one-line entry to [playbooks/index.md](/vault/playbooks/index.md).\n\n# Add or update a script\n\nScripts live in `kernel/`; they are **not** OKF concepts.\n\n| Script | Role |\n|--------|------|\n| `graph_compiler.py` | Regenerate `graph.json`, embed graph in `aegis-brain.html` |\n| `okf_lint.py` | Conformance + broken links + orphans \u2192 `lint.json` |\n| `prompt_card.py` | Extract `## Prompt Card` sections \n\n\u2026"
+    }
+  ],
+  "edges": [
+    {
+      "source": "standards/metadata-headers",
+      "target": "standards/simplicity-first"
+    },
+    {
+      "source": "standards/okf-prompt-injection",
+      "target": "standards/simplicity-first"
+    },
+    {
+      "source": "standards/okf-prompt-injection",
+      "target": "vault/playbooks/maintain-aegis-system"
+    },
+    {
+      "source": "standards/okf-prompt-injection",
+      "target": "vault/concepts/extending-aegis"
+    },
+    {
+      "source": "standards/simplicity-first",
+      "target": "standards/metadata-headers"
+    },
+    {
+      "source": "standards/simplicity-first",
+      "target": "standards/okf-prompt-injection"
+    },
+    {
+      "source": "vault/concepts/extending-aegis",
+      "target": "vault/playbooks/maintain-aegis-system"
+    },
+    {
+      "source": "vault/concepts/extending-aegis",
+      "target": "vault/playbooks/maintain-aegis-system"
+    },
+    {
+      "source": "vault/concepts/extending-aegis",
+      "target": "standards/simplicity-first"
+    },
+    {
+      "source": "vault/playbooks/maintain-aegis-system",
+      "target": "standards/okf-prompt-injection"
+    },
+    {
+      "source": "vault/playbooks/maintain-aegis-system",
+      "target": "standards/simplicity-first"
+    },
+    {
+      "source": "vault/playbooks/maintain-aegis-system",
+      "target": "vault/concepts/extending-aegis"
+    }
+  ]
+}
