@@ -1,0 +1,5 @@
+{
+  "standards/metadata-headers": "```text\nMetadata MUST on new files: file_name, description, version, authors.\nOn new functions/classes: intent, input, output, role, side_effects.\nSnake_case field names; match existing kernel header style.\n```\n\n# Related\n\n- [Simplicity First](/standards/simplicity-first.md)",
+  "standards/okf-prompt-injection": "```text\nOKF inject MUST: ## Prompt Card only (\u2264150 tok each); pack SHOULD \u2264400 tok.\nFORBIDDEN: paste graph.json/full standards into generation by default.\nBuild: `okf_lookup.py \"<q>\"` then `--card` (or `prompt_card.py <paths>`).\n```",
+  "standards/simplicity-first": "```text\nRule #1 Laziness Ladder: simplest shortest minimal solution that works.\nPrefer reuse \u2192 one-file edit \u2192 one small file \u2192 tooling \u2192 abstraction (last).\nSmallest diff; stdlib scripts; no new dirs/types without justification.\n```\n\n# Related\n\n- All other house standards: [Standards index](index.md)\n- Metadata discipline: [Metadata Headers](metadata-headers.md)\n- Prompt discipline: [OKF Prompt Injection](okf-prompt-injection.md)"
+}

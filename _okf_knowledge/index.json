@@ -1,0 +1,68 @@
+[
+  {
+    "id": "standards/metadata-headers",
+    "path": "standards/metadata-headers.md",
+    "title": "Metadata Headers",
+    "description": "Required metadata blocks on every new file, function, and class across all languages.",
+    "tags": [
+      "standard",
+      "code-quality",
+      "documentation",
+      "conventions"
+    ],
+    "type": "Concept"
+  },
+  {
+    "id": "standards/okf-prompt-injection",
+    "path": "standards/okf-prompt-injection.md",
+    "title": "OKF Prompt Injection",
+    "description": "Binding rule \u2014 agents MUST inject slim Prompt Cards from the vault, never paste the whole brain or full standards into generation context.",
+    "tags": [
+      "standard",
+      "okf",
+      "prompting",
+      "tokens",
+      "aegis"
+    ],
+    "type": "Concept"
+  },
+  {
+    "id": "standards/simplicity-first",
+    "path": "standards/simplicity-first.md",
+    "title": "Simplicity First (Rule #1)",
+    "description": "The Laziness Ladder \u2014 always choose the simplest, shortest, minimal solution that works. Overrides complexity in design, code, and vault structure.",
+    "tags": [
+      "standard",
+      "simplicity",
+      "laziness-ladder",
+      "principles"
+    ],
+    "type": "Concept"
+  },
+  {
+    "id": "vault/concepts/extending-aegis",
+    "path": "vault/concepts/extending-aegis.md",
+    "title": "Extending Aegis",
+    "description": "How to grow this empty framework with your own modules, vendors, standards, and vault knowledge.",
+    "tags": [
+      "aegis-system",
+      "getting-started",
+      "framework"
+    ],
+    "type": "Concept"
+  },
+  {
+    "id": "vault/playbooks/maintain-aegis-system",
+    "path": "vault/playbooks/maintain-aegis-system.md",
+    "title": "Maintain aegis-system",
+    "description": "How to add or update concepts, playbooks, references, scripts, and skills in the aegis-system OKF vault \u2014 with post-change verification.",
+    "tags": [
+      "aegis-system",
+      "ingest",
+      "maintenance",
+      "okf",
+      "procedure"
+    ],
+    "type": "Playbook"
+  }
+]

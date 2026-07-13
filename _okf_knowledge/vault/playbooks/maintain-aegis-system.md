@@ -99,10 +99,10 @@ Scripts live in `kernel/`; they are **not** OKF concepts.
 
 | Script | Role |
 |--------|------|
-| `graph_compiler.py` | Regenerate `graph.json`, embed graph in `aegis-brain.html` |
+| `graph_compiler.py` | Regenerate `graph.json`, `index.json`, `prompt_cards.json`; embed graph in `aegis-brain.html` |
 | `okf_lint.py` | Conformance + broken links + orphans + **standards Prompt Card gate** → `lint.json` |
 | `prompt_card.py` | Extract `## Prompt Card` sections for slim agent injection |
-| `okf_lookup.py` | Search vault by query; list hits or emit Prompt Cards (`--card`) |
+| `okf_lookup.py` | Search via `index.json` (fallback: live vault); list hits or budgeted `--card` |
 | `registry_scraper.py` | JIT upstream fetch → `vault/` |
 | `cache_optimizer.py` | Normalize references, rebuild vault indexes, run compiler |
 | `serve_vault.py` | Local server + `POST /api/lint` |

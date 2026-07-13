@@ -237,7 +237,7 @@ Removing `context.toon` eliminates a tempting fat paste target. The catalog is r
 
 #### Decision
 
-- `kernel/graph_compiler.py` (renamed from `toon_compiler.py`) walks the vault, builds **nodes/edges** from frontmatter + markdown links, writes `graph.json`, and embeds into `aegis-brain.html`.
+- `kernel/graph_compiler.py` (renamed from `toon_compiler.py`) walks the vault, builds **nodes/edges** from frontmatter + markdown links, writes `graph.json` plus slim `index.json` / `prompt_cards.json` for `okf_lookup`, and embeds into `aegis-brain.html`.
 - `okf_lint.py` writes `lint.json` (also embeddable).
 - `serve_vault.py` exposes `POST /api/compile` and `POST /api/lint` so the UI can regenerate without hand-editing JSON.
 - Agents **MUST NOT** load `graph.json` into generation prompts.
@@ -425,7 +425,7 @@ User / IDE agent
        └─ MAINTAIN/INGEST          (maintain-aegis-system playbook)
                ├─ edit vault/standards
                ├─ log.md
-               ├─ graph_compiler.py → graph.json + HTML embed
+               ├─ graph_compiler.py → graph.json + index.json + prompt_cards.json + HTML embed
                └─ okf_lint.py → lint.json
 ```
 

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # file_name: graph_compiler.py
-# description: Compiles vault cross-links into graph.json and embeds them in
+# description: Compiles vault cross-links into graph.json, slim index.json /
+#              prompt_cards.json for okf_lookup, and embeds graph in
 #              aegis-brain.html. Stdlib only. (Renamed from toon_compiler.py;
 #              context.toon removed — agents use okf_lookup + Prompt Cards.)
-# version: 0.3.0
+# version: 0.4.0
 # authors: contributors
 from __future__ import annotations
 
@@ -21,6 +22,7 @@ from okf_common import (
     load_vault,
     resolve_link,
 )
+from prompt_card import extract_prompt_card
 
 
 def _graph_content(body: str) -> str:
@@ -64,14 +66,57 @@ def compile_graph(concepts: list[Concept]) -> dict[str, list[dict[str, str]]]:
     return {"nodes": nodes, "edges": edges}
 
 
+def compile_index(concepts: list[Concept]) -> list[dict[str, object]]:
+    """
+    intent: Slim frontmatter index for okf_lookup (no bodies — cheap retrieval).
+    input: concepts — parseable vault concepts.
+    output: list of index entries for index.json.
+    role: lookup index builder.
+    side_effects: none.
+    """
+    entries: list[dict[str, object]] = []
+    for c in concepts:
+        tags = c.frontmatter.get("tags", [])
+        if not isinstance(tags, list):
+            tags = [tags] if tags else []
+        entries.append(
+            {
+                "id": c.concept_id,
+                "path": c.concept_id + ".md",
+                "title": str(c.frontmatter.get("title", c.path.stem)),
+                "description": str(c.frontmatter.get("description", "")),
+                "tags": [str(t) for t in tags],
+                "type": str(c.frontmatter.get("type", "")),
+            }
+        )
+    return entries
+
+
+def compile_prompt_cards(concepts: list[Concept]) -> dict[str, str]:
+    """
+    intent: Cache ## Prompt Card bodies at compile time so lookup need not
+            reopen markdown for winners.
+    input: concepts — parseable vault concepts (body available).
+    output: concept_id → card body map for prompt_cards.json.
+    role: prompt card cache builder.
+    side_effects: none.
+    """
+    cards: dict[str, str] = {}
+    for c in concepts:
+        card = extract_prompt_card(c.body)
+        if card:
+            cards[c.concept_id] = card
+    return cards
+
+
 def main() -> int:
     """
-    intent: Entry point — write graph.json at the vault root and embed the
-            graph into aegis-brain.html for file:// auto-load.
+    intent: Entry point — write graph.json, index.json, prompt_cards.json and
+            embed the graph into aegis-brain.html for file:// auto-load.
     input: none (reads vault from disk).
     output: process exit code.
     role: CLI entry point.
-    side_effects: writes graph.json; rewrites aegis-brain.html.
+    side_effects: writes graph/index/prompt_cards JSON; rewrites aegis-brain.html.
     """
     try:
         all_concepts = load_vault()
@@ -87,8 +132,16 @@ def main() -> int:
         if legacy.exists():
             legacy.unlink()
         graph = compile_graph(concepts)
+        index = compile_index(concepts)
+        cards = compile_prompt_cards(concepts)
         graph_json = json.dumps(graph, indent=2)
         (BRAIN_ROOT / "graph.json").write_text(graph_json + "\n", encoding="utf-8")
+        (BRAIN_ROOT / "index.json").write_text(
+            json.dumps(index, indent=2) + "\n", encoding="utf-8"
+        )
+        (BRAIN_ROOT / "prompt_cards.json").write_text(
+            json.dumps(cards, indent=2) + "\n", encoding="utf-8"
+        )
         embedded = inject_into_aegis_brain("graph-data", graph_json)
     except OSError as exc:
         print(f"[DBG-201] graph compile failed: {exc}", file=sys.stderr)
@@ -96,7 +149,8 @@ def main() -> int:
     skipped_note = f", {len(skipped)} skipped" if skipped else ""
     print(
         f"[DBG-200] wrote graph.json ({len(concepts)} concepts{skipped_note}, "
-        f"{len(graph['edges'])} edges) for {VAULT_ROOT}"
+        f"{len(graph['edges'])} edges), index.json, prompt_cards.json "
+        f"({len(cards)} cards) for {VAULT_ROOT}"
         + ("; embedded graph into aegis-brain.html" if embedded else "")
     )
     return 0
