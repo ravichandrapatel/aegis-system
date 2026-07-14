@@ -5,13 +5,15 @@
 ## Install (drop-in agent package)
 
 1. Keep `AGENTS.md` and `_okf_knowledge/` together (zip the `aegis-system` folder).  
-2. Place the **entire directory** into your IDE agents/skills location, for example:
-   - Cursor: `.cursor/agents/` or `.cursor/skills/`
-   - GitHub Copilot: `.github/agents/`
-3. Select / invoke **Aegis** (this package’s `AGENTS.md`).  
+2. Place the package into your IDE agents/skills location:
+   - **Cursor:** `.cursor/agents/aegis-system/` or `.cursor/skills/aegis-system/`
+   - **GitHub Copilot:** in the target repository:
+     - Copy `.github/agents/aegis.agent.md` from this package → `.github/agents/aegis.agent.md`
+     - Place the rest of the package → `.github/agents/aegis-system/`
+3. Select / invoke **Aegis** (Copilot: pick **Aegis** from the agent picker).  
 4. Ask normally — Aegis follows the protocol and reads/writes under `_okf_knowledge/`.
 
-Paths in the protocol are **relative to the package directory** wherever you dropped it.
+Paths in the protocol are **relative to the package directory** (e.g. `.github/agents/aegis-system/` for Copilot).
 
 ## Daily workflows
 

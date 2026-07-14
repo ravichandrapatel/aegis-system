@@ -13,7 +13,9 @@ aegis-system/
 ├── README.md                 # Short install / what’s included
 ├── BENCH_PROMPT.md           # Optional A/B bench template (OKF vs no-OKF)
 ├── docs/                     # This documentation (standalone, human)
-├── .github/workflows/        # CI (e.g. okf-lint)
+├── .github/
+│   ├── agents/aegis.agent.md # GitHub Copilot agent profile (derived from AGENTS.md)
+│   └── workflows/            # CI (e.g. okf-lint)
 └── _okf_knowledge/           # The Aegis Brain (see 03-brain-zones.md)
 ```
 
@@ -26,6 +28,7 @@ aegis-system/
 | **`README.md`** | Humans installing the package | Zip/drop-in install, quick tool commands | Not the full protocol |
 | **`BENCH_PROMPT.md`** | Benchmark / eval runs | A/B tests of OKF-assisted vs bare generation | Day-to-day agent operation |
 | **`docs/`** | Humans (and onboarding) | Detailed “what/when/how” manuals | Not a replacement for vault knowledge agents must look up |
+| **`.github/agents/aegis.agent.md`** | GitHub Copilot | Agent profile with YAML frontmatter; copy to target repo `.github/agents/` on install | Not used by Cursor (use `AGENTS.md` directly) |
 | **`.github/workflows/okf-lint.yml`** | CI | Fail PRs when brain lint errors | Locally prefer running `okf.py lint` directly |
 
 ## `_okf_knowledge/` at a glance
