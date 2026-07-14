@@ -26,7 +26,7 @@ aegis-system/
 | **`README.md`** | Humans installing the package | Zip/drop-in install, quick tool commands | Not the full protocol |
 | **`BENCH_PROMPT.md`** | Benchmark / eval runs | A/B tests of OKF-assisted vs bare generation | Day-to-day agent operation |
 | **`docs/`** | Humans (and onboarding) | Detailed “what/when/how” manuals | Not a replacement for vault knowledge agents must look up |
-| **`.github/workflows/okf-lint.yml`** | CI | Fail PRs when brain lint errors | Locally prefer running `okf_lint.py` directly |
+| **`.github/workflows/okf-lint.yml`** | CI | Fail PRs when brain lint errors | Locally prefer running `okf.py lint` directly |
 
 ## `_okf_knowledge/` at a glance
 

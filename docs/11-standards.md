@@ -12,7 +12,7 @@ Standards live in `_okf_knowledge/standards/`. They are **binding** governance d
 | [`okf-prompt-injection.md`](../_okf_knowledge/standards/okf-prompt-injection.md) | **Rule #2** | Inject Prompt Cards only; never dump the brain |
 | [`metadata-headers.md`](../_okf_knowledge/standards/metadata-headers.md) | Headers | Required metadata on new files/functions/classes |
 
-`AGENTS.md` Path A binds generation to Rule #2. `okf_lint.py` **fails** if any `standards/*` concept lacks a non-empty `## Prompt Card`.
+`AGENTS.md` Path A binds generation to Rule #2. `okf.py lint` **fails** if any `standards/*` concept lacks a non-empty `## Prompt Card`.
 
 ## When to read which standard
 
@@ -70,7 +70,7 @@ Match existing kernel header style (snake_case field names).
 3. Add normative MUST/SHOULD/FORBIDDEN sections.  
 4. Add a non-empty `## Prompt Card`.  
 5. Update `standards/index.md`, cross-links, `log.md`.  
-6. Run `graph_compiler.py` + `okf_lint.py`.
+6. Run `okf.py compile` + `okf.py lint`.
 
 Full procedure: [Maintenance](13-maintenance.md).
 

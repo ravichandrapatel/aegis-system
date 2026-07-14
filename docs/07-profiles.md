@@ -180,7 +180,7 @@ Not in the minimal `_schema.md`, but useful in concrete Profiles:
 4. List only modules/standards that **must** exist for this role.  
 5. Set execution modes and any **PROHIBITED** modes.  
 6. Update `last_modified`.  
-7. Follow [Maintenance](13-maintenance.md): indexes/log if you add an index entry, then `graph_compiler.py` + `okf_lint.py`.
+7. Follow [Maintenance](13-maintenance.md): indexes/log if you add an index entry, then `okf.py compile` + `okf.py lint`.
 
 **Naming:** prefer kebab-case filenames matching the role (`platform-architect.md`, `gha-operator.md`).
 

@@ -71,7 +71,7 @@ Drop lowest-ranking cards until ≤ 8 cards remain.
 | `compatible_with` | Hard gate; missing/violated → **HALT** | Version constraints |
 | `supersedes` | Evict older node; replace with newer | B supersedes A |
 
-> Implementation note: today’s `graph_compiler.py` primarily emits link-derived edges for the visualizer. Model richer typed edges in document bodies/frontmatter as the graph schema evolves; protocol already defines the semantics agents must respect.
+> Implementation note: today’s `okf.py compile` primarily emits link-derived edges for the visualizer. Model richer typed edges in document bodies/frontmatter as the graph schema evolves; protocol already defines the semantics agents must respect.
 
 ## Knowledge precedence (§2.2)
 
@@ -102,7 +102,7 @@ When sources conflict, resolve in this order:
 Before grepping randomly or pasting large docs:
 
 ```bash
-python3 _okf_knowledge/kernel/okf_lookup.py "<query>"
+python3 _okf_knowledge/kernel/okf.py lookup "<query>"
 ```
 
 1. **MUST** lookup when the path is unknown.  

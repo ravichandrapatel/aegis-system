@@ -30,8 +30,8 @@ standards/ | kernel/ | vault/
    ├─ update index.md files
    ├─ bidirectional cross-links
    ├─ append log.md
-   ├─ graph_compiler.py
-   └─ okf_lint.py  → 0 errors
+   ├─ okf.py compile
+   └─ okf.py lint  → 0 errors
    │
    ▼
 archive/delete inbox source
@@ -41,8 +41,8 @@ archive/delete inbox source
 
 ```bash
 # From package directory
-python3 _okf_knowledge/kernel/graph_compiler.py
-python3 _okf_knowledge/kernel/okf_lint.py
+python3 _okf_knowledge/kernel/okf.py compile
+python3 _okf_knowledge/kernel/okf.py lint
 ```
 
 | Step | Action |
@@ -50,8 +50,8 @@ python3 _okf_knowledge/kernel/okf_lint.py
 | 1 | Update affected `index.md` files |
 | 2 | Cross-link both directions |
 | 3 | Append dated entry to `log.md` |
-| 4 | Run `graph_compiler.py` |
-| 5 | Run `okf_lint.py` — **0 error(s)** |
+| 4 | Run `okf.py compile` |
+| 5 | Run `okf.py lint` — **0 error(s)** |
 | 6 | Archive or delete `_inbox/` source after ingest |
 
 ## Verification gates

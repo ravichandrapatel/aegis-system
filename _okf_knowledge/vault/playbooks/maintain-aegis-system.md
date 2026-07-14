@@ -3,7 +3,7 @@ type: Playbook
 title: Maintain aegis-system
 description: How to add or update concepts, playbooks, references, scripts, and skills in the aegis-system OKF vault — with post-change verification.
 tags: [aegis-system, ingest, maintenance, okf, procedure]
-timestamp: 2026-07-13T14:50:00Z
+timestamp: 2026-07-14T17:40:00Z
 status: active
 ---
 
@@ -26,7 +26,7 @@ playbook, reference, vault script, agent bridge, or Cursor skill.
 | Evergreen knowledge, pattern, tool overview | `Concept` | `vault/` (by domain) | `vault/index.md` |
 | House rule (MUST/SHOULD) | `Concept` + tag `standard` | `standards/` | [standards/index.md](/standards/index.md) |
 | Executable agent procedure | `Playbook` | `vault/playbooks/` | [playbooks/index.md](/vault/playbooks/index.md) |
-| Cached upstream docs | `Reference` | `vault/references/` | Run `kernel/cache_optimizer.py` |
+| Cached upstream docs | `Reference` | `vault/references/` | Run `kernel/okf.py optimize` |
 | Running system in workspace | `System` | `vault/systems/` | [systems/index.md](/vault/systems/index.md) |
 | Post-mortem | `Incident` | `vault/incidents/` | Link to affected systems/playbooks |
 | Core execution logic / ownership | `Module` | `kernel/modules/` | [modules/index.md](/kernel/modules/index.md) |
@@ -69,7 +69,7 @@ status: active
 
 - Prefer headings, tables, lists, and fenced code over long prose.
 - Standards: normative **MUST** / **SHOULD** / **FORBIDDEN** language.
-- Binding standards **MUST** include a non-empty `## Prompt Card` section (≤150 tokens / ~600 chars) — enforced by `okf_lint.py` (`DBG-308` / `DBG-309`). See [OKF Prompt Injection](/standards/okf-prompt-injection.md).
+- Binding standards **MUST** include a non-empty `## Prompt Card` section (≤150 tokens / ~600 chars) — enforced by `okf.py lint` (`DBG-308` / `DBG-309`). See [OKF Prompt Injection](/standards/okf-prompt-injection.md).
 - Other agent-facing concepts **SHOULD** include a `## Prompt Card` for slim injection.
 - External claims: `# Citations` with numbered `[1] [title](url)` entries.
 - Link to related concepts with bundle-absolute paths.
@@ -95,18 +95,18 @@ status: active
 
 # Add or update a script
 
-Scripts live in `kernel/`; they are **not** OKF concepts.
+The kernel is a single script, `kernel/okf.py`, with one subcommand per operation; it is **not** an OKF concept.
 
-| Script | Role |
+| Subcommand | Role |
 |--------|------|
-| `graph_compiler.py` | Regenerate `graph.json`, `index.json`, `prompt_cards.json`; embed graph in `aegis-brain.html` |
-| `okf_lint.py` | Conformance + broken links + orphans + **standards Prompt Card gate** → `lint.json` |
-| `prompt_card.py` | Extract `## Prompt Card` sections for slim agent injection |
-| `okf_lookup.py` | Search via `index.json` (fallback: live vault); list hits or budgeted `--card` |
-| `registry_scraper.py` | JIT upstream fetch → `vault/` |
-| `cache_optimizer.py` | Normalize references, rebuild vault indexes, run compiler |
-| `serve_vault.py` | Local server + `POST /api/lint` |
-| `okf_common.py` | Shared vault helpers |
+| `okf.py compile` | Regenerate `graph.json`, `index.json`, `prompt_cards.json`; embed graph in `aegis-brain.html` |
+| `okf.py lint` | Conformance + broken links + orphans + **standards Prompt Card gate** → `lint.json` |
+| `okf.py card` | Extract `## Prompt Card` sections for slim agent injection |
+| `okf.py lookup` | Search via `index.json` (fallback: live vault); list hits or budgeted `--card` |
+| `okf.py enrich` | LLM gap-fill for retrieval fields (description, tags, `## Prompt Card`); dry-run by default, `--write` to apply |
+| `okf.py scrape` | JIT upstream fetch → `vault/` |
+| `okf.py optimize` | Normalize references, rebuild vault indexes, run compiler |
+| `okf.py serve` | Local server + `POST /api/lint` / `POST /api/compile` |
 
 # Post-change checklist
 
@@ -114,8 +114,8 @@ Run after **every** concept or playbook add/update:
 
 ```bash
 # From this package directory (wherever it was dropped in agents/)
-python3 _okf_knowledge/kernel/graph_compiler.py
-python3 _okf_knowledge/kernel/okf_lint.py
+python3 _okf_knowledge/kernel/okf.py compile
+python3 _okf_knowledge/kernel/okf.py lint
 ```
 
 | Step | Action |
@@ -123,17 +123,26 @@ python3 _okf_knowledge/kernel/okf_lint.py
 | 1 | Update affected `index.md` files |
 | 2 | Cross-link both directions |
 | 3 | Append entry to [log.md](/log.md) |
-| 4 | Run `graph_compiler.py` |
-| 5 | Run `okf_lint.py` — must end with `0 error(s)` |
+| 4 | Run `okf.py compile` |
+| 5 | Run `okf.py lint` — must end with `0 error(s)` |
 | 6 | Archive or delete `_inbox/` source after ingest |
 
 # Verification
 
 - [ ] New/edited file has valid frontmatter per [AGENTS.md](/AGENTS.md) §1.3
 - [ ] Every affected `index.md` lists the new or changed page
-- [ ] `python3 _okf_knowledge/kernel/okf_lint.py` reports clean (or warnings only, with plan)
+- [ ] `python3 _okf_knowledge/kernel/okf.py lint` reports clean (or warnings only, with plan)
 - [ ] `log.md` has a dated entry
 - [ ] Change followed this playbook as required by [AGENTS.md](/AGENTS.md) §1.2
+
+## Prompt Card
+
+```text
+Brain mutations MUST: correct type/dir per decision table; required frontmatter;
+cross-link both directions; update every affected index.md; log.md entry.
+Standards MUST ship a ## Prompt Card (≤600 chars). After every change run
+okf.py compile then okf.py lint — must end 0 error(s). Archive _inbox source.
+```
 
 # Related
 

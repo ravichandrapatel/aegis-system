@@ -18,7 +18,7 @@ Passive memory lives here under `vault/`. Types are declared in frontmatter; fil
 
 * **Starter**: [Extending Aegis](concepts/extending-aegis.md) — how to grow this framework.
 * **Ingest material**: Drop it in [`_inbox/`](/_inbox/) and follow [Maintain aegis-system](playbooks/maintain-aegis-system.md).
-* **Fetch Reference**: `python3 _okf_knowledge/kernel/registry_scraper.py "<topic>"` *(from package root)*
-* **Optimize Cache**: `python3 _okf_knowledge/kernel/cache_optimizer.py`
-* **Compile Graph**: `python3 _okf_knowledge/kernel/graph_compiler.py`
-* **Lint Vault**: `python3 _okf_knowledge/kernel/okf_lint.py`
+* **Fetch Reference**: `python3 _okf_knowledge/kernel/okf.py scrape "<topic>"` *(from package root)*
+* **Optimize Cache**: `python3 _okf_knowledge/kernel/okf.py optimize`
+* **Compile Graph**: `python3 _okf_knowledge/kernel/okf.py compile`
+* **Lint Vault**: `python3 _okf_knowledge/kernel/okf.py lint`

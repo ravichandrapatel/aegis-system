@@ -23,8 +23,8 @@ This fixes the fat-dump tax: pasting full standards / `graph.json` / entire conc
 
 ## SHOULD
 
-1. Build cards with: `python3 _okf_knowledge/kernel/prompt_card.py <path> [<path>...]`
-2. Find paths without pasting indexes: `python3 _okf_knowledge/kernel/okf_lookup.py "<query>"` then `--card` for injection.
+1. Build cards with: `python3 _okf_knowledge/kernel/okf.py card <path> [<path>...]`
+2. Find paths without pasting indexes: `python3 _okf_knowledge/kernel/okf.py lookup "<query>"` then `--card` for injection.
 3. Prefer one-shot validation pass over generate → fail → remediate loops when a Prompt Card already encodes the binding rules.
 
 ## FORBIDDEN
@@ -38,15 +38,15 @@ This fixes the fat-dump tax: pasting full standards / `graph.json` / entire conc
 ```text
 OKF inject MUST: ## Prompt Card only (≤150 tok each); pack SHOULD ≤400 tok.
 FORBIDDEN: paste graph.json/full standards into generation by default.
-Build: `okf_lookup.py "<q>"` then `--card` (or `prompt_card.py <paths>`).
+Build: `okf.py lookup "<q>"` then `--card` (or `okf.py card <paths>`).
 ```
 
 ## How to load knowledge (procedure)
 
 | Step | Action |
 | :--- | :--- |
-| 1 | Route module/playbook → list 1–3 binding docs (`okf_lookup.py "<intent>"`) |
-| 2 | Extract each `## Prompt Card` via `prompt_card.py` or `okf_lookup.py --card` |
+| 1 | Route module/playbook → list 1–3 binding docs (`okf.py lookup "<intent>"`) |
+| 2 | Extract each `## Prompt Card` via `okf.py card` or `okf.py lookup --card` |
 | 3 | Concatenate into Prompt Pack; drop duplicates |
 | 4 | Generate artifacts against the pack |
 | 5 | Validate (lint / domain gates); if fail, remediate with failure text — not a fat re-dump |

@@ -156,7 +156,7 @@ status: active
 ```
 
 Known types: `Concept`, `Playbook`, `System`, `Incident`, `Reference`, `Module`, `Vendor`.  
-Enforced/warned by `kernel/okf_lint.py`.
+Enforced/warned by `kernel/okf.py lint`.
 
 #### Why built this way
 
@@ -172,9 +172,9 @@ Plain markdown without frontmatter forces brittle path heuristics.
 
 | Tool / flow | Use of frontmatter |
 | --- | --- |
-| `okf_lookup.py` | Scoring and hit listing |
-| `okf_lint.py` | Schema + health |
-| `graph_compiler.py` | Node labels/types in `graph.json` |
+| `okf.py lookup` | Scoring and hit listing |
+| `okf.py lint` | Schema + health |
+| `okf.py compile` | Node labels/types in `graph.json` |
 | Humans | Skim type/status in PRs |
 
 #### Alternatives rejected
@@ -194,7 +194,7 @@ Plain markdown without frontmatter forces brittle path heuristics.
 1. Agents **MUST** find vault files with:
 
    ```bash
-   python3 _okf_knowledge/kernel/okf_lookup.py "<query>"
+   python3 _okf_knowledge/kernel/okf.py lookup "<query>"
    ```
 
    Flags: `--paths` (locations only), `--card` (Prompt Cards), `--limit N`.
@@ -217,10 +217,10 @@ Removing `context.toon` eliminates a tempting fat paste target. The catalog is r
 
 | Command / artifact | Use |
 | --- | --- |
-| `okf_lookup.py "prompt injection"` | Find `standards/okf-prompt-injection` etc. |
+| `okf.py lookup "prompt injection"` | Find `standards/okf-prompt-injection` etc. |
 | `--paths` | Resolve filesystem path for Read tools |
 | `--card` | Build Path A Prompt Pack |
-| `prompt_card.py <paths>` | Extract cards when paths already known |
+| `okf.py card <paths>` | Extract cards when paths already known |
 | Prompt Card in each standard | Durable, reviewable injection surface |
 
 #### Alternatives rejected
@@ -237,9 +237,9 @@ Removing `context.toon` eliminates a tempting fat paste target. The catalog is r
 
 #### Decision
 
-- `kernel/graph_compiler.py` (renamed from `toon_compiler.py`) walks the vault, builds **nodes/edges** from frontmatter + markdown links, writes `graph.json` plus slim `index.json` / `prompt_cards.json` for `okf_lookup`, and embeds into `aegis-brain.html`.
-- `okf_lint.py` writes `lint.json` (also embeddable).
-- `serve_vault.py` exposes `POST /api/compile` and `POST /api/lint` so the UI can regenerate without hand-editing JSON.
+- `kernel/okf.py compile` (renamed from `toon_compiler.py`) walks the vault, builds **nodes/edges** from frontmatter + markdown links, writes `graph.json` plus slim `index.json` / `prompt_cards.json` for `okf_lookup`, and embeds into `aegis-brain.html`.
+- `okf.py lint` writes `lint.json` (also embeddable).
+- `okf.py serve` exposes `POST /api/compile` and `POST /api/lint` so the UI can regenerate without hand-editing JSON.
 - Agents **MUST NOT** load `graph.json` into generation prompts.
 
 #### Why built this way
@@ -257,7 +257,7 @@ On-disk JSON remains useful for **offline `file://` HTML**, CI, and maintain che
 | `graph.json` | Brain visualizer; dependency browsing |
 | `lint.json` | Health report in UI |
 | `aegis-brain.html` | Interactive graph + reading pane |
-| `serve_vault.py` | Local server + Run Compile / Run Lint buttons |
+| `okf.py serve` | Local server + Run Compile / Run Lint buttons |
 | Maintain checklist | After vault edits, recompile + lint |
 
 #### Alternatives rejected
@@ -278,7 +278,7 @@ Any add/update/ingest/restructure of durable brain knowledge **MUST** follow:
 
 `_okf_knowledge/vault/playbooks/maintain-aegis-system.md`
 
-Post-change checklist includes: update indexes, bidirectional cross-links, append `_okf_knowledge/log.md`, run `graph_compiler.py`, run `okf_lint.py` (0 errors).
+Post-change checklist includes: update indexes, bidirectional cross-links, append `_okf_knowledge/log.md`, run `okf.py compile`, run `okf.py lint` (0 errors).
 
 #### Why built this way
 
@@ -322,7 +322,7 @@ This clean-slate package ships **no domain modules or systems** — only:
 | Starter vault | `extending-aegis`, `maintain-aegis-system` |
 | Kernel | lookup, Prompt Cards, lint, graph compile, serve |
 
-**Do not remove `okf-prompt-injection.md` when sharing a thinner zip.** It is the normative home for Prompt Card injection (D4); `AGENTS.md` Path A and `okf_lookup.py --card` / `prompt_card.py` depend on that rule remaining explicit in the vault.
+**Do not remove `okf-prompt-injection.md` when sharing a thinner zip.** It is the normative home for Prompt Card injection (D4); `AGENTS.md` Path A and `okf.py lookup --card` / `okf.py card` depend on that rule remaining explicit in the vault.
 
 Extending the framework is documented in `vault/concepts/extending-aegis.md`.
 
@@ -356,7 +356,7 @@ If Aegis were hard-wired to one domain, it could not host Kubernetes, Terraform,
 
 | Lane | Store | Query | Inject |
 | --- | --- | --- | --- |
-| Ops / policy | `standards/`, `vault/playbooks/`, `concepts/` | `okf_lookup.py` → `--card` | Prompt Pack |
+| Ops / policy | `standards/`, `vault/playbooks/`, `concepts/` | `okf.py lookup` → `--card` | Prompt Pack |
 | Code APIs | Optional generated tree e.g. `vault/code-index/` (from okf-generator-style generate) | Separate `code` lookup scope | One concept card (signature/params), not whole source files |
 
 **Do not** merge code-index into default vault lookup or into `graph_compiler` by default.
@@ -389,7 +389,7 @@ Source remains untouched; generated indexes remain regenerable and disposable. C
 
 #### Decision
 
-- Script **filenames**: snake_case (`graph_compiler.py`, `okf_lookup.py`, …).
+- Script **filenames**: snake_case (`okf.py`, with subcommands `compile`, `lookup`, …).
 - Metadata header **keys**: snake_case (`file_name`, `description`, `version`, `authors`, `intent`, `input`, `output`, `role`, `side_effects`) per `standards/metadata-headers.md`.
 
 #### Why built this way
@@ -490,7 +490,7 @@ If none apply, **keep the monolith** and use Profiles + intent matrix instead.
 | --- | --- |
 | Thin `AGENTS.md` | Default agent; intent detect → hand off or load Profile |
 | Specialized agent files | Smaller protocol surface per role |
-| Shared brain + lookup | Same `okf_lookup.py` / Prompt Cards for all entrypoints |
+| Shared brain + lookup | Same `okf.py lookup` / Prompt Cards for all entrypoints |
 | Profiles | Still gate modules/vendors/standards per job |
 
 #### Alternatives rejected
@@ -521,7 +521,7 @@ User / IDE agent
        │
        ├─ reads AGENTS.md          (routing, Path A/B/C, §1.5 lookup rules)
        │
-       ├─ okf_lookup.py "<q>"      (find concept ids / paths)
+       ├─ okf.py lookup "<q>"      (find concept ids / paths)
        │       └─ --card           (Prompt Pack for generation)
        │
        ├─ optional deep read       (full playbook AFTER lookup)
@@ -531,14 +531,14 @@ User / IDE agent
        └─ MAINTAIN/INGEST          (maintain-aegis-system playbook)
                ├─ edit vault/standards
                ├─ log.md
-               ├─ graph_compiler.py → graph.json + index.json + prompt_cards.json + HTML embed
-               └─ okf_lint.py → lint.json
+               ├─ okf.py compile → graph.json + index.json + prompt_cards.json + HTML embed
+               └─ okf.py lint → lint.json
 ```
 
 Visualizer path (humans):
 
 ```text
-serve_vault.py → aegis-brain.html → fetch/embed graph.json + lint.json
+okf.py serve → aegis-brain.html → fetch/embed graph.json + lint.json
                  UI buttons → POST /api/compile | /api/lint
 ```
 
@@ -556,7 +556,7 @@ serve_vault.py → aegis-brain.html → fetch/embed graph.json + lint.json
 
 ### Costs / tradeoffs
 
-- Authors must maintain `## Prompt Card` sections on binding docs — **mechanically enforced** for `standards/*` via `okf_lint.py` / CI (`DBG-308`).
+- Authors must maintain `## Prompt Card` sections on binding docs — **mechanically enforced** for `standards/*` via `okf.py lint` / CI (`DBG-308`).
 - Protocol compliance for *running* lookup before generate remains **behavioral** (agents must run lookup); chat itself is not a compiler gate.
 - Maintain playbook adds ceremony versus casual edits.
 - Dual-lane code-index still needs a wrapper implementation to be real.
@@ -565,7 +565,7 @@ serve_vault.py → aegis-brain.html → fetch/embed graph.json + lint.json
 
 1. Implement `aegis-okf` (or similar) wrapper: `lookup` / `code` / `gen` / `pack`.
 2. Optionally make `graph.json`/`lint.json` (and `index.json` / `prompt_cards.json`) gitignored caches with server/CLI regenerate-only — only if offline HTML story is preserved via embed.
-3. ~~Add mechanical checks (hook/CI) that Prompt Cards exist on all `standards/*`.~~ **Done** — `okf_lint.py` emits `DBG-308` (error) when a `standards/*` concept lacks a non-empty `## Prompt Card`; oversized cards warn as `DBG-309`. CI: `.github/workflows/okf-lint.yml`.
+3. ~~Add mechanical checks (hook/CI) that Prompt Cards exist on all `standards/*`.~~ **Done** — `okf.py lint` emits `DBG-308` (error) when a `standards/*` concept lacks a non-empty `## Prompt Card`; oversized cards warn as `DBG-309`. CI: `.github/workflows/okf-lint.yml`.
 4. **Optional multi-agent split (D10):** only if trigger criteria fire — extract Path A/B/C/Maintain into `agents/*.md` with shared `_common.md`; keep one `_okf_knowledge/` brain. Documented in [`docs/16-multi-agent-split.md`](docs/16-multi-agent-split.md).
 
 ---
@@ -589,7 +589,7 @@ serve_vault.py → aegis-brain.html → fetch/embed graph.json + lint.json
 | Version | Date | Notes |
 | --- | --- | --- |
 | 1.3 | 2026-07-14 | D10: optional future split of `AGENTS.md` into specialized agents; protocol header → v4.6.1; follow-up #4. |
-| 1.2 | 2026-07-13 | Follow-up #3 done: standards Prompt Card gate in `okf_lint.py` + `okf-lint` CI workflow. |
+| 1.2 | 2026-07-13 | Follow-up #3 done: standards Prompt Card gate in `okf.py lint` + `okf-lint` CI workflow. |
 | 1.1 | 2026-07-13 | Clean-slate ADR: D7 documents empty domain slots; D2/D3 examples de-domainized; Rule #2 (`okf-prompt-injection`) called out as non-optional shipped standard. |
 | 1.0 | 2026-07-13 | Initial full ADR at package root (Accepted). Aligns with protocol 4.3.1 and removal of `context.toon`. |
 

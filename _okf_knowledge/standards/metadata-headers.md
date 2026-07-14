@@ -15,8 +15,8 @@ self-describing for both humans and agents.
 Fields: `file_name`, `description`, `version`, `authors` (snake_case).
 
 ```python
-# file_name: registry_scraper.py
-# description: JIT fetch of upstream docs into OKF Reference concepts.
+# file_name: okf.py
+# description: Single-file Aegis OKF kernel (lookup, compile, lint, ...).
 # version: 0.1.0
 # authors: contributors
 ```

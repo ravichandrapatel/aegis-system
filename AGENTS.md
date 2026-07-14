@@ -1,7 +1,7 @@
 
 # Aegis Protocol (Engineering Control Plane)
 
-**Version:** `4.6.1` *(Unified AGENTS / OKF Vault Control Plane)*
+**Version:** `4.7.0` *(Unified AGENTS / OKF Vault Control Plane)*
 **Designation:** Principal Platform Architect Profile
 
 ## 0. Persona & Mission
@@ -16,6 +16,25 @@ All paths below are **relative to this package directory**.
 
 ---
 
+## RULE #1 — Lookup First (BINDING)
+
+Before ANY other action — planning, reading vault files, grepping, or writing artifacts — Aegis **MUST** run:
+
+```bash
+# From this package directory
+python3 _okf_knowledge/kernel/okf.py lookup --card --limit 3 "<task keywords>"
+```
+
+Then:
+
+1. Inject **ONLY** the returned `## Prompt Card` text into the working context.
+2. **MUST NOT** paste `graph.json`, context dumps, or full vault/standard bodies.
+3. If a hit returns a path stub instead of a card, read only that file's Prompt Card section (`okf.py card <path>`), not the whole document.
+
+This rule supersedes all other discovery behavior. Detailed lookup semantics live in §1.5.
+
+---
+
 ## 1. Local Workspace Alignment (The Aegis Brain)
 
 Aegis inherits a radically simplified, 4-Zone directory tree under **`_okf_knowledge/`**. It MUST map its internal operations to these specialized nodes during the `[Context Expansion]` and `[Governance]` phases.
@@ -26,7 +45,7 @@ Bundle-absolute links inside the brain (e.g. `/vault/...`, `/standards/...`) are
 
 * **`_okf_knowledge/_inbox/` (Zone 1: Untriaged):** The dynamic scratchpad for incoming unclassified code fragments, raw developer queries, or ad-hoc dump logs. All new knowledge begins here and is immutable until ingested.
 * **`_okf_knowledge/kernel/` (Zone 2: Execution):** The active orchestration layer.
-* Contains execution scripts (`okf_common.py`, `okf_lint.py`, `graph_compiler.py` → `graph.json`, `okf_lookup.py`, etc.).
+* Contains the single kernel script `okf.py` with subcommands (`okf.py lint`, `okf.py compile` → `graph.json`, `okf.py lookup`, etc.).
 * `profiles/`: Target operational contexts defining loaded modules, standards, and roles (e.g., `operator.md`, `architect.md`, `migration.md`).
 * `modules/`: Core domain execution logic, validation rules, and artifact ownership (e.g., `kubernetes.md`).
 * `vendors/`: Third-party or cloud-specific execution extensions (e.g., `aws-eks.md`).
@@ -41,11 +60,11 @@ Any add, update, ingest, or restructure of durable brain knowledge (**MUST**) fo
 
 `_okf_knowledge/vault/playbooks/maintain-aegis-system.md`
 
-That playbook is the single procedure for Concepts, Playbooks, Systems, Incidents, References, Modules, Vendors, standards, kernel scripts, and this control-plane file. Aegis **MUST NOT** invent alternate ingest paths, skip index/cross-link updates, or omit post-change `graph_compiler.py` / `okf_lint.py` verification when mutating the brain.
+That playbook is the single procedure for Concepts, Playbooks, Systems, Incidents, References, Modules, Vendors, standards, kernel scripts, and this control-plane file. Aegis **MUST NOT** invent alternate ingest paths, skip index/cross-link updates, or omit post-change `okf.py compile` / `okf.py lint` verification when mutating the brain.
 
 ### 1.3 OKF Document Schema
 
-Every durable markdown concept under the brain (**MUST**) carry YAML frontmatter. Lint (`_okf_knowledge/kernel/okf_lint.py`) treats this as the house schema.
+Every durable markdown concept under the brain (**MUST**) carry YAML frontmatter. Lint (`_okf_knowledge/kernel/okf.py lint`) treats this as the house schema.
 
 **Known `type` values:**
 
@@ -102,7 +121,7 @@ Before grepping the vault, opening random markdown, or pasting large docs into c
 
 ```bash
 # From this package directory
-python3 _okf_knowledge/kernel/okf_lookup.py "<query>"
+python3 _okf_knowledge/kernel/okf.py lookup "<query>"
 
 ```
 
@@ -134,7 +153,7 @@ Every execution evaluates inputs based on strict evidence quality.
 
 When knowledge sources conflict, Aegis MUST resolve them using the following hierarchy:
 
-1. **Local Brain Context:** (`_okf_knowledge/standards/*` via `okf_lookup.py` / Prompt Cards)
+1. **Local Brain Context:** (`_okf_knowledge/standards/*` via `okf.py lookup` / Prompt Cards)
 2. **Local Workspace:** (Files in `_okf_knowledge/_inbox/` or active terminal context)
 3. **Vendor Extensions:** (`_okf_knowledge/kernel/vendors/*.md`)
 4. **Core Domain Modules:** (`_okf_knowledge/kernel/modules/*.md`)
@@ -203,7 +222,7 @@ Upon assembling context, the Kernel bifurcates into one of three immutable execu
 4. **Artifact Registry Planning:** Assign file ownership.
 5. **Contract Generation:** Establish inputs, outputs, and metadata headers.
 6. **Artifact Generation:** Write the configurations/code strictly adhering to the generated contract **and** the strictly budgeted Prompt Pack.
-7. **Static Validation:** Self-run `okf_lint.py`.
+7. **Static Validation:** Self-run `okf.py lint`.
 
 ### Path B: The Validation Pipeline (REVIEW, OPERATE, TROUBLESHOOT)
 

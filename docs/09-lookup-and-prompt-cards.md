@@ -18,23 +18,23 @@ This is the core “cheap retrieval → slim injection” loop (Rule #2).
 | Inject only `## Prompt Card` sections | Binding rules stay visible and budgeted |
 | Open full docs only when needed | Encyclopedias stay in the vault |
 
-## Tool: `okf_lookup.py`
+## Tool: `okf.py lookup`
 
 From the package directory:
 
 ```bash
 # Ranked menu (safe to show agents)
-python3 _okf_knowledge/kernel/okf_lookup.py "prompt injection"
+python3 _okf_knowledge/kernel/okf.py lookup "prompt injection"
 
 # Paths only
-python3 _okf_knowledge/kernel/okf_lookup.py --paths "maintain"
+python3 _okf_knowledge/kernel/okf.py lookup --paths "maintain"
 
 # Prompt Cards for injection (budgeted)
-python3 _okf_knowledge/kernel/okf_lookup.py --card "simplicity"
+python3 _okf_knowledge/kernel/okf.py lookup --card "simplicity"
 
 # Caps / filters
-python3 _okf_knowledge/kernel/okf_lookup.py --limit 3 --type Concept "okf"
-python3 _okf_knowledge/kernel/okf_lookup.py --card --max-cards 8 --budget 1200 "kubernetes"
+python3 _okf_knowledge/kernel/okf.py lookup --limit 3 --type Concept "okf"
+python3 _okf_knowledge/kernel/okf.py lookup --card --max-cards 8 --budget 1200 "kubernetes"
 ```
 
 ### Flags (reference)
@@ -64,13 +64,13 @@ Listing metadata shows `matched=…` and `graph=N hop` for debugging.
 | Card body | `prompt_cards.json` | Read `.md` + extract `## Prompt Card` |
 | Proximity | `graph.json` adjacency | No boost |
 
-## Tool: `prompt_card.py`
+## Tool: `okf.py card`
 
 Extract cards when you already know paths:
 
 ```bash
-python3 _okf_knowledge/kernel/prompt_card.py standards/simplicity-first.md
-python3 _okf_knowledge/kernel/prompt_card.py --max-chars 600 path1.md path2.md
+python3 _okf_knowledge/kernel/okf.py card standards/simplicity-first.md
+python3 _okf_knowledge/kernel/okf.py card --max-chars 600 path1.md path2.md
 ```
 
 Exits non-zero if any file lacks a Prompt Card.
@@ -97,10 +97,10 @@ Standards without a card fail lint (`DBG-308`).
 | Step | Action |
 | ---: | --- |
 | 1 | Detect intent + load Profile; pass capability check |
-| 2 | `okf_lookup.py "<intent>"` → shortlist concept ids |
+| 2 | `okf.py lookup "<intent>"` → shortlist concept ids |
 | 3 | Traverse graph for dependencies; merge candidates |
 | 4 | Evict to ≤ 8 cards using protocol sort order |
-| 5 | `okf_lookup.py --card …` or `prompt_card.py` for winners |
+| 5 | `okf.py lookup --card …` or `okf.py card` for winners |
 | 6 | Generate / validate against the pack — not against fat dumps |
 
 ## Protocol rules (MUST)

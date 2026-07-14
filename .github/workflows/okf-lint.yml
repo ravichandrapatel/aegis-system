@@ -1,5 +1,5 @@
 # file_name: okf-lint.yml
-# description: CI gate — run okf_lint.py (incl. standards Prompt Card check).
+# description: CI gate — run okf.py lint (incl. standards Prompt Card check).
 # version: 0.1.0
 # authors: contributors
 name: OKF lint
@@ -23,4 +23,4 @@ jobs:
 
       - name: Lint vault (Prompt Card gate)
         working-directory: .
-        run: python3 _okf_knowledge/kernel/okf_lint.py
+        run: python3 _okf_knowledge/kernel/okf.py lint

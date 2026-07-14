@@ -2,7 +2,7 @@
 
 [← Table of contents](README.md)
 
-Lint (`okf_lint.py`) treats YAML frontmatter as the house schema for every durable markdown concept.
+Lint (`okf.py lint`) treats YAML frontmatter as the house schema for every durable markdown concept.
 
 ## Minimal required block
 
@@ -53,8 +53,8 @@ Binding standards **MUST** include a non-empty `## Prompt Card` section in the m
 
 | Constraint | Value | Enforced by |
 | --- | --- | --- |
-| Per-card target | ≤ ~150 tokens (~600 characters) | `okf_lint.py` warn `DBG-309`; `prompt_card.py --max-chars` |
-| Pack budget (protocol) | Max **8** cards; ~**1200** tokens advisory | `AGENTS.md` §4.2; `okf_lookup.py --max-cards` / `--budget` |
+| Per-card target | ≤ ~150 tokens (~600 characters) | `okf.py lint` warn `DBG-309`; `okf.py card --max-chars` |
+| Pack budget (protocol) | Max **8** cards; ~**1200** tokens advisory | `AGENTS.md` §4.2; `okf.py lookup --max-cards` / `--budget` |
 
 See [Lookup & Prompt Cards](09-lookup-and-prompt-cards.md).
 

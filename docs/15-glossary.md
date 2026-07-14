@@ -22,7 +22,7 @@
 | **Reference** | Cached upstream documentation |
 | **Prompt Card** | Slim `## Prompt Card` section injected into generation context |
 | **Prompt Pack** | Budgeted set of Prompt Cards for one turn (≤ 8 / ~1200 tokens) |
-| **Lookup** | `okf_lookup.py` ranked search over frontmatter / `index.json` |
+| **Lookup** | `okf.py lookup` ranked search over frontmatter / `index.json` |
 | **Graph** | `graph.json` nodes/edges for UI + traversal |
 | **Index** | `index.json` slim search rows |
 | **Governance Engine** | Enforcement of standards / owns / priority during pipelines |

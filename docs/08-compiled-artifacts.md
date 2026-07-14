@@ -7,18 +7,18 @@ These JSON (and HTML) files are **build outputs** from kernel tools. They make r
 Regenerate after brain edits:
 
 ```bash
-python3 _okf_knowledge/kernel/graph_compiler.py   # graph + index + prompt_cards (+ HTML embed)
-python3 _okf_knowledge/kernel/okf_lint.py         # lint.json
+python3 _okf_knowledge/kernel/okf.py compile   # graph + index + prompt_cards (+ HTML embed)
+python3 _okf_knowledge/kernel/okf.py lint         # lint.json
 ```
 
 ## At-a-glance comparison
 
 | File | Produced by | Primary consumer | Contains | Paste into LLM? |
 | --- | --- | --- | --- | --- |
-| **`graph.json`** | `graph_compiler.py` | Brain UI; typed traversal tooling | Nodes, edges, truncated bodies | **MUST NOT** |
-| **`index.json`** | `graph_compiler.py` | `okf_lookup.py` | Slim frontmatter rows only | **MUST NOT** |
-| **`prompt_cards.json`** | `graph_compiler.py` | `okf_lookup.py --card` | Cached `## Prompt Card` bodies | Emit **selected** cards only (budgeted) |
-| **`lint.json`** | `okf_lint.py` | Brain UI / CI summary | Lint findings | No (fixational) |
+| **`graph.json`** | `okf.py compile` | Brain UI; typed traversal tooling | Nodes, edges, truncated bodies | **MUST NOT** |
+| **`index.json`** | `okf.py compile` | `okf.py lookup` | Slim frontmatter rows only | **MUST NOT** |
+| **`prompt_cards.json`** | `okf.py compile` | `okf.py lookup --card` | Cached `## Prompt Card` bodies | Emit **selected** cards only (budgeted) |
+| **`lint.json`** | `okf.py lint` | Brain UI / CI summary | Lint findings | No (fixational) |
 | **`aegis-brain.html`** | hand-maintained + embed updates | Humans in browser | Visualizer shell + embedded graph | n/a |
 
 ## `graph.json` — system graph
@@ -52,7 +52,7 @@ python3 _okf_knowledge/kernel/okf_lint.py         # lint.json
 
 | Use | How |
 | --- | --- |
-| Explore relationships visually | Open via `serve_vault.py` → `aegis-brain.html` |
+| Explore relationships visually | Open via `okf.py serve` → `aegis-brain.html` |
 | Walk dependencies for Prompt Pack assembly | Traverse edges; then load **Prompt Cards**, not node `content` |
 | Boost lookup ranking by proximity | `okf_lookup` may read adjacency for hop bonuses |
 
@@ -88,12 +88,12 @@ Make vault search **O(read one JSON)** instead of **O(open every markdown + pars
 
 ### When to use
 
-- Always prefer this path via `okf_lookup.py` (automatic if the file exists).
+- Always prefer this path via `okf.py lookup` (automatic if the file exists).
 - Debugging ranking: inspect which fields are present for a concept.
 
 ### When **not** to use
 
-- Do not hand-edit; regenerate with `graph_compiler.py`.
+- Do not hand-edit; regenerate with `okf.py compile`.
 - Do not treat as agent context dump.
 
 ### Fallback
@@ -117,7 +117,7 @@ Avoid re-parsing markdown bodies when emitting `--card` results for winning hits
 
 ### When to use
 
-- Indirectly: `okf_lookup.py --card` loads this cache first, then falls back to reading `.md` on miss.
+- Indirectly: `okf.py lookup --card` loads this cache first, then falls back to reading `.md` on miss.
 
 ### When **not** to use
 
@@ -126,7 +126,7 @@ Avoid re-parsing markdown bodies when emitting `--card` results for winning hits
 
 ## `lint.json`
 
-Machine-readable lint report for the visualizer and CI summaries. Produced by `okf_lint.py`. Treat **exit code / console summary** as the operator signal; JSON is for tooling.
+Machine-readable lint report for the visualizer and CI summaries. Produced by `okf.py lint`. Treat **exit code / console summary** as the operator signal; JSON is for tooling.
 
 ## Mental model: compile once, query many
 
@@ -134,7 +134,7 @@ Machine-readable lint report for the visualizer and CI summaries. Produced by `o
 Vault markdown (source of truth)
         │
         ▼
- graph_compiler.py
+ okf.py compile
         │
         ├──► graph.json          (structure + UI bodies)
         ├──► index.json          (search fields)

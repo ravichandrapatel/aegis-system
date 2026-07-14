@@ -28,7 +28,7 @@ This is a **clean-slate** package: domain-agnostic control plane only. No produc
 | [`okf-prompt-injection.md`](_okf_knowledge/standards/okf-prompt-injection.md) | Rule #2 — slim Prompt Cards only; never paste the whole brain |
 | [`metadata-headers.md`](_okf_knowledge/standards/metadata-headers.md) | Required file/function metadata for new kernel/code |
 
-`AGENTS.md` Path A binds generation to Rule #2. The kernel tools `okf_lookup.py --card` and `prompt_card.py` exist to enforce that rule — keep the standard next to them. `okf_lint.py` fails CI if any `standards/*` concept lacks a `## Prompt Card` (see `.github/workflows/okf-lint.yml`).
+`AGENTS.md` Path A binds generation to Rule #2. The kernel tools `okf.py lookup --card` and `okf.py card` exist to enforce that rule — keep the standard next to them. `okf.py lint` fails CI if any `standards/*` concept lacks a `## Prompt Card` (see `.github/workflows/okf-lint.yml`).
 
 ### Starter vault docs
 
@@ -56,11 +56,11 @@ Paths are relative to this package folder wherever you drop it.
 From this package directory:
 
 ```bash
-python3 _okf_knowledge/kernel/okf_lookup.py "prompt injection"
-python3 _okf_knowledge/kernel/okf_lookup.py --card --limit 3 "simplicity"
-python3 _okf_knowledge/kernel/graph_compiler.py
-python3 _okf_knowledge/kernel/okf_lint.py
-python3 _okf_knowledge/kernel/serve_vault.py
+python3 _okf_knowledge/kernel/okf.py lookup "prompt injection"
+python3 _okf_knowledge/kernel/okf.py lookup --card --limit 3 "simplicity"
+python3 _okf_knowledge/kernel/okf.py compile
+python3 _okf_knowledge/kernel/okf.py lint
+python3 _okf_knowledge/kernel/okf.py serve
 ```
 
 Then open `http://localhost:8080/aegis-brain.html`.
@@ -72,8 +72,8 @@ Then open `http://localhost:8080/aegis-brain.html`.
 3. Recompile and lint from this package directory:
 
 ```bash
-python3 _okf_knowledge/kernel/graph_compiler.py
-python3 _okf_knowledge/kernel/okf_lint.py
+python3 _okf_knowledge/kernel/okf.py compile
+python3 _okf_knowledge/kernel/okf.py lint
 ```
 
 See [`extending-aegis.md`](_okf_knowledge/vault/concepts/extending-aegis.md) for where Concepts, Playbooks, Systems, Modules, and Vendors go.

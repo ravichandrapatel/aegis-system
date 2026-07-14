@@ -16,7 +16,7 @@ Binding templates: [`../AGENTS.md`](../AGENTS.md) §5.
 4. Artifact registry / ownership planning  
 5. Contract generation (inputs/outputs/metadata)  
 6. Artifact generation against budgeted Prompt Pack  
-7. Static validation (`okf_lint.py` / domain gates)
+7. Static validation (`okf.py lint` / domain gates)
 
 ### Output: Generation Report
 

@@ -3,7 +3,7 @@ type: Concept
 title: Extending Aegis
 description: How to grow this empty framework with your own modules, vendors, standards, and vault knowledge.
 tags: [aegis-system, getting-started, framework]
-timestamp: 2026-07-13T15:00:00Z
+timestamp: 2026-07-14T17:40:00Z
 status: active
 ---
 
@@ -18,8 +18,8 @@ This package is an **empty control plane**: `AGENTS.md` + `_okf_knowledge/`. Zip
 3. From the package directory:
 
 ```bash
-python3 _okf_knowledge/kernel/graph_compiler.py
-python3 _okf_knowledge/kernel/okf_lint.py
+python3 _okf_knowledge/kernel/okf.py compile
+python3 _okf_knowledge/kernel/okf.py lint
 ```
 
 ## Where things go
@@ -46,6 +46,15 @@ tags: [kebab-case, topic]
 timestamp: 2026-07-13T00:00:00Z
 status: active
 ---
+```
+
+## Prompt Card
+
+```text
+New knowledge MUST: pick type/dir from the table (standards/, vault/*, kernel/*),
+add required frontmatter (type,title,description,tags,timestamp,status),
+then run okf.py compile + okf.py lint from the package dir.
+Follow vault/playbooks/maintain-aegis-system.md end-to-end.
 ```
 
 ## Related

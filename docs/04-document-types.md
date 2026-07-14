@@ -24,7 +24,7 @@ Every durable markdown concept under the brain **MUST** declare a `type` in YAML
 | Evergreen knowledge, pattern, tool overview | `Concept` | `vault/concepts/` (or domain folder under `vault/`) | `vault/…/index.md` |
 | House rule (MUST/SHOULD) | `Concept` + tag `standard` | `standards/` | `standards/index.md` |
 | Executable agent procedure | `Playbook` | `vault/playbooks/` | `playbooks/index.md` |
-| Cached upstream docs | `Reference` | `vault/references/` | Run `cache_optimizer.py` when applicable |
+| Cached upstream docs | `Reference` | `vault/references/` | Run `okf.py optimize` when applicable |
 | Running system in workspace | `System` | `vault/systems/` | `systems/index.md` |
 | Post-mortem | `Incident` | `vault/incidents/` | Link systems/playbooks |
 | Core execution logic / ownership | `Module` | `kernel/modules/` | `modules/index.md` |

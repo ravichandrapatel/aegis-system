@@ -24,7 +24,7 @@ Welcome to the **Aegis Brain**. 4 zones per [AGENTS.md](/AGENTS.md). Starter: [E
 * [**System Graph**](/graph.json) — Nodes and edges for the brain visualizer (not for LLM paste).
 * [**Lookup Index**](/index.json) — Slim frontmatter index for `okf_lookup` (compiled; not for LLM paste).
 * [**Health Report**](/lint.json) — Structured lint report for the visualizer.
-* **Agent routing:** `python3 _okf_knowledge/kernel/okf_lookup.py "<query>"` then `--card` — never dump the graph into prompts.
+* **Agent routing:** `python3 _okf_knowledge/kernel/okf.py lookup "<query>"` then `--card` — never dump the graph into prompts.
 
 ## 🚀 Active Protocol
 

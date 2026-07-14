@@ -19,8 +19,8 @@ Paths in the protocol are **relative to the package directory** wherever you dro
 
 ```bash
 cd /path/to/aegis-system
-python3 _okf_knowledge/kernel/okf_lookup.py "your topic"
-python3 _okf_knowledge/kernel/okf_lookup.py --card "your topic"
+python3 _okf_knowledge/kernel/okf.py lookup "your topic"
+python3 _okf_knowledge/kernel/okf.py lookup --card "your topic"
 ```
 
 See [Lookup](09-lookup-and-prompt-cards.md).
@@ -28,8 +28,8 @@ See [Lookup](09-lookup-and-prompt-cards.md).
 ### B. “I changed brain markdown”
 
 ```bash
-python3 _okf_knowledge/kernel/graph_compiler.py
-python3 _okf_knowledge/kernel/okf_lint.py
+python3 _okf_knowledge/kernel/okf.py compile
+python3 _okf_knowledge/kernel/okf.py lint
 ```
 
 See [Maintenance](13-maintenance.md).
@@ -37,7 +37,7 @@ See [Maintenance](13-maintenance.md).
 ### C. “I want to see the graph”
 
 ```bash
-python3 _okf_knowledge/kernel/serve_vault.py
+python3 _okf_knowledge/kernel/okf.py serve
 # http://localhost:8080/aegis-brain.html
 ```
 
@@ -49,7 +49,7 @@ python3 _okf_knowledge/kernel/serve_vault.py
 
 ### E. “CI should guard the brain”
 
-Workflow: `.github/workflows/okf-lint.yml` runs `okf_lint.py`. Keep Prompt Cards on all standards.
+Workflow: `.github/workflows/okf-lint.yml` runs `okf.py lint`. Keep Prompt Cards on all standards.
 
 ## What not to commit casually
 
