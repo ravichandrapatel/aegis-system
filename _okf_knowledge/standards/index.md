@@ -10,3 +10,9 @@ House rules live here under `standards/`. They override references, upstream doc
 # Code Quality
 
 * [Metadata Headers](metadata-headers.md) — Required file/function/class metadata blocks for all new code.
+
+# Domain (GHA / SPVS)
+
+* [GHA Commit Subjects](gha-commit-subjects.md) — Ticket-prefixed conventional commit subjects required for hooks and SemVer bumps.
+* [GHA Component Layout](gha-component-layout.md) — Required directory contract for composite actions and reusable workflows in the monorepo.
+* [GHA SPVS YAML](gha-spvs-yaml.md) — OWASP SPVS Conftest policy catalog for workflow and composite action YAML (MUST pass, no soft-fail).

@@ -18,20 +18,18 @@ All paths below are **relative to this package directory**.
 
 ## RULE #1 — Lookup First (BINDING)
 
-Before ANY other action — planning, reading vault files, grepping, or writing artifacts — Aegis **MUST** run:
+Before ANY other action — planning, reading vault files, grepping the brain, or writing artifacts — Aegis **MUST** run (any time Aegis is used, not only Path A authoring):
 
 ```bash
-# From this package directory
+# From this package directory — <task keywords> are DYNAMIC per turn
 python3 _okf_knowledge/kernel/okf.py lookup --card --limit 3 "<task keywords>"
 ```
 
-Then:
+Then inject **ONLY** the returned `## Prompt Card` text. **MUST NOT** paste `graph.json`, context dumps, or full vault/standard bodies.
 
-1. Inject **ONLY** the returned `## Prompt Card` text into the working context.
-2. **MUST NOT** paste `graph.json`, context dumps, or full vault/standard bodies.
-3. If a hit returns a path stub instead of a card, read only that file's Prompt Card section (`okf.py card <path>`), not the whole document.
+Retrieval lanes, catalog freshness, and grader access are defined in [`_okf_knowledge/standards/okf-prompt-injection.md`](_okf_knowledge/standards/okf-prompt-injection.md). Do not maintain a static domain path ban-list in this file.
 
-This rule supersedes all other discovery behavior. Detailed lookup semantics live in §1.5.
+This rule supersedes ad-hoc vault discovery. See also §1.5.
 
 ---
 
@@ -44,13 +42,7 @@ Bundle-absolute links inside the brain (e.g. `/vault/...`, `/standards/...`) are
 ### 1.1 The 4-Zone Brain Map
 
 * **`_okf_knowledge/_inbox/` (Zone 1: Untriaged):** The dynamic scratchpad for incoming unclassified code fragments, raw developer queries, or ad-hoc dump logs. All new knowledge begins here and is immutable until ingested.
-* **`_okf_knowledge/kernel/` (Zone 2: Execution):** The active orchestration layer.
-* Contains the single kernel script `okf.py` with subcommands (`okf.py lint`, `okf.py compile` → `graph.json`, `okf.py lookup`, etc.).
-* `profiles/`: Target operational contexts defining loaded modules, standards, and roles (e.g., `operator.md`, `architect.md`, `migration.md`).
-* `modules/`: Core domain execution logic, validation rules, and artifact ownership (e.g., `kubernetes.md`).
-* `vendors/`: Third-party or cloud-specific execution extensions (e.g., `aws-eks.md`).
-
-
+* **`_okf_knowledge/kernel/` (Zone 2: Execution):** The active orchestration layer — `okf.py` (`lint`, `compile`, `lookup`, `card`, `serve`, …). Optional `profiles/` for future capability templates (schema only today). Domain knowledge is **not** stored as kernel modules/vendors; it lives under `standards/` and `vault/`.
 * **`_okf_knowledge/standards/` (Zone 3: Governance):** Binding technical policies that the **Governance Engine** enforces during all pipeline runs (e.g., `simplicity-first.md`). Uses normative language (**MUST/SHOULD**).
 * **`_okf_knowledge/vault/` (Zone 4: Knowledge):** The organic, passive knowledge base. Contains all Concepts, Playbooks, Systems, Incidents, and References grouped by domain rather than strict type. Types are strictly declared in frontmatter.
 
@@ -60,7 +52,7 @@ Any add, update, ingest, or restructure of durable brain knowledge (**MUST**) fo
 
 `_okf_knowledge/vault/playbooks/maintain-aegis-system.md`
 
-That playbook is the single procedure for Concepts, Playbooks, Systems, Incidents, References, Modules, Vendors, standards, kernel scripts, and this control-plane file. Aegis **MUST NOT** invent alternate ingest paths, skip index/cross-link updates, or omit post-change `okf.py compile` / `okf.py lint` verification when mutating the brain.
+That playbook is the single procedure for Concepts, Playbooks, Systems, Incidents, References, standards, kernel scripts, and this control-plane file. Aegis **MUST NOT** invent alternate ingest paths, skip index/cross-link updates, or omit post-change `okf.py compile` / `okf.py lint` verification when mutating the brain.
 
 ### 1.3 OKF Document Schema
 
@@ -74,10 +66,8 @@ Every durable markdown concept under the brain (**MUST**) carry YAML frontmatter
 | `Playbook` | 4 | `vault/playbooks/` |
 | `System` | 4 | `vault/systems/` |
 | `Incident` | 4 | `vault/incidents/` |
-| `Reference` | 4 | `vault/references/` (or `vault/github-actions/`) |
-| `Module` | 2 | `kernel/modules/` |
-| `Vendor` | 2 | `kernel/vendors/` |
-| `Profile` | 2 | `kernel/profiles/` |
+| `Reference` | 4 | `vault/references/` |
+| `Profile` | 2 | `kernel/profiles/` (optional / schema; not a runtime gate today) |
 
 **Required frontmatter fields:**
 
@@ -98,7 +88,7 @@ priority: 100          # REQUIRED for Standards: 1-100 (highest wins conflicts)
 * `type` is **REQUIRED** (lint error if missing).
 * `title` and `description` are house-required (lint warning if missing).
 * `last_modified` MUST be updated (ISO-8601) on every modification of the document to enforce accurate cache invalidation, deterministic tie-breaking, and history tracking.
-* Placement, anti-collision (Vendor vs vault), indexes, and verification steps live only in the maintain playbook.
+* Placement, indexes, and verification steps live only in the maintain playbook.
 
 ### 1.4 The System Graph & Typed Traversal
 
@@ -110,7 +100,7 @@ Aegis **MUST NOT** load `graph.json` directly into the generation prompt. Instea
 
 * `depends_on`: Strict structural requirement (e.g., `EKS` → `depends_on` → `VPC`).
 * `implements`: Execution relationship (e.g., `Terraform` → `implements` → `AWS`).
-* `governed_by`: Policy enforcement (e.g., `Module` → `governed_by` → `Standard`).
+* `governed_by`: Policy enforcement (e.g., `System` → `governed_by` → `Standard`).
 * `references`: Contextual linkage (e.g., `Incident` → `references` → `Playbook`).
 * `compatible_with`: Acts as a hard gate. If an intent targets components that lack this edge or violate version constraints, Aegis HALTS execution.
 * `supersedes`: Automatic eviction rule. If Node B supersedes Node A, Aegis seamlessly drops Node A from the context and replaces it with Node B.
@@ -121,14 +111,14 @@ Before grepping the vault, opening random markdown, or pasting large docs into c
 
 ```bash
 # From this package directory
-python3 _okf_knowledge/kernel/okf.py lookup "<query>"
-
+python3 _okf_knowledge/kernel/okf.py lookup --card --limit 3 "<query>"
 ```
 
 **Rules**
 
-1. **MUST** run lookup (or equivalent ranked search) when the path is not already known.
+1. **MUST** run lookup (or equivalent ranked search) anytime Aegis is used when the path is not already known.
 2. **MUST NOT** paste whole vault files into the generation prompt by default — use `--card` / Prompt Pack instead.
+3. Full retrieval ladder, freshness, and grader-access modes: [`standards/okf-prompt-injection.md`](_okf_knowledge/standards/okf-prompt-injection.md).
 
 ---
 
@@ -155,12 +145,10 @@ When knowledge sources conflict, Aegis MUST resolve them using the following hie
 
 1. **Local Brain Context:** (`_okf_knowledge/standards/*` via `okf.py lookup` / Prompt Cards)
 2. **Local Workspace:** (Files in `_okf_knowledge/_inbox/` or active terminal context)
-3. **Vendor Extensions:** (`_okf_knowledge/kernel/vendors/*.md`)
-4. **Core Domain Modules:** (`_okf_knowledge/kernel/modules/*.md`)
-5. **Passive Knowledge:** (`_okf_knowledge/vault/*.md`)
-6. **Official External Metadata:** (OCI / Git APIs)
+3. **Passive Knowledge:** (`_okf_knowledge/vault/*` via lookup / cards)
+4. **Official External Metadata:** (OCI / Git APIs) — when freshness requires live refresh
 
-**Deterministic Conflict Resolution:** If two standards or modules overlap in scope, Aegis MUST evaluate the `owns` list in their frontmatter. The document explicitly claiming ownership over the domain dictates governance. If both claim ownership, the document with the higher `priority` integer wins.
+**Deterministic Conflict Resolution:** If two standards overlap in scope, Aegis MUST evaluate the `owns` list in their frontmatter. The document explicitly claiming ownership over the domain dictates governance. If both claim ownership, the document with the higher `priority` integer wins.
 
 **Fail-Closed Tie-Breaker:** If two conflicting sources share the exact same `owns` scope AND the exact same `priority` integer, Aegis MUST flag an explicit conflict error, HALT execution (Exit Code `1`), and await manual reconciliation. Aegis MUST NOT guess which source is correct.
 
@@ -171,7 +159,7 @@ When knowledge sources conflict, Aegis MUST resolve them using the following hie
 | Intent | Target Lifecycle Phase | Active Pipeline | Core Objective |
 | --- | --- | --- | --- |
 | **CREATE** / **MODIFY** | Discover, Design, Generate | **Generation Pipeline** | Gather requirements, traverse graph, output code/delta. |
-| **REVIEW** | Review | **Validation Pipeline** | Compare artifacts against vendor/domain standards. |
+| **REVIEW** | Review | **Validation Pipeline** | Compare artifacts against domain standards. |
 | **OPERATE** / **TROUBLESHOOT** | Operate, Troubleshoot, Recover | **Validation Pipeline** | Analyze runtime observations, metrics, and logs. |
 | **DEPLOY** / **UPGRADE** | Deploy, Upgrade | **Execution Pipeline** | Orchestrate sequential application steps via reconciliation. |
 | **ROLLBACK** | Recover | **Execution Pipeline** | Define explicit, tested steps to revert mutation. |
@@ -185,13 +173,13 @@ When knowledge sources conflict, Aegis MUST resolve them using the following hie
 Aegis MUST execute the following state machine sequentially for EVERY request.
 
 **[PRE-FLIGHT]**
-`[Intent Detection]` -> `[Load Profile (kernel/profiles/)]` -> `[Capability Check]` -> `[Context Expansion (Typed Graph Traversal)]` -> `[Governance Engine]`
+`[Intent Detection]` -> `[OKF lookup --card]` -> `[Context Expansion]` -> `[Governance Engine]`
 
-### 4.1 The Capability Registry Check (Mandatory Gate)
+### 4.1 Capability check (standards / evidence)
 
-Before planning or traversing, Aegis MUST verify local capabilities based on the loaded Profile (e.g., `kernel/profiles/operator.md`). The Profile explicitly defines which modules, vendors, and standards are permitted.
+Before authoring, Aegis MUST ensure Minimum Evidence from the relevant vault/system/playbook cards is met and binding standards from the Prompt Pack are available via lookup.
 
-*Failure Condition:* If a required profile, module, vendor, or standard is **MISSING**, Aegis MUST immediately HALT (Exit Code `4`: Unsupported).
+*Failure Condition:* If required standards or evidence called out by the Prompt Pack are **MISSING**, Aegis MUST HALT (Exit Code `4`: Unsupported). There is no separate Module/Vendor runtime registry.
 
 ### 4.2 Context Expansion, Budgeting, and Eviction Rules
 
@@ -205,7 +193,7 @@ To prevent context collapse, Aegis MUST strictly adhere to the **Prompt Assembly
 **Deterministic Eviction Policy:**
 If graph traversal returns more relevant cards than the maximum budget, Aegis MUST aggressively evict cards by sorting the candidate list using the following rules in exact order:
 
-1. **Priority Tier:** `Standards` (highest) > `Modules` > `Vendors` > `Playbooks` > `References`.
+1. **Priority Tier:** `Standards` (highest) > `Playbooks` > `Systems` / `Concepts` > `References`.
 2. **Graph Distance:** Nodes fewer hops away from the execution target rank higher.
 3. **Card Priority Frontmatter:** Nodes with a higher `priority` integer rank higher.
 4. **Timestamp Recency:** The newest `last_modified` timestamp wins the tie.

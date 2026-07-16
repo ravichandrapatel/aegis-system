@@ -1,7 +1,7 @@
 ---
 type: Concept
 title: Extending Aegis
-description: How to grow this empty framework with your own modules, vendors, standards, and vault knowledge.
+description: How to grow this empty framework with your own standards and vault knowledge.
 tags: [aegis-system, getting-started, framework]
 timestamp: 2026-07-14T17:40:00Z
 status: active
@@ -32,8 +32,6 @@ python3 _okf_knowledge/kernel/okf.py lint
 | Running system | `vault/systems/` | `System` |
 | Post-mortem | `vault/incidents/` | `Incident` |
 | Cached upstream docs | `vault/references/` | `Reference` |
-| Execution logic | `kernel/modules/` | `Module` |
-| Cloud/tool extension | `kernel/vendors/` | `Vendor` |
 
 ## Frontmatter (required)
 
@@ -51,7 +49,7 @@ status: active
 ## Prompt Card
 
 ```text
-New knowledge MUST: pick type/dir from the table (standards/, vault/*, kernel/*),
+New knowledge MUST: pick type/dir from the table (standards/, vault/*),
 add required frontmatter (type,title,description,tags,timestamp,status),
 then run okf.py compile + okf.py lint from the package dir.
 Follow vault/playbooks/maintain-aegis-system.md end-to-end.
@@ -62,4 +60,5 @@ Follow vault/playbooks/maintain-aegis-system.md end-to-end.
 - Control plane: [AGENTS.md](/AGENTS.md)
 - Maintenance: [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md)
 - Law: [Simplicity First](/standards/simplicity-first.md)
+- Profile template: [Profile schema](/kernel/profiles/_schema.md)
 - Architecture ADR (package root, outside vault): see `ADR.md` next to `README.md`

@@ -42,16 +42,14 @@ Indexes under `systems/`, `references/`, `modules/`, and `vendors/` start empty 
 ## Use as an agent or skill
 
 1. Zip this folder (keep `AGENTS.md` and `_okf_knowledge/` together).
-2. Unzip and place the package into your IDE’s agents or skills folder:
-   - **Cursor:** `.cursor/agents/aegis-system/` or `.cursor/skills/aegis-system/`
-   - **GitHub Copilot:** two paths in the target repo:
-     - Copy [`.github/agents/aegis.agent.md`](.github/agents/aegis.agent.md) → `.github/agents/aegis.agent.md` (Copilot discovers agent profiles here)
-     - Place the rest of this package → `.github/agents/aegis-system/` (brain + `AGENTS.md`)
-   - **Other IDEs:** whatever directory that product uses for agents/skills
-3. Open your project in the IDE and select / invoke **Aegis**.
+2. Unzip and place the **entire directory** into your IDE’s agents or skills folder, for example:
+   - Cursor: `.cursor/agents/` or `.cursor/skills/`
+   - GitHub Copilot: `.github/agents/`
+   - Other IDEs: whatever directory that product uses for agents/skills
+3. Open your project in the IDE and select / invoke **Aegis** (this package’s `AGENTS.md`).
 4. Ask normally — Aegis follows the protocol and reads/writes knowledge under `_okf_knowledge/`.
 
-Paths are relative to the package folder (e.g. `.github/agents/aegis-system/` for Copilot).
+Paths are relative to this package folder wherever you drop it.
 
 ## Brain tooling (optional)
 
@@ -78,4 +76,4 @@ python3 _okf_knowledge/kernel/okf.py compile
 python3 _okf_knowledge/kernel/okf.py lint
 ```
 
-See [`extending-aegis.md`](_okf_knowledge/vault/concepts/extending-aegis.md) for where Concepts, Playbooks, Systems, Modules, and Vendors go.
+See [`extending-aegis.md`](_okf_knowledge/vault/concepts/extending-aegis.md) for where Concepts, Playbooks, Systems, and References go.

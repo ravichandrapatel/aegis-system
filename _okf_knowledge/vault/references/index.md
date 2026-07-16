@@ -1,8 +1,3 @@
-# Vault: References
+# Cached references — references
 
-Cached upstream documentation lives here.
-Every file is `type: Reference`.
-
-| Title | Description |
-| :--- | :--- |
-| *(empty — add your first reference)* | Drop a `*.md` here and list it in this table. |
+* [gha-reusable-actions-workflows README](gha-reusable-readme.md) - Cached pointer to the monorepo README — architecture, SPVS catalog, release lifecycle.

@@ -1,0 +1,4 @@
+# Paths under _okf_knowledge/ skipped by concept walk / compile.
+*.bak
+*.tmp
+**/_archive/**

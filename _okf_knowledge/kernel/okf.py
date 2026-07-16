@@ -5,13 +5,14 @@
 #              Consolidates okf_common / prompt_card / okf_lookup /
 #              graph_compiler / okf_lint / okf_enrich / cache_optimizer /
 #              registry_scraper / serve_vault.
-# version: 1.0.0
+# version: 1.2.0
 # authors: contributors
 #
 # Usage:
-#   python3 _okf_knowledge/kernel/okf.py lookup "<query>" [--card] [--paths] ...
+#   python3 _okf_knowledge/kernel/okf.py lookup "<query>" [--card] [--json] [--paths] ...
+#   python3 _okf_knowledge/kernel/okf.py pack "<query>" [--style json|markdown|xml]
 #   python3 _okf_knowledge/kernel/okf.py card <path> [<path>...]
-#   python3 _okf_knowledge/kernel/okf.py compile
+#   python3 _okf_knowledge/kernel/okf.py compile [--force]
 #   python3 _okf_knowledge/kernel/okf.py lint
 #   python3 _okf_knowledge/kernel/okf.py enrich [--write] [--only X] [--limit N]
 #   python3 _okf_knowledge/kernel/okf.py optimize
@@ -20,16 +21,26 @@
 """
 intent: One CLI for every kernel operation on the Aegis OKF brain.
 input: subcommand + flags (see Usage above); env OKF_VAULT_ROOT overrides the
-       brain root; env OKF_LLM_* configures the enrich endpoint.
+       brain root; env OKF_LLM_* configures the enrich endpoint;
+       optional okf.config.json / .okfignore under the brain root.
 output: subcommand-specific stdout; compiled artifacts / lint.json / vault
         edits depending on the subcommand.
 role: kernel entry point (replaces the previous per-script CLIs).
-side_effects: read-only for lookup/card; compile/lint/enrich/optimize/scrape
+side_effects: read-only for lookup/card/pack; compile/lint/enrich/optimize/scrape
               write under the brain; serve binds a TCP port.
+
+v1.1 speed: mtime-memoized artifact loads, compile-time normalized fields +
+inverted token index, camelCase/snake_case tokenization, incremental compile
+cache (skip unchanged concepts; no-op when vault hash-clean).
+
+v1.2 (D12): better token estimate (+ optional tiktoken), secret scan on scrape,
+.okfignore, shared Prompt Pack assembly, pack export, lookup --json.
 """
 from __future__ import annotations
 
 import argparse
+import fnmatch
+import hashlib
 import ipaddress
 import json
 import os
@@ -56,10 +67,20 @@ VAULT_ROOT = Path(
     os.environ.get("OKF_VAULT_ROOT", str(Path(__file__).resolve().parent.parent))
 ).resolve()
 BRAIN_ROOT = VAULT_ROOT
+# OKF dialect reserved basenames (format rule — not vault-specific).
 RESERVED_FILENAMES = {"index.md", "log.md"}
-IDE_BRIDGE_FILES = {"CLAUDE.md", "GEMINI.md", "COPILOT.md", "agent.md"}
-CONTROL_PLANE_FILES = {"AGENTS.md", "README.md", "ADR.md"} | IDE_BRIDGE_FILES
-NON_CONCEPT_FILES = RESERVED_FILENAMES | CONTROL_PLANE_FILES
+# Seed names always treated as control-plane; plus any *.md at package root (dynamic).
+_CONTROL_PLANE_SEED = {
+    "AGENTS.md",
+    "README.md",
+    "ADR.md",
+    "CLAUDE.md",
+    "GEMINI.md",
+    "COPILOT.md",
+    "agent.md",
+    "BENCH_PROMPT.md",
+}
+# Tooling / VCS dirs to skip while walking the brain (not knowledge taxonomy).
 SKIP_DIRS = {
     ".git",
     "node_modules",
@@ -67,11 +88,26 @@ SKIP_DIRS = {
     ".github",
     ".windsurf",
     ".continue",
+    "__pycache__",
+}
+# Fallback taxonomy if AGENTS.md is missing; normally loaded dynamically.
+_TYPE_SEED = {
+    "Concept",
+    "Playbook",
+    "System",
+    "Reference",
+    "Incident",
+    "Profile",
 }
 GRAPH_CONTENT_MAX = 4000
+INDEX_FORMAT_VERSION = 2
+COMPILE_CACHE_VERSION = 1
+COMPILE_CACHE_NAME = ".okf-compile-cache.json"
 
 # Matches markdown links, capturing the target: [text](target)
 _LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
+# camelCase / PascalCase / SNAKE splits for search tokens
+_CAMEL_RE = re.compile(r"[A-Z]?[a-z]+|[A-Z]+(?=[A-Z][a-z]|\d|$)|[A-Z]+|\d+")
 
 
 @dataclass
@@ -136,6 +172,9 @@ def iter_concept_files(root: Path = VAULT_ROOT) -> list[Path]:
     side_effects: none (read-only filesystem access).
     """
     files: list[Path] = []
+    control_names = control_plane_filenames()
+    # Zone 2: only optional profiles markdown under kernel/ (tools are .py).
+    kernel_keep = {"profiles"}
     for path in sorted(root.rglob("*.md")):
         rel = path.relative_to(root)
         parts = rel.parts
@@ -144,11 +183,11 @@ def iter_concept_files(root: Path = VAULT_ROOT) -> list[Path]:
         if any(p.startswith(".") for p in parts):
             continue
 
-        # Skip base kernel directory but allow modules and vendors subdirectories
+        # Skip base kernel directory but allow profiles/
         # Handles both root/kernel and root/knowledge/kernel
         if "kernel" in parts:
             idx = parts.index("kernel")
-            if len(parts) <= idx + 1 or parts[idx + 1] not in ("modules", "vendors"):
+            if len(parts) <= idx + 1 or parts[idx + 1] not in kernel_keep:
                 continue
 
         # Skip other reserved directories
@@ -157,10 +196,64 @@ def iter_concept_files(root: Path = VAULT_ROOT) -> list[Path]:
 
         if any(part in SKIP_DIRS for part in parts):
             continue
-        if path.name in NON_CONCEPT_FILES:
+        if path.name in RESERVED_FILENAMES or path.name in control_names:
+            continue
+        if path_ignored(rel):
             continue
         files.append(path)
     return files
+
+
+def control_plane_filenames() -> set[str]:
+    """
+    intent: Control-plane / IDE-bridge markdown basenames (seed + package-root *.md).
+    input: none.
+    output: set of filenames (e.g. AGENTS.md, BENCH_PROMPT.md).
+    role: dynamic discovery so new root docs are not treated as concepts.
+    side_effects: none (read-only).
+    """
+    names = set(_CONTROL_PLANE_SEED) | set(RESERVED_FILENAMES)
+    pkg_root = VAULT_ROOT.parent
+    if pkg_root.is_dir():
+        for path in pkg_root.glob("*.md"):
+            names.add(path.name)
+    return names
+
+
+def known_types() -> set[str]:
+    """
+    intent: House taxonomy of frontmatter `type` values.
+    input: none — prefers AGENTS.md "Known type values" table; falls back to seed.
+    output: set of type names (includes Profile, Concept, …).
+    role: lint taxonomy source (dynamic — tracks AGENTS.md).
+    side_effects: none (read-only).
+    """
+    types = set(_TYPE_SEED)
+    agents = VAULT_ROOT.parent / "AGENTS.md"
+    if not agents.is_file():
+        return types
+    try:
+        text = agents.read_text(encoding="utf-8")
+    except OSError:
+        return types
+    # Rows like: | `Concept` | 3 or 4 | …
+    for match in re.finditer(r"^\|\s*`([A-Z][A-Za-z0-9_-]*)`\s*\|", text, re.MULTILINE):
+        types.add(match.group(1))
+    return types
+
+
+def is_standard_concept(concept: Concept) -> bool:
+    """
+    intent: Detect binding house standards (path or tag), not a hardcoded folder only.
+    input: loaded concept.
+    output: True when under standards/ or tagged `standard`.
+    """
+    if concept.concept_id.startswith("standards/"):
+        return True
+    tags = concept.frontmatter.get("tags", [])
+    if isinstance(tags, list):
+        return any(str(t).strip().lower() == "standard" for t in tags)
+    return str(tags).strip().lower() == "standard"
 
 
 def escape_yaml_scalar(value: str) -> str:
@@ -335,7 +428,7 @@ def resolve_link(target: str, source: Path, root: Path = VAULT_ROOT) -> Path:
         if inside.exists():
             return inside
         name = Path(rel).name
-        if name in CONTROL_PLANE_FILES:
+        if name in control_plane_filenames():
             outside = (root.parent / name).resolve()
             if outside.exists():
                 return outside
@@ -464,8 +557,143 @@ GRAPH_HOP2 = 2
 MIN_TERM_LEN = 2
 DEFAULT_MAX_CARDS = 8
 DEFAULT_TOKEN_BUDGET = 1200
-# Rough chars≈tokens*4 for budget enforcement without a tokenizer.
+# Fallback chars≈tokens*4 when tiktoken is unavailable.
 CHARS_PER_TOKEN = 4
+CONFIG_NAME = "okf.config.json"
+OKFIGNORE_NAME = ".okfignore"
+_CONFIG_CACHE: dict[str, object] | None = None
+_IGNORE_CACHE: list[str] | None = None
+_TIKTOKEN_ENC = None  # lazy; False = tried and missing
+_SECRET_PATTERNS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"-----BEGIN (?:RSA |OPENSSH |EC |DSA )?PRIVATE KEY-----"), "private_key"),
+    (re.compile(r"AKIA[0-9A-Z]{16}"), "aws_access_key_id"),
+    (re.compile(r"ghp_[A-Za-z0-9]{36,}"), "github_pat"),
+    (re.compile(r"github_pat_[A-Za-z0-9_]{22,}"), "github_fine_grained_pat"),
+    (re.compile(r"gho_[A-Za-z0-9]{36,}"), "github_oauth"),
+    (re.compile(r"sk-[A-Za-z0-9]{20,}"), "openai_sk"),
+    (re.compile(r"(?i)(api[_-]?key|secret|password|token)\s*[:=]\s*[\'\"][^\'\"]{16,}"), "credential_assign"),
+]
+
+
+def load_okf_config() -> dict[str, object]:
+    """
+    intent: Load optional okf.config.json once (mtime not required — small file).
+    output: merged defaults + file overrides.
+    """
+    global _CONFIG_CACHE
+    if _CONFIG_CACHE is not None:
+        return _CONFIG_CACHE
+    cfg: dict[str, object] = {
+        "max_cards": DEFAULT_MAX_CARDS,
+        "token_budget": DEFAULT_TOKEN_BUDGET,
+        "prompt_card_max_chars": 600,
+        "reference_max_chars": 20_000,
+        "reference_compress": True,
+        "secret_scan": True,
+        "respect_gitignore": True,
+    }
+    path = VAULT_ROOT / CONFIG_NAME
+    if path.is_file():
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(raw, dict):
+                cfg.update({k: v for k, v in raw.items() if v is not None})
+        except (OSError, json.JSONDecodeError):
+            pass
+    _CONFIG_CACHE = cfg
+    return cfg
+
+
+def _read_ignore_file(path: Path) -> list[str]:
+    if not path.is_file():
+        return []
+    out: list[str] = []
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            s = line.strip()
+            if not s or s.startswith("#"):
+                continue
+            out.append(s)
+    except OSError:
+        pass
+    return out
+
+
+def load_ignore_patterns() -> list[str]:
+    """Merge .okfignore (+ optional .gitignore) under brain root."""
+    global _IGNORE_CACHE
+    if _IGNORE_CACHE is not None:
+        return _IGNORE_CACHE
+    patterns = _read_ignore_file(VAULT_ROOT / OKFIGNORE_NAME)
+    cfg = load_okf_config()
+    if cfg.get("respect_gitignore", True):
+        patterns.extend(_read_ignore_file(VAULT_ROOT / ".gitignore"))
+        patterns.extend(_read_ignore_file(VAULT_ROOT.parent / ".gitignore"))
+    _IGNORE_CACHE = patterns
+    return patterns
+
+
+def path_ignored(rel: Path | str) -> bool:
+    """Return True if vault-relative path matches an ignore pattern."""
+    if isinstance(rel, Path):
+        rel_s = rel.as_posix()
+    else:
+        rel_s = str(rel).replace(chr(92), "/")
+    name = Path(rel_s).name
+    for pat in load_ignore_patterns():
+        p = pat.replace(chr(92), "/")
+        if p.startswith("!"):
+            continue  # negation not supported (keep simple)
+        if p.endswith("/"):
+            prefix = p.rstrip("/")
+            if rel_s == prefix or rel_s.startswith(prefix + "/"):
+                return True
+        if fnmatch.fnmatch(rel_s, p) or fnmatch.fnmatch(name, p):
+            return True
+    return False
+
+
+def scan_secrets(text: str) -> list[str]:
+    """Return list of secret kind labels found (empty = clean)."""
+    if not text or not load_okf_config().get("secret_scan", True):
+        return []
+    found: list[str] = []
+    for rx, label in _SECRET_PATTERNS:
+        if rx.search(text):
+            found.append(label)
+    return found
+
+
+def _tiktoken_encoder():
+    global _TIKTOKEN_ENC
+    if _TIKTOKEN_ENC is False:
+        return None
+    if _TIKTOKEN_ENC is not None:
+        return _TIKTOKEN_ENC
+    try:
+        import tiktoken  # type: ignore
+
+        _TIKTOKEN_ENC = tiktoken.get_encoding("cl100k_base")
+        return _TIKTOKEN_ENC
+    except Exception:
+        _TIKTOKEN_ENC = False
+        return None
+
+
+def count_tokens(text: str) -> int:
+    """
+    intent: Token estimate for Prompt Pack budgets.
+    Prefer tiktoken cl100k_base when installed; else word/punct heuristic
+    (~better than raw chars/4 on markdown).
+    """
+    if not text:
+        return 0
+    enc = _tiktoken_encoder()
+    if enc is not None:
+        return len(enc.encode(text))
+    # Heuristic: whitespace/punct split ≈ BPE-ish for English+code
+    parts = re.findall(r"[A-Za-z0-9_]+|[^\s]", text)
+    return max(1, len(parts))
 
 
 @dataclass
@@ -484,6 +712,13 @@ class IndexEntry:
     tags: list[str] = field(default_factory=list)
     ctype: str = ""
     path: Path | None = None
+    # Compile-time normalized fields (filled from index v2; computed on fallback).
+    id_norm: str = ""
+    title_norm: str = ""
+    desc_norm: str = ""
+    tags_norm: str = ""
+    type_norm: str = ""
+    search_tokens: frozenset[str] = field(default_factory=frozenset)
 
 
 @dataclass
@@ -502,35 +737,101 @@ class Hit:
     graph_hops: int | None = None
 
 
+@dataclass
+class _MtimeCache:
+    """Process-local cache invalidated when a file's mtime_ns changes."""
+
+    path: Path | None = None
+    mtime_ns: int | None = None
+    payload: object | None = None
+
+
+_INDEX_CACHE = _MtimeCache()
+_ADJ_CACHE = _MtimeCache()
+_CARD_CACHE = _MtimeCache()
+_INVERTED_CACHE = _MtimeCache()
+
+
 def _norm(text: str) -> str:
     return re.sub(r"\s+", " ", text.lower()).strip()
 
 
+def _tokenize(text: str) -> list[str]:
+    """
+    intent: Split on whitespace, snake_case, camelCase, and punctuation.
+    input: raw text (title, id, query, …).
+    output: lowercase tokens (length ≥ MIN_TERM_LEN).
+    """
+    out: list[str] = []
+    for word in re.split(r"[^A-Za-z0-9_+.-]+", text or ""):
+        if not word:
+            continue
+        for part in word.replace("-", "_").split("_"):
+            if not part:
+                continue
+            chunks = _CAMEL_RE.findall(part) or [part]
+            for c in chunks:
+                t = c.lower()
+                if len(t) >= MIN_TERM_LEN:
+                    out.append(t)
+    return out
+
+
 def _tokens(query: str) -> list[str]:
-    return [
-        t
-        for t in re.split(r"[^a-z0-9_+.-]+", _norm(query))
-        if len(t) >= MIN_TERM_LEN
-    ]
+    # Preserve order, drop dupes.
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for t in _tokenize(query):
+        if t not in seen:
+            seen.add(t)
+            ordered.append(t)
+    return ordered
 
 
-def _field_score(term: str, hay: str, weight: int) -> tuple[int, str | None]:
+def _ensure_norms(entry: IndexEntry) -> None:
+    """Fill normalized fields / search tokens when missing (v1 index or vault)."""
+    if entry.id_norm and entry.search_tokens:
+        return
+    id_raw = entry.concept_id.replace("/", " ").replace("-", " ")
+    entry.id_norm = entry.id_norm or _norm(id_raw)
+    entry.title_norm = entry.title_norm or _norm(entry.title)
+    entry.desc_norm = entry.desc_norm or _norm(entry.description)
+    entry.tags_norm = entry.tags_norm or _norm(" ".join(entry.tags))
+    entry.type_norm = entry.type_norm or _norm(entry.ctype)
+    if not entry.search_tokens:
+        bag = set(_tokenize(entry.concept_id))
+        bag.update(_tokenize(entry.title))
+        bag.update(_tokenize(entry.description))
+        for t in entry.tags:
+            bag.update(_tokenize(str(t)))
+        bag.update(_tokenize(entry.ctype))
+        entry.search_tokens = frozenset(bag)
+
+
+def _field_score(term: str, hay: str, weight: int, hay_tokens: set[str] | None = None) -> tuple[int, str | None]:
     """
     intent: Score one term against one haystack with exact/prefix/substring tiers.
-    input: term; normalized haystack; base field weight.
+    input: term; normalized haystack; base field weight; optional token set.
     output: (points, match tier name) or (0, None).
     role: pure scorer helper.
     side_effects: none.
     """
     if not hay or not term:
         return 0, None
-    tokens = hay.split()
+    tokens = hay_tokens if hay_tokens is not None else set(hay.split())
     if term == hay or term in tokens:
         return weight * EXACT_MULT, "exact"
     if any(tok.startswith(term) for tok in tokens) or hay.startswith(term):
         return weight * PREFIX_MULT, "prefix"
     if term in hay:
         return weight * SUBSTRING_MULT, "substr"
+    # Acronym: term chars match successive word initials (e.g. "gha" → github actions)
+    if len(term) >= 2:
+        ordered = [t for t in hay.split() if t]
+        if len(ordered) >= len(term):
+            initials = "".join(t[0] for t in ordered)
+            if initials.startswith(term):
+                return weight * PREFIX_MULT, "acronym"
     return 0, None
 
 
@@ -544,14 +845,24 @@ def score_entry(entry: IndexEntry, terms: list[str]) -> tuple[int, list[str]]:
     """
     if not terms:
         return 0, []
-    tag_s = " ".join(entry.tags)
+    _ensure_norms(entry)
     hay = {
-        "id": _norm(entry.concept_id.replace("/", " ").replace("-", " ")),
-        "title": _norm(entry.title),
-        "desc": _norm(entry.description),
-        "tags": _norm(tag_s),
-        "type": _norm(entry.ctype),
+        "id": entry.id_norm,
+        "title": entry.title_norm,
+        "desc": entry.desc_norm,
+        "tags": entry.tags_norm,
+        "type": entry.type_norm,
     }
+    hay_tok = {
+        "id": set(entry.id_norm.split()),
+        "title": set(entry.title_norm.split()),
+        "desc": set(entry.desc_norm.split()),
+        "tags": set(entry.tags_norm.split()),
+        "type": set(entry.type_norm.split()),
+    }
+    # Merge camelCase search tokens into title/id bags for subword hits.
+    hay_tok["title"] |= set(entry.search_tokens)
+    hay_tok["id"] |= set(entry.search_tokens)
     weights = {
         "id": ID_WEIGHT,
         "title": TITLE_WEIGHT,
@@ -562,8 +873,12 @@ def score_entry(entry: IndexEntry, terms: list[str]) -> tuple[int, list[str]]:
     score = 0
     matched: set[str] = set()
     for term in terms:
+        # Direct token hit from compile-time bag (cheap camelCase/snake match).
+        if term in entry.search_tokens:
+            score += TITLE_WEIGHT * PREFIX_MULT
+            matched.add("token")
         for field_name, weight in weights.items():
-            pts, tier = _field_score(term, hay[field_name], weight)
+            pts, tier = _field_score(term, hay[field_name], weight, hay_tok[field_name])
             if pts:
                 score += pts
                 matched.add(field_name if tier == "exact" else f"{field_name}:{tier}")
@@ -574,42 +889,119 @@ def score_entry(entry: IndexEntry, terms: list[str]) -> tuple[int, list[str]]:
     return score, sorted(matched)
 
 
+def _read_json_mtime(path: Path) -> tuple[object | None, int | None]:
+    if not path.is_file():
+        return None, None
+    try:
+        mtime_ns = path.stat().st_mtime_ns
+        return json.loads(path.read_text(encoding="utf-8")), mtime_ns
+    except (OSError, json.JSONDecodeError):
+        return None, None
+
+
+def _cached_load(cache: _MtimeCache, path: Path) -> object | None:
+    """Return cached payload when path mtime matches; else reload from disk."""
+    if not path.is_file():
+        cache.path = path
+        cache.mtime_ns = None
+        cache.payload = None
+        return None
+    try:
+        mtime_ns = path.stat().st_mtime_ns
+    except OSError:
+        return None
+    if cache.path == path and cache.mtime_ns == mtime_ns and cache.payload is not None:
+        return cache.payload
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        cache.path = path
+        cache.mtime_ns = None
+        cache.payload = None
+        return None
+    cache.path = path
+    cache.mtime_ns = mtime_ns
+    cache.payload = raw
+    return raw
+
+
+def _entry_from_row(row: dict) -> IndexEntry | None:
+    if "id" not in row:
+        return None
+    tags = row.get("tags", [])
+    if not isinstance(tags, list):
+        tags = [tags] if tags else []
+    cid = str(row["id"])
+    tok_list = row.get("tokens") or []
+    if not isinstance(tok_list, list):
+        tok_list = []
+    entry = IndexEntry(
+        concept_id=cid,
+        title=str(row.get("title", "")),
+        description=str(row.get("description", "")),
+        tags=[str(t) for t in tags],
+        ctype=str(row.get("type", "")),
+        path=VAULT_ROOT / f"{cid}.md",
+        id_norm=str(row.get("id_norm", "")),
+        title_norm=str(row.get("title_norm", "")),
+        desc_norm=str(row.get("desc_norm", "")),
+        tags_norm=str(row.get("tags_norm", "")),
+        type_norm=str(row.get("type_norm", "")),
+        search_tokens=frozenset(str(t) for t in tok_list if t),
+    )
+    _ensure_norms(entry)
+    return entry
+
+
+def _load_index_bundle() -> tuple[list[IndexEntry] | None, dict[str, list[str]]]:
+    """
+    intent: Load index.json (+ inverted map) with process-local mtime cache.
+    output: (entries or None, inverted token→ids).
+    """
+    path = BRAIN_ROOT / "index.json"
+    raw = _cached_load(_INDEX_CACHE, path)
+    if raw is None:
+        return None, {}
+    inverted: dict[str, list[str]] = {}
+    rows: list
+    if isinstance(raw, dict) and isinstance(raw.get("entries"), list):
+        rows = raw["entries"]
+        inv = raw.get("inverted") or {}
+        if isinstance(inv, dict):
+            inverted = {str(k): [str(x) for x in v] for k, v in inv.items() if isinstance(v, list)}
+        # Also keep inverted in its own mtime cache slot (same file).
+        _INVERTED_CACHE.path = path
+        _INVERTED_CACHE.mtime_ns = _INDEX_CACHE.mtime_ns
+        _INVERTED_CACHE.payload = inverted
+    elif isinstance(raw, list):
+        rows = raw
+    else:
+        return None, {}
+    entries: list[IndexEntry] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        entry = _entry_from_row(row)
+        if entry:
+            entries.append(entry)
+    return entries, inverted
+
+
 def _load_index() -> list[IndexEntry] | None:
     """
     intent: Load compile-time index.json when present.
     input: none (reads BRAIN_ROOT/index.json).
     output: entries or None to signal fallback.
     role: index loader.
-    side_effects: reads one JSON file.
+    side_effects: reads one JSON file (mtime-cached).
     """
-    path = BRAIN_ROOT / "index.json"
-    if not path.is_file():
-        return None
-    try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None
-    if not isinstance(raw, list):
-        return None
-    entries: list[IndexEntry] = []
-    for row in raw:
-        if not isinstance(row, dict) or "id" not in row:
-            continue
-        tags = row.get("tags", [])
-        if not isinstance(tags, list):
-            tags = [tags] if tags else []
-        cid = str(row["id"])
-        entries.append(
-            IndexEntry(
-                concept_id=cid,
-                title=str(row.get("title", "")),
-                description=str(row.get("description", "")),
-                tags=[str(t) for t in tags],
-                ctype=str(row.get("type", "")),
-                path=VAULT_ROOT / f"{cid}.md",
-            )
-        )
+    entries, _ = _load_index_bundle()
     return entries
+
+
+def _load_inverted() -> dict[str, list[str]]:
+    _, inv = _load_index_bundle()
+    return inv
 
 
 def _entries_from_vault() -> list[IndexEntry]:
@@ -628,16 +1020,16 @@ def _entries_from_vault() -> list[IndexEntry]:
         tags = fm.get("tags", [])
         if not isinstance(tags, list):
             tags = [tags] if tags else []
-        entries.append(
-            IndexEntry(
-                concept_id=concept.concept_id,
-                title=str(fm.get("title", "")),
-                description=str(fm.get("description", "")),
-                tags=[str(t) for t in tags],
-                ctype=str(fm.get("type", "")),
-                path=concept.path,
-            )
+        entry = IndexEntry(
+            concept_id=concept.concept_id,
+            title=str(fm.get("title", "")),
+            description=str(fm.get("description", "")),
+            tags=[str(t) for t in tags],
+            ctype=str(fm.get("type", "")),
+            path=concept.path,
         )
+        _ensure_norms(entry)
+        entries.append(entry)
     return entries
 
 
@@ -647,15 +1039,20 @@ def _load_adjacency() -> dict[str, set[str]]:
     input: none.
     output: concept_id → neighbor ids.
     role: graph loader.
-    side_effects: reads graph.json if present.
+    side_effects: reads graph.json if present (mtime-cached).
     """
     path = BRAIN_ROOT / "graph.json"
-    if not path.is_file():
+    raw = _cached_load(_ADJ_CACHE, path)
+    if not isinstance(raw, dict):
         return {}
-    try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
+    # Cache parsed adjacency, not raw JSON, on second access path:
+    cached_adj = getattr(_ADJ_CACHE, "_adj", None)
+    if (
+        cached_adj is not None
+        and _ADJ_CACHE.path == path
+        and getattr(_ADJ_CACHE, "_adj_mtime", None) == _ADJ_CACHE.mtime_ns
+    ):
+        return cached_adj  # type: ignore[return-value]
     adj: dict[str, set[str]] = {}
     for edge in raw.get("edges", []):
         if not isinstance(edge, dict):
@@ -665,6 +1062,8 @@ def _load_adjacency() -> dict[str, set[str]]:
             continue
         adj.setdefault(str(src), set()).add(str(tgt))
         adj.setdefault(str(tgt), set()).add(str(src))
+    _ADJ_CACHE._adj = adj  # type: ignore[attr-defined]
+    _ADJ_CACHE._adj_mtime = _ADJ_CACHE.mtime_ns  # type: ignore[attr-defined]
     return adj
 
 
@@ -674,15 +1073,10 @@ def _load_card_cache() -> dict[str, str]:
     input: none.
     output: concept_id → card body.
     role: card cache loader.
-    side_effects: reads prompt_cards.json if present.
+    side_effects: reads prompt_cards.json if present (mtime-cached).
     """
     path = BRAIN_ROOT / "prompt_cards.json"
-    if not path.is_file():
-        return {}
-    try:
-        raw = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
+    raw = _cached_load(_CARD_CACHE, path)
     if not isinstance(raw, dict):
         return {}
     return {str(k): str(v) for k, v in raw.items() if v}
@@ -723,6 +1117,35 @@ def _apply_graph_boost(hits: list[Hit], adj: dict[str, set[str]]) -> None:
             by_id[cid].graph_hops = 2
 
 
+def _candidate_ids(terms: list[str], inverted: dict[str, list[str]], all_ids: list[str]) -> list[str] | None:
+    """
+    intent: Narrow scoring set via inverted index (union of term postings).
+    output: candidate ids, or None to score everyone (no inv / empty terms /
+            any term with no posting — keeps acronym/fuzzy recall).
+    """
+    if not terms or not inverted:
+        return None
+    found: set[str] = set()
+    for t in terms:
+        hit_this = False
+        ids = inverted.get(t)
+        if ids:
+            found.update(ids)
+            hit_this = True
+        # Prefix expansion for short typed queries (e.g. "work" → workflow)
+        if len(t) >= 3:
+            for key, postings in inverted.items():
+                if key.startswith(t):
+                    found.update(postings)
+                    hit_this = True
+        if not hit_this:
+            return None  # unknown token → full scan (acronym / fuzzy)
+    if not found:
+        return None
+    allow = found
+    return [cid for cid in all_ids if cid in allow]
+
+
 def lookup(
     query: str,
     limit: int = 5,
@@ -736,12 +1159,19 @@ def lookup(
     side_effects: reads index.json (or vault) and optionally graph.json.
     """
     terms = _tokens(query)
-    entries = _load_index()
+    entries, inverted = _load_index_bundle()
     if entries is None:
         entries = _entries_from_vault()
+        inverted = {}
+    by_id = {e.concept_id: e for e in entries}
+    candidate_ids = _candidate_ids(terms, inverted, list(by_id.keys()))
+    if candidate_ids is None:
+        pool = entries
+    else:
+        pool = [by_id[cid] for cid in candidate_ids if cid in by_id]
     hits: list[Hit] = []
     want_type = type_filter.lower() if type_filter else None
-    for entry in entries:
+    for entry in pool:
         if want_type and entry.ctype.lower() != want_type:
             continue
         s, matched = score_entry(entry, terms)
@@ -772,7 +1202,122 @@ def _card_for(hit: Hit, cache: dict[str, str]) -> str | None:
 
 
 def _est_tokens(text: str) -> int:
-    return max(1, len(text) // CHARS_PER_TOKEN) if text else 0
+    """Backward-compatible alias for count_tokens."""
+    return count_tokens(text)
+
+
+def assemble_prompt_pack(
+    query: str,
+    *,
+    limit: int = 5,
+    type_filter: str | None = None,
+    max_cards: int | None = None,
+    budget: int | None = None,
+) -> tuple[list[dict[str, object]], list]:
+    """
+    intent: Shared Prompt Pack builder for lookup --card and pack.
+    output: (pack rows, raw hits). Each row: id, score, kind, text, tokens.
+    """
+    cfg = load_okf_config()
+    max_cards = int(max_cards if max_cards is not None else cfg.get("max_cards", DEFAULT_MAX_CARDS))
+    budget = int(budget if budget is not None else cfg.get("token_budget", DEFAULT_TOKEN_BUDGET))
+    hits = lookup(query, limit=limit, type_filter=type_filter)
+    if not hits:
+        return [], []
+    cache = _load_card_cache()
+    pack: list[dict[str, object]] = []
+    used = 0
+    for hit in hits:
+        if len(pack) >= max(1, max_cards):
+            break
+        card = _card_for(hit, cache)
+        if card:
+            kind = "card"
+            body = f"### Card: {hit.entry.concept_id}.md (score={hit.score})\n{card}"
+        else:
+            kind = "stub"
+            body = (
+                f"### Path: _okf_knowledge/{hit.entry.concept_id}.md "
+                f"(score={hit.score})\n"
+                f"(no ## Prompt Card — open file only if needed)"
+            )
+        cost = count_tokens(body)
+        if pack and used + cost > budget:
+            break
+        pack.append(
+            {
+                "id": hit.entry.concept_id,
+                "path": hit.entry.concept_id + ".md",
+                "type": hit.entry.ctype,
+                "title": hit.entry.title,
+                "score": hit.score,
+                "kind": kind,
+                "text": body,
+                "tokens": cost,
+            }
+        )
+        used += cost
+    return pack, hits
+
+
+def format_pack(pack: list[dict[str, object]], style: str, query: str) -> str:
+    """Render Prompt Pack as markdown | json | xml (cards only — never full vault)."""
+    total = sum(int(r["tokens"]) for r in pack)
+    style = (style or "markdown").lower()
+    if style == "json":
+        return json.dumps(
+            {
+                "query": query,
+                "token_estimator": "tiktoken:cl100k_base" if _tiktoken_encoder() else "heuristic",
+                "total_tokens": total,
+                "cards": [
+                    {
+                        "id": r["id"],
+                        "path": r["path"],
+                        "type": r["type"],
+                        "title": r["title"],
+                        "score": r["score"],
+                        "kind": r["kind"],
+                        "tokens": r["tokens"],
+                        "text": r["text"],
+                    }
+                    for r in pack
+                ],
+            },
+            indent=2,
+            ensure_ascii=False,
+        )
+    if style == "xml":
+        lines = [
+            '<?xml version="1.0" encoding="UTF-8"?>',
+            "<okf_prompt_pack>",
+            f"  <query>{_xml_esc(query)}</query>",
+            f"  <total_tokens>{total}</total_tokens>",
+        ]
+        for r in pack:
+            lines.append(
+                f'  <card id="{_xml_esc(str(r["id"]))}" tokens="{r["tokens"]}" '
+                f'score="{r["score"]}" kind="{r["kind"]}">'
+            )
+            lines.append(f"    <![CDATA[{r['text']}]]>")
+            lines.append("  </card>")
+        lines.append("</okf_prompt_pack>")
+        return "\n".join(lines)
+    header = (
+        f"# OKF Prompt Pack\nquery: {query!r}\n"
+        f"cards: {len(pack)}  total_tokens: {total}\n"
+    )
+    body = "\n\n".join(str(r["text"]) for r in pack)
+    return header + "\n" + body if pack else header + "\n(no cards)\n"
+
+
+def _xml_esc(s: str) -> str:
+    return (
+        s.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )
 
 
 def cmd_lookup(args: argparse.Namespace) -> int:
@@ -783,45 +1328,68 @@ def cmd_lookup(args: argparse.Namespace) -> int:
     role: subcommand.
     side_effects: stdout/stderr only.
     """
+    as_json = bool(getattr(args, "json", False))
+
+    if args.card:
+        pack, hits = assemble_prompt_pack(
+            args.query,
+            limit=args.limit,
+            type_filter=args.type_filter,
+            max_cards=args.max_cards,
+            budget=args.budget,
+        )
+        if not hits:
+            print(f"[okf_lookup] no hits for: {args.query!r}", file=sys.stderr)
+            return 1
+        if as_json:
+            print(format_pack(pack, "json", args.query))
+        else:
+            # agent-facing: cards only (no pack header) — same as pre-1.2
+            print("\n\n".join(str(r["text"]) for r in pack))
+        return 0
+
     hits = lookup(args.query, limit=args.limit, type_filter=args.type_filter)
     if not hits:
         print(f"[okf_lookup] no hits for: {args.query!r}", file=sys.stderr)
         return 1
 
     if args.paths:
-        for hit in hits:
-            print(hit.entry.concept_id + ".md")
+        if as_json:
+            print(json.dumps([h.entry.concept_id + ".md" for h in hits], indent=2))
+        else:
+            for hit in hits:
+                print(hit.entry.concept_id + ".md")
         return 0
 
-    if args.card:
-        cache = _load_card_cache()
-        chunks: list[str] = []
-        used_tokens = 0
-        for hit in hits:
-            if len(chunks) >= max(1, args.max_cards):
-                break
-            card = _card_for(hit, cache)
-            if card:
-                piece = (
-                    f"### Card: {hit.entry.concept_id}.md (score={hit.score})\n{card}"
-                )
-            else:
-                # Never dead-end: a path stub keeps the agent moving in one shot.
-                piece = (
-                    f"### Path: _okf_knowledge/{hit.entry.concept_id}.md "
-                    f"(score={hit.score})\n"
-                    f"(no ## Prompt Card — open file only if needed)"
-                )
-            cost = _est_tokens(piece)
-            if chunks and used_tokens + cost > args.budget:
-                break
-            chunks.append(piece)
-            used_tokens += cost
-        print("\n\n".join(chunks))
+    if as_json:
+        print(
+            json.dumps(
+                [
+                    {
+                        "id": h.entry.concept_id,
+                        "path": h.entry.concept_id + ".md",
+                        "type": h.entry.ctype,
+                        "title": h.entry.title,
+                        "description": h.entry.description,
+                        "score": h.score,
+                        "matched": h.matched,
+                        "graph_hops": h.graph_hops,
+                    }
+                    for h in hits
+                ],
+                indent=2,
+                ensure_ascii=False,
+            )
+        )
         return 0
 
-    # default listing (tiny — safe to show agents as a menu)
-    src = "index.json" if (BRAIN_ROOT / "index.json").is_file() else "live vault"
+    if (BRAIN_ROOT / "index.json").is_file():
+        _, inv = _load_index_bundle()
+        src = f"index.json v{INDEX_FORMAT_VERSION}"
+        if inv:
+            src += f" (inv={len(inv)} tokens)"
+    else:
+        src = "live vault"
     print(f"# okf lookup  query={args.query!r}  source={src}  vault={VAULT_ROOT}")
     for hit in hits:
         e = hit.entry
@@ -833,11 +1401,34 @@ def cmd_lookup(args: argparse.Namespace) -> int:
         if hit.graph_hops is not None:
             meta.append(f"graph={hit.graph_hops} hop")
         if meta:
-            print(f"     ({'; '.join(meta)})")
+            print(f"     ({' '.join(meta)})")
     print(
         "\n# Next: python3 okf.py lookup --card "
         f"{args.query!r}   # inject Prompt Cards only"
     )
+    return 0
+
+
+def cmd_pack(args: argparse.Namespace) -> int:
+    """
+    intent: Export a cards-only Prompt Pack (Repomix-like formats, OKF semantics).
+    """
+    pack, hits = assemble_prompt_pack(
+        args.query,
+        limit=args.limit,
+        type_filter=args.type_filter,
+        max_cards=args.max_cards,
+        budget=args.budget,
+    )
+    if not hits:
+        print(f"[okf_pack] no hits for: {args.query!r}", file=sys.stderr)
+        return 1
+    out = format_pack(pack, args.style, args.query)
+    if args.output:
+        Path(args.output).write_text(out, encoding="utf-8")
+        print(f"[okf_pack] wrote {args.output} ({len(pack)} cards)", file=sys.stderr)
+    else:
+        print(out)
     return 0
 
 
@@ -886,30 +1477,63 @@ def compile_graph(concepts: list[Concept]) -> dict[str, list[dict[str, str]]]:
     return {"nodes": nodes, "edges": edges}
 
 
-def compile_index(concepts: list[Concept]) -> list[dict[str, object]]:
+def _index_row_for_concept(c: Concept) -> dict[str, object]:
+    tags = c.frontmatter.get("tags", [])
+    if not isinstance(tags, list):
+        tags = [tags] if tags else []
+    tag_strs = [str(t) for t in tags]
+    title = str(c.frontmatter.get("title", c.path.stem))
+    description = str(c.frontmatter.get("description", ""))
+    ctype = str(c.frontmatter.get("type", ""))
+    id_norm = _norm(c.concept_id.replace("/", " ").replace("-", " "))
+    title_norm = _norm(title)
+    desc_norm = _norm(description)
+    tags_norm = _norm(" ".join(tag_strs))
+    type_norm = _norm(ctype)
+    tok: set[str] = set()
+    tok.update(_tokenize(c.concept_id))
+    tok.update(_tokenize(title))
+    tok.update(_tokenize(description))
+    for t in tag_strs:
+        tok.update(_tokenize(t))
+    tok.update(_tokenize(ctype))
+    return {
+        "id": c.concept_id,
+        "path": c.concept_id + ".md",
+        "title": title,
+        "description": description,
+        "tags": tag_strs,
+        "type": ctype,
+        "id_norm": id_norm,
+        "title_norm": title_norm,
+        "desc_norm": desc_norm,
+        "tags_norm": tags_norm,
+        "type_norm": type_norm,
+        "tokens": sorted(tok),
+    }
+
+
+def compile_index(concepts: list[Concept]) -> dict[str, object]:
     """
-    intent: Slim frontmatter index for lookup (no bodies — cheap retrieval).
+    intent: Slim frontmatter index + inverted token map for lookup.
     input: concepts — parseable vault concepts.
-    output: list of index entries for index.json.
+    output: index.json v2 document {version, entries, inverted}.
     role: lookup index builder.
     side_effects: none.
     """
-    entries: list[dict[str, object]] = []
-    for c in concepts:
-        tags = c.frontmatter.get("tags", [])
-        if not isinstance(tags, list):
-            tags = [tags] if tags else []
-        entries.append(
-            {
-                "id": c.concept_id,
-                "path": c.concept_id + ".md",
-                "title": str(c.frontmatter.get("title", c.path.stem)),
-                "description": str(c.frontmatter.get("description", "")),
-                "tags": [str(t) for t in tags],
-                "type": str(c.frontmatter.get("type", "")),
-            }
-        )
-    return entries
+    entries = [_index_row_for_concept(c) for c in concepts]
+    inverted: dict[str, list[str]] = {}
+    for row in entries:
+        cid = str(row["id"])
+        for tok in row.get("tokens", []):
+            inverted.setdefault(str(tok), []).append(cid)
+    for key in inverted:
+        inverted[key] = sorted(set(inverted[key]))
+    return {
+        "version": INDEX_FORMAT_VERSION,
+        "entries": entries,
+        "inverted": inverted,
+    }
 
 
 def compile_prompt_cards(concepts: list[Concept]) -> dict[str, str]:
@@ -929,17 +1553,184 @@ def compile_prompt_cards(concepts: list[Concept]) -> dict[str, str]:
     return cards
 
 
-def cmd_compile(_args: argparse.Namespace | None = None) -> int:
+def _sha256_bytes(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def _compile_cache_path() -> Path:
+    return BRAIN_ROOT / COMPILE_CACHE_NAME
+
+
+def _concept_to_cache(c: Concept) -> dict[str, object]:
+    return {
+        "concept_id": c.concept_id,
+        "frontmatter": c.frontmatter,
+        "body": c.body,
+        "parse_error": c.parse_error,
+    }
+
+
+def _concept_from_cache(path: Path, blob: dict[str, object]) -> Concept:
+    fm = blob.get("frontmatter")
+    if not isinstance(fm, dict):
+        fm = {}
+    return Concept(
+        concept_id=str(blob.get("concept_id") or concept_id_from_path(path) or path.stem),
+        path=path,
+        frontmatter=fm,
+        body=str(blob.get("body") or ""),
+        parse_error=str(blob["parse_error"]) if blob.get("parse_error") else None,
+    )
+
+
+def load_vault_incremental(force: bool = False) -> tuple[list[Concept], int, int]:
     """
-    intent: Write graph.json, index.json, prompt_cards.json and embed the
-            graph into aegis-brain.html for file:// auto-load.
-    input: none (reads vault from disk).
+    intent: Load vault concepts, reusing compile-cache entries when mtime/hash match.
+    input: force — ignore cache and re-parse everything.
+    output: (concepts including parse errors, dirty_count, reused_count).
+    role: incremental vault loader.
+    side_effects: may rewrite .okf-compile-cache.json.
+    """
+    cache_path = _compile_cache_path()
+    prev: dict[str, object] = {}
+    if not force and cache_path.is_file():
+        try:
+            loaded = json.loads(cache_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict) and loaded.get("version") == COMPILE_CACHE_VERSION:
+                prev = loaded
+        except (OSError, json.JSONDecodeError):
+            prev = {}
+    prev_files = prev.get("files") if isinstance(prev.get("files"), dict) else {}
+
+    new_files: dict[str, object] = {}
+    concepts: list[Concept] = []
+    dirty = 0
+    reused = 0
+
+    for path in iter_concept_files():
+        rel = str(path.relative_to(VAULT_ROOT)).replace("\\", "/")
+        try:
+            st = path.stat()
+            mtime_ns = st.st_mtime_ns
+        except OSError as exc:
+            concepts.append(
+                Concept(
+                    concept_id=concept_id_from_path(path) or path.stem,
+                    path=path,
+                    parse_error=str(exc),
+                )
+            )
+            dirty += 1
+            continue
+
+        cached = prev_files.get(rel) if isinstance(prev_files, dict) else None
+        if (
+            not force
+            and isinstance(cached, dict)
+            and cached.get("mtime_ns") == mtime_ns
+            and isinstance(cached.get("concept"), dict)
+        ):
+            concepts.append(_concept_from_cache(path, cached["concept"]))  # type: ignore[arg-type]
+            new_files[rel] = cached
+            reused += 1
+            continue
+
+        try:
+            data = path.read_bytes()
+        except OSError as exc:
+            concepts.append(
+                Concept(
+                    concept_id=concept_id_from_path(path) or path.stem,
+                    path=path,
+                    parse_error=str(exc),
+                )
+            )
+            dirty += 1
+            continue
+
+        digest = _sha256_bytes(data)
+        if (
+            not force
+            and isinstance(cached, dict)
+            and cached.get("sha256") == digest
+            and isinstance(cached.get("concept"), dict)
+        ):
+            cached = dict(cached)
+            cached["mtime_ns"] = mtime_ns
+            concepts.append(_concept_from_cache(path, cached["concept"]))  # type: ignore[arg-type]
+            new_files[rel] = cached
+            reused += 1
+            continue
+
+        text = data.decode("utf-8")
+        fm, body = parse_frontmatter(text)
+        cid = concept_id_from_path(path) or path.stem
+        if fm is None:
+            c = Concept(concept_id=cid, path=path, parse_error="missing/invalid frontmatter")
+        else:
+            c = Concept(concept_id=cid, path=path, frontmatter=fm, body=body)
+        concepts.append(c)
+        new_files[rel] = {
+            "mtime_ns": mtime_ns,
+            "sha256": digest,
+            "concept": _concept_to_cache(c),
+        }
+        dirty += 1
+
+    try:
+        cache_path.write_text(
+            json.dumps(
+                {"version": COMPILE_CACHE_VERSION, "files": new_files},
+                ensure_ascii=False,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    except OSError:
+        pass
+
+    # Bust in-process artifact caches after compile inputs change.
+    if dirty or force:
+        for slot in (_INDEX_CACHE, _ADJ_CACHE, _CARD_CACHE, _INVERTED_CACHE):
+            slot.mtime_ns = None
+            slot.payload = None
+
+    return concepts, dirty, reused
+
+
+def _artifacts_fresh(concept_count: int) -> bool:
+    """True when index/graph/cards exist and look like a complete prior compile."""
+    index_p = BRAIN_ROOT / "index.json"
+    graph_p = BRAIN_ROOT / "graph.json"
+    cards_p = BRAIN_ROOT / "prompt_cards.json"
+    if not (index_p.is_file() and graph_p.is_file() and cards_p.is_file()):
+        return False
+    try:
+        raw = json.loads(index_p.read_text(encoding="utf-8"))
+        if isinstance(raw, dict) and isinstance(raw.get("entries"), list):
+            return len(raw["entries"]) == concept_count and raw.get("version") == INDEX_FORMAT_VERSION
+        if isinstance(raw, list):
+            return False  # force upgrade to v2
+    except (OSError, json.JSONDecodeError):
+        return False
+    return False
+
+
+def cmd_compile(args: argparse.Namespace | None = None) -> int:
+    """
+    intent: Write graph.json, index.json (v2+inverted), prompt_cards.json and
+            embed the graph into aegis-brain.html. Skips work when the
+            incremental compile cache reports zero dirty concepts and artifacts
+            are already current (unless --force).
+    input: optional --force.
     output: process exit code.
     role: subcommand.
-    side_effects: writes graph/index/prompt_cards JSON; rewrites aegis-brain.html.
+    side_effects: writes graph/index/prompt_cards JSON; rewrites aegis-brain.html;
+                  updates .okf-compile-cache.json.
     """
+    force = bool(getattr(args, "force", False)) if args is not None else False
     try:
-        all_concepts = load_vault()
+        all_concepts, dirty, reused = load_vault_incremental(force=force)
         skipped = [c for c in all_concepts if c.parse_error is not None]
         for c in skipped:
             print(
@@ -947,6 +1738,14 @@ def cmd_compile(_args: argparse.Namespace | None = None) -> int:
                 file=sys.stderr,
             )
         concepts = [c for c in all_concepts if c.parse_error is None]
+
+        if not force and dirty == 0 and _artifacts_fresh(len(concepts)):
+            print(
+                f"[DBG-200] compile up-to-date ({len(concepts)} concepts, "
+                f"{reused} cache hits, 0 dirty) — skipped rewrite for {VAULT_ROOT}"
+            )
+            return 0
+
         # Drop legacy TOON index if present from older Aegis versions.
         legacy = BRAIN_ROOT / "context.toon"
         if legacy.exists():
@@ -962,15 +1761,21 @@ def cmd_compile(_args: argparse.Namespace | None = None) -> int:
         (BRAIN_ROOT / "prompt_cards.json").write_text(
             json.dumps(cards, indent=2) + "\n", encoding="utf-8"
         )
+        # Refresh process caches immediately.
+        for slot in (_INDEX_CACHE, _ADJ_CACHE, _CARD_CACHE, _INVERTED_CACHE):
+            slot.mtime_ns = None
+            slot.payload = None
         embedded = inject_into_aegis_brain("graph-data", graph_json)
     except OSError as exc:
         print(f"[DBG-201] graph compile failed: {exc}", file=sys.stderr)
         return 1
     skipped_note = f", {len(skipped)} skipped" if skipped else ""
+    inv_n = len(index.get("inverted", {})) if isinstance(index, dict) else 0
     print(
         f"[DBG-200] wrote graph.json ({len(concepts)} concepts{skipped_note}, "
-        f"{len(graph['edges'])} edges), index.json, prompt_cards.json "
-        f"({len(cards)} cards) for {VAULT_ROOT}"
+        f"{len(graph['edges'])} edges), index.json v{INDEX_FORMAT_VERSION} "
+        f"({inv_n} inv tokens), prompt_cards.json ({len(cards)} cards); "
+        f"parsed={dirty} reused={reused} for {VAULT_ROOT}"
         + ("; embedded graph into aegis-brain.html" if embedded else "")
     )
     return 0
@@ -980,18 +1785,6 @@ def cmd_compile(_args: argparse.Namespace | None = None) -> int:
 # Lint (formerly okf_lint.py)
 # =============================================================================
 
-# Taxonomy from AGENTS.md — drift is a warning, not an error (OKF tolerates unknown types).
-# Vault taxonomy (Zone 4) + kernel execution types (Zone 2). Keep them distinct
-# so vendor/module docs do not collide with passive vault Concepts/Systems.
-KNOWN_TYPES = {
-    "Concept",
-    "Playbook",
-    "System",
-    "Reference",
-    "Incident",
-    "Module",
-    "Vendor",
-}
 HOUSE_REQUIRED_FIELDS = ("title", "description")
 # Rule #2 target: ≤150 tokens ≈ 600 characters (see `okf.py card --max-chars`).
 PROMPT_CARD_MAX_CHARS = 600
@@ -1024,9 +1817,10 @@ def collect_findings() -> tuple[list[dict[str, str]], int]:
         if not str(c.frontmatter.get("type", "")).strip():
             add("error", c.concept_id, "DBG-301", "missing required 'type' field")
 
-        # -- House schema (AGENTS.md) --
+        # -- House schema (AGENTS.md taxonomy, loaded dynamically) --
         ctype = str(c.frontmatter.get("type", ""))
-        if ctype and ctype not in KNOWN_TYPES:
+        taxonomy = known_types()
+        if ctype and ctype not in taxonomy:
             add("warning", c.concept_id, "DBG-302",
                 f"unknown type '{ctype}' (not in AGENTS.md taxonomy)")
         for fld in HOUSE_REQUIRED_FIELDS:
@@ -1034,16 +1828,15 @@ def collect_findings() -> tuple[list[dict[str, str]], int]:
                 add("warning", c.concept_id, "DBG-303",
                     f"missing house-required field '{fld}'")
 
-        # -- Standards Prompt Card gate (ADR follow-up #3 / Rule #2) --
-        # Binding house law under standards/* MUST expose a non-empty ## Prompt Card.
-        if c.concept_id.startswith("standards/"):
+        # -- Standards Prompt Card gate (path standards/* OR tag `standard`) --
+        if is_standard_concept(c):
             card = extract_prompt_card(c.body)
             if card is None:
                 add(
                     "error",
                     c.concept_id,
                     "DBG-308",
-                    "standards/* MUST include a non-empty ## Prompt Card section",
+                    "standard concepts MUST include a non-empty ## Prompt Card section",
                 )
             elif len(card) > PROMPT_CARD_MAX_CHARS:
                 add(
@@ -1060,7 +1853,7 @@ def collect_findings() -> tuple[list[dict[str, str]], int]:
             target_id = concept_id_from_path(resolved)
             if target_id is None:
                 # Control-plane files may live at the share/repo root (parent).
-                if resolved.exists() and resolved.name in CONTROL_PLANE_FILES:
+                if resolved.exists() and resolved.name in control_plane_filenames():
                     continue
                 add("warning", c.concept_id, "DBG-305", f"link escapes vault -> {target}")
                 continue
@@ -1070,8 +1863,9 @@ def collect_findings() -> tuple[list[dict[str, str]], int]:
             linked_ids.add(target_id)
 
     # Count links from reserved pages so indexed concepts are not false orphans.
+    control_names = control_plane_filenames()
     for special in VAULT_ROOT.rglob("*.md"):
-        if special.name not in NON_CONCEPT_FILES:
+        if special.name not in control_names and special.name not in RESERVED_FILENAMES:
             continue
         try:
             body = special.read_text(encoding="utf-8")
@@ -1420,8 +2214,6 @@ def cmd_enrich(args: argparse.Namespace) -> int:
 # =============================================================================
 
 VAULT_DIR = VAULT_ROOT / "vault"
-# Cached upstream dumps land here (or in domain cache dirs that only hold References).
-REFERENCE_CACHE_DIRS = {"references", "github-actions"}
 
 
 def _is_reference(path: Path) -> bool:
@@ -1436,6 +2228,28 @@ def _is_reference(path: Path) -> bool:
     if concept.parse_error is not None:
         return False
     return str(concept.frontmatter.get("type", "")).strip() == "Reference"
+
+
+def _reference_cache_dirs() -> list[Path]:
+    """
+    intent: Discover directories under vault/ that hold Reference concepts.
+    input: none (walks VAULT_DIR).
+    output: sorted unique parent dirs of files with frontmatter type Reference.
+    role: dynamic replacement for a static allowlist — new scrape/cache dirs
+          (e.g. vault/github-actions/, vault/terraform/) are picked up automatically.
+    side_effects: none (read-only).
+    """
+    if not VAULT_DIR.is_dir():
+        return []
+    dirs: set[Path] = set()
+    for path in VAULT_DIR.rglob("*.md"):
+        if path.name == "index.md":
+            continue
+        if any(part.startswith(".") for part in path.relative_to(VAULT_DIR).parts):
+            continue
+        if _is_reference(path):
+            dirs.add(path.parent)
+    return sorted(dirs)
 
 
 def normalize_reference(path: Path) -> list[str]:
@@ -1483,18 +2297,14 @@ def normalize_reference(path: Path) -> list[str]:
 
 def rebuild_references_index() -> int:
     """
-    intent: Regenerate indexes only for Reference cache directories.
-    input: none (reads vault/ tree).
+    intent: Regenerate indexes for every directory that contains References.
+    input: none (discovers dirs via _reference_cache_dirs()).
     output: number of index files written.
-    role: index generator scoped to avoid colliding with Playbook/System indexes.
-    side_effects: writes index.md under Reference cache dirs only.
+    role: index generator scoped by frontmatter type, not by hardcoded dir names.
+    side_effects: writes index.md under discovered Reference dirs only.
     """
-    if not VAULT_DIR.is_dir():
-        return 0
     written = 0
-    for source_dir in sorted(p for p in VAULT_DIR.iterdir() if p.is_dir()):
-        if source_dir.name not in REFERENCE_CACHE_DIRS:
-            continue
+    for source_dir in _reference_cache_dirs():
         entries = []
         for ref in sorted(source_dir.glob("*.md")):
             if ref.name == "index.md":
@@ -1508,7 +2318,8 @@ def rebuild_references_index() -> int:
             official = f" — [official docs]({source_url})" if source_url else ""
             entries.append(f"* [{title}]({ref.name}) - {desc}{official}")
         if entries:
-            body = f"# Cached references — {source_dir.name}\n\n" + "\n".join(entries) + "\n"
+            rel = source_dir.relative_to(VAULT_DIR)
+            body = f"# Cached references — {rel}\n\n" + "\n".join(entries) + "\n"
             (source_dir / "index.md").write_text(body, encoding="utf-8")
             written += 1
     return written
@@ -1544,46 +2355,114 @@ def cmd_optimize(_args: argparse.Namespace | None = None) -> int:
 # Scrape (formerly registry_scraper.py)
 # =============================================================================
 
-# Keyword → (slug, title, url) catalog for GitHub Actions docs.
-# Extend this table when adding new upstream sources (Terraform, Flux, ...).
-# "understand github actions" is covered by concepts/github-actions/ — not cached here.
-GHA_CATALOG: dict[str, tuple[str, str, str]] = {
-    "workflow syntax": (
-        "workflow-syntax",
-        "Workflow syntax for GitHub Actions",
-        "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax",
-    ),
-    "metadata syntax": (
-        "metadata-syntax",
-        "Metadata syntax for composite/custom actions (action.yml)",
-        "https://docs.github.com/en/actions/reference/workflows-and-actions/metadata-syntax",
-    ),
-    "contexts": (
-        "contexts",
-        "Contexts reference (github.*, env.*, secrets.*, ...)",
-        "https://docs.github.com/en/actions/reference/workflows-and-actions/contexts",
-    ),
-    "expressions": (
-        "expressions",
-        "Expressions reference (${{ ... }} operators and functions)",
-        "https://docs.github.com/en/actions/reference/workflows-and-actions/expressions",
-    ),
-    "reusable workflows": (
-        "reusable-workflows",
-        "Reusing workflows (workflow_call)",
-        "https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows",
-    ),
-    "events": (
-        "events",
-        "Events that trigger workflows",
-        "https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows",
-    ),
-    "permissions": (
-        "permissions",
-        "GITHUB_TOKEN authentication and permissions",
-        "https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication",
-    ),
+# Builtin seed catalog (domain → keyword → (slug, title, url)).
+# Prefer extending via scrape-catalog.json files under the brain (merged at runtime).
+_BUILTIN_SCRAPE_CATALOGS: dict[str, dict[str, tuple[str, str, str]]] = {
+    "github-actions": {
+        "workflow syntax": (
+            "workflow-syntax",
+            "Workflow syntax for GitHub Actions",
+            "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax",
+        ),
+        "metadata syntax": (
+            "metadata-syntax",
+            "Metadata syntax for composite/custom actions (action.yml)",
+            "https://docs.github.com/en/actions/reference/workflows-and-actions/metadata-syntax",
+        ),
+        "contexts": (
+            "contexts",
+            "Contexts reference (github.*, env.*, secrets.*, ...)",
+            "https://docs.github.com/en/actions/reference/workflows-and-actions/contexts",
+        ),
+        "expressions": (
+            "expressions",
+            "Expressions reference (${{ ... }} operators and functions)",
+            "https://docs.github.com/en/actions/reference/workflows-and-actions/expressions",
+        ),
+        "reusable workflows": (
+            "reusable-workflows",
+            "Reusing workflows (workflow_call)",
+            "https://docs.github.com/en/actions/how-tos/reuse-automations/reuse-workflows",
+        ),
+        "events": (
+            "events",
+            "Events that trigger workflows",
+            "https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows",
+        ),
+        "permissions": (
+            "permissions",
+            "GITHUB_TOKEN authentication and permissions",
+            "https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication",
+        ),
+    },
 }
+
+
+def _domain_from_url(url: str) -> str:
+    """
+    intent: Map an upstream URL to a vault/references/<domain>/ folder name.
+    input: url — scraped page URL.
+    output: kebab-case domain slug (e.g. github-actions, docs-terraform-io).
+    """
+    parsed = urlparse(url)
+    host = (parsed.hostname or "upstream").lower().removeprefix("www.")
+    path = (parsed.path or "").lower()
+    if "github.com" in host and "actions" in path:
+        return "github-actions"
+    if host == "docs.github.com" and "/actions" in path:
+        return "github-actions"
+    return re.sub(r"[^a-z0-9]+", "-", host).strip("-") or "upstream"
+
+
+def _load_scrape_catalogs() -> dict[str, dict[str, tuple[str, str, str]]]:
+    """
+    intent: Merge builtin scrape catalogs with any scrape-catalog.json in the brain.
+    input: none.
+    output: domain → {keyword: (slug, title, url)}.
+    role: dynamic catalog loader — drop JSON files to add Terraform/Flux/etc.
+    side_effects: none (read-only).
+
+    JSON shape:
+      {
+        "domain": "terraform",
+        "entries": {
+          "language": {"slug": "language", "title": "…", "url": "https://…"}
+        }
+      }
+    """
+    catalogs: dict[str, dict[str, tuple[str, str, str]]] = {
+        domain: dict(entries) for domain, entries in _BUILTIN_SCRAPE_CATALOGS.items()
+    }
+    for path in sorted(VAULT_ROOT.rglob("scrape-catalog.json")):
+        if any(part.startswith(".") or part in SKIP_DIRS for part in path.relative_to(VAULT_ROOT).parts):
+            continue
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        if not isinstance(raw, dict):
+            continue
+        entries_raw = raw.get("entries") or {}
+        if not isinstance(entries_raw, dict):
+            continue
+        domain = str(raw.get("domain") or "").strip()
+        if not domain:
+            first_url = ""
+            for meta in entries_raw.values():
+                if isinstance(meta, dict) and meta.get("url"):
+                    first_url = str(meta["url"])
+                    break
+            domain = _domain_from_url(first_url) if first_url else path.parent.name
+        bucket = catalogs.setdefault(domain, {})
+        for keyword, meta in entries_raw.items():
+            if not isinstance(meta, dict):
+                continue
+            slug = str(meta.get("slug") or keyword).strip()
+            title = str(meta.get("title") or keyword).strip()
+            url = str(meta.get("url") or "").strip()
+            if url:
+                bucket[str(keyword).lower()] = (slug, title, url)
+    return catalogs
 
 
 class _TextExtractor(HTMLParser):
@@ -1694,48 +2573,110 @@ def fetch_page(url: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", text)
 
 
-def resolve_query(query: str) -> tuple[str, str, str]:
+def resolve_query(query: str) -> tuple[str, str, str, str]:
     """
-    intent: Map a free-text query (or a direct URL) to (slug, title, url).
+    intent: Map a free-text query (or a direct URL) to (domain, slug, title, url).
     input: query — user query string.
-    output: catalog entry tuple.
+    output: catalog entry with dynamic domain for vault/references/<domain>/.
     role: router.
     side_effects: none.
     """
     if query.startswith(("http://", "https://")):
         slug = re.sub(r"[^a-z0-9]+", "-", query.rstrip("/").rsplit("/", 1)[-1].lower()).strip("-")
-        return slug or "page", query, query
+        domain = _domain_from_url(query)
+        return domain, slug or "page", query, query
     q = query.lower()
-    for keyword, entry in GHA_CATALOG.items():
-        if keyword in q or all(w in q for w in keyword.split()):
-            return entry
-    known = ", ".join(sorted(GHA_CATALOG))
+    catalogs = _load_scrape_catalogs()
+    for domain, entries in catalogs.items():
+        for keyword, (slug, title, url) in entries.items():
+            if keyword in q or all(w in q for w in keyword.split()):
+                return domain, slug, title, url
+    known = ", ".join(sorted({k for e in catalogs.values() for k in e}))
     raise SystemExit(
         f"[DBG-401] no catalog match for '{query}'. Known topics: {known}. "
-        "You can also pass a direct URL."
+        "You can also pass a direct URL, or add vault/**/scrape-catalog.json."
     )
 
 
-def write_reference(slug: str, title: str, url: str, content: str) -> Path:
+def _standard_see_also_links() -> str:
+    """Build a short 'see also' blurb from standards/index.md or tagged standards."""
+    index = VAULT_ROOT / "standards" / "index.md"
+    if index.is_file():
+        return (
+            "See [Standards index](/standards/index.md) for binding house rules.\n\n"
+        )
+    return ""
+
+
+def compress_reference_body(content: str, max_chars: int) -> tuple[str, str]:
+    """
+    intent: Keep headings + short body under each (structure-preserving compress).
+    output: (body, note_suffix).
+    """
+    if len(content) <= max_chars:
+        return content, ""
+    lines = content.splitlines()
+    out: list[str] = []
+    under = 0
+    for line in lines:
+        if line.startswith("#"):
+            out.append(line)
+            under = 0
+            continue
+        if under < 3:
+            out.append(line)
+            under += 1
+        elif under == 3:
+            out.append("…")
+            under += 1
+    text_out = "\n".join(out)
+    note = "\n\n*(compressed — see source_url for full page)*"
+    if len(text_out) + len(note) > max_chars:
+        return text_out[: max(0, max_chars - 64)], "\n\n*(compressed/truncated)*"
+    return text_out, note
+
+
+def write_reference(
+    slug: str,
+    title: str,
+    url: str,
+    content: str,
+    domain: str | None = None,
+) -> Path:
     """
     intent: Write the scraped content as a conformant OKF Reference concept.
-    input: slug/title/url — catalog entry; content — extracted doc text.
-    output: path of the written file.
+    input: slug/title/url; optional domain (defaults from URL).
+    output: path of the written file under vault/references/<domain>/.
     role: vault writer.
-    side_effects: creates/overwrites a file under vault/github-actions/.
+    side_effects: creates/overwrites a Reference markdown file.
     """
-    out_dir = VAULT_ROOT / "vault" / "github-actions"
+    leaks = scan_secrets(content)
+    if leaks:
+        raise ValueError(
+            f"[DBG-403] secret scan blocked scrape write ({', '.join(leaks)}). "
+            "Redact upstream content or set secret_scan:false in okf.config.json."
+        )
+    cfg = load_okf_config()
+    domain_slug = (domain or _domain_from_url(url)).strip() or "upstream"
+    out_dir = VAULT_DIR / "references" / domain_slug
     out_dir.mkdir(parents=True, exist_ok=True)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    max_chars = 20_000  # keep cached pages agent-readable in one pass
-    truncated = content[:max_chars]
-    note = "\n\n*(truncated — see source_url for the full page)*" if len(content) > max_chars else ""
+    max_chars = int(cfg.get("reference_max_chars", 20_000))
+    if cfg.get("reference_compress", True) and len(content) > max_chars:
+        truncated, note = compress_reference_body(content, max_chars)
+    else:
+        truncated = content[:max_chars]
+        note = (
+            "\n\n*(truncated — see source_url for the full page)*"
+            if len(content) > max_chars
+            else ""
+        )
     safe_title = re.sub(r"\s+", " ", title).strip()
     fm = {
         "type": "Reference",
         "title": safe_title,
         "description": "Cached upstream documentation, fetched by `okf.py scrape`.",
-        "tags": ["github-actions", "upstream", "cached"],
+        "tags": [domain_slug, "upstream", "cached"],
         "timestamp": now,
         "source_url": url,
     }
@@ -1743,8 +2684,7 @@ def write_reference(slug: str, title: str, url: str, content: str) -> Path:
         format_frontmatter(fm)
         + "\n### Common Usage\n\n"
         + f"**Official documentation:** [{safe_title}]({url})\n\n"
-        + "See [Simplicity First](/standards/simplicity-first.md) and\n"
-        + "[Metadata Headers](/standards/metadata-headers.md) for house rules.\n\n"
+        + _standard_see_also_links()
         + "### Syntax\n\n"
         + f"{truncated}{note}\n\n"
         + "### Supported Formats & Variants\n\n"
@@ -1752,6 +2692,11 @@ def write_reference(slug: str, title: str, url: str, content: str) -> Path:
         + "# Citations\n\n"
         + f"[1] [{safe_title}]({url})\n"
     )
+    leaks_doc = scan_secrets(doc)
+    if leaks_doc:
+        raise ValueError(
+            f"[DBG-403] secret scan blocked reference document ({', '.join(leaks_doc)})."
+        )
     out_path = out_dir / f"{slug}.md"
     out_path.write_text(doc, encoding="utf-8")
     return out_path
@@ -1765,13 +2710,17 @@ def cmd_scrape(args: argparse.Namespace) -> int:
     role: subcommand.
     side_effects: network fetch + vault write.
     """
-    slug, title, url = resolve_query(args.query)
+    domain, slug, title, url = resolve_query(args.query)
     try:
         content = fetch_page(url)
     except (URLError, OSError, TimeoutError) as exc:
         print(f"[DBG-402] upstream fetch failed for {url}: {exc}", file=sys.stderr)
         return 1
-    out_path = write_reference(slug, title, url, content)
+    try:
+        out_path = write_reference(slug, title, url, content, domain=domain)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
     print(f"[DBG-400] cached {url} -> {out_path.relative_to(VAULT_ROOT)}")
     print("next: python3 kernel/okf.py optimize  (normalize + recompile index)")
     return 0
@@ -1879,9 +2828,13 @@ def main(argv: list[str] | None = None) -> int:
     role: main.
     side_effects: per subcommand.
     """
+    cfg = load_okf_config()
+    default_max_cards = int(cfg.get("max_cards", DEFAULT_MAX_CARDS))
+    default_budget = int(cfg.get("token_budget", DEFAULT_TOKEN_BUDGET))
+
     parser = argparse.ArgumentParser(
         prog="okf.py",
-        description="Aegis OKF kernel — one CLI for lookup, cards, compile, "
+        description="Aegis OKF kernel — lookup, pack, cards, compile, "
         "lint, enrich, optimize, scrape, and serve.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
@@ -1890,17 +2843,37 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("query", help="Search string (title, tags, path, description)")
     p.add_argument("--card", action="store_true",
                    help="Emit ## Prompt Card (or path stub) for each hit")
+    p.add_argument("--json", action="store_true",
+                   help="Machine-readable JSON (hits or Prompt Pack)")
     p.add_argument("--paths", action="store_true",
                    help="Print concept paths only (one per line)")
     p.add_argument("--limit", type=int, default=5, help="Max hits (default 5)")
     p.add_argument("--type", dest="type_filter", default=None,
                    help="Filter by frontmatter type (e.g. Concept, Playbook)")
-    p.add_argument("--max-cards", type=int, default=DEFAULT_MAX_CARDS,
-                   help=f"With --card, stop after N cards (default {DEFAULT_MAX_CARDS})")
-    p.add_argument("--budget", type=int, default=DEFAULT_TOKEN_BUDGET,
-                   help=f"With --card, approx token budget for the pack "
-                        f"(default {DEFAULT_TOKEN_BUDGET}; chars//{CHARS_PER_TOKEN})")
+    p.add_argument("--max-cards", type=int, default=default_max_cards,
+                   help=f"With --card, stop after N cards (default {default_max_cards})")
+    p.add_argument("--budget", type=int, default=default_budget,
+                   help=f"With --card, token budget for the pack "
+                        f"(default {default_budget}; tiktoken if installed else heuristic)")
     p.set_defaults(func=cmd_lookup)
+
+    p = sub.add_parser(
+        "pack",
+        help="Export cards-only Prompt Pack (markdown|json|xml) — never full vault dump",
+    )
+    p.add_argument("query", help="Search string for pack assembly")
+    p.add_argument(
+        "--style",
+        choices=("markdown", "json", "xml"),
+        default="markdown",
+        help="Output format (default markdown)",
+    )
+    p.add_argument("-o", "--output", default=None, help="Write to file instead of stdout")
+    p.add_argument("--limit", type=int, default=5, help="Max hits to consider (default 5)")
+    p.add_argument("--type", dest="type_filter", default=None, help="Filter by type")
+    p.add_argument("--max-cards", type=int, default=default_max_cards)
+    p.add_argument("--budget", type=int, default=default_budget)
+    p.set_defaults(func=cmd_pack)
 
     p = sub.add_parser("card", help="Extract Prompt Cards from known paths")
     p.add_argument("paths", nargs="+",
@@ -1910,8 +2883,15 @@ def main(argv: list[str] | None = None) -> int:
                         f"(~150 tokens). Default {PROMPT_CARD_MAX_CHARS}.")
     p.set_defaults(func=cmd_card)
 
-    p = sub.add_parser("compile",
-                       help="Rebuild graph.json / index.json / prompt_cards.json + HTML embed")
+    p = sub.add_parser(
+        "compile",
+        help="Rebuild graph.json / index.json (v2+inverted) / prompt_cards.json + HTML embed",
+    )
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help="Ignore incremental compile cache; re-parse every concept",
+    )
     p.set_defaults(func=cmd_compile)
 
     p = sub.add_parser("lint", help="Vault health check; writes lint.json")

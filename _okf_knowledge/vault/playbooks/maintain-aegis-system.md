@@ -29,20 +29,9 @@ playbook, reference, vault script, agent bridge, or Cursor skill.
 | Cached upstream docs | `Reference` | `vault/references/` | Run `kernel/okf.py optimize` |
 | Running system in workspace | `System` | `vault/systems/` | [systems/index.md](/vault/systems/index.md) |
 | Post-mortem | `Incident` | `vault/incidents/` | Link to affected systems/playbooks |
-| Core execution logic / ownership | `Module` | `kernel/modules/` | [modules/index.md](/kernel/modules/index.md) |
-| Cloud/tool execution extension | `Vendor` | `kernel/vendors/` | [vendors/index.md](/kernel/vendors/index.md) |
+| Domain routing / tool overview | `Concept` | `vault/concepts/` | [vault/index.md](/vault/index.md) |
 | Vault tooling (lint, compile, scrape) | Python script | `kernel/` | This playbook § Scripts |
 | Control-plane schema / persona | Markdown | `AGENTS.md` (package root, next to `_okf_knowledge/`) | [_okf_knowledge/index.md](/index.md) |
-
-## Anti-collision rule (vendors vs vault)
-
-| Layer | Owns | MUST NOT |
-|-------|------|----------|
-| `kernel/vendors/` (`type: Vendor`) | Triggers, minimum evidence, execution pipelines, artifact ownership vs modules | Duplicate System/Concept encyclopedias of the product |
-| `vault/` (`Concept` / `System` / `Playbook` / …) | Passive facts, architecture, runbooks, incidents, cached docs | Embed vendor routing/trigger tables |
-
-Cross-link instead: Vendor → System/Concept; System → Vendor. Precedence on conflict: vendors beat vault ([AGENTS.md](/AGENTS.md) §2.2).
-
 
 # Add or update a concept
 
@@ -148,6 +137,5 @@ okf.py compile then okf.py lint — must end 0 error(s). Archive _inbox source.
 
 - Schema contract + maintenance binding: [AGENTS.md](/AGENTS.md) (§1.2, §1.3, MAINTAIN/INGEST intent)
 - Standards: [Simplicity First](/standards/simplicity-first.md)
-- Modules: [kernel/modules/](/kernel/modules/index.md)
-- Vendors: [kernel/vendors/](/kernel/vendors/index.md)
 - Starter: [Extending Aegis](/vault/concepts/extending-aegis.md)
+- Profile template: [Profile schema](/kernel/profiles/_schema.md)

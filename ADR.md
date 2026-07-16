@@ -104,7 +104,7 @@ Keeping them as siblings makes the package **zippable**: drop into `.cursor/agen
 | Zone | Path | Role |
 | --- | --- | --- |
 | 1 | `_inbox/` | Untriaged raw material (immutable until ingested) |
-| 2 | `kernel/` | Execution: Python tools + Modules + Vendors |
+| 2 | `kernel/` | Execution: Python tools (+ optional Profiles schema) |
 | 3 | `standards/` | Binding MUST/SHOULD house rules |
 | 4 | `vault/` | Passive memory: Concepts, Playbooks, Systems, Incidents, References |
 
@@ -113,7 +113,7 @@ Keeping them as siblings makes the package **zippable**: drop into `.cursor/agen
 Mixing “law,” “how-to,” “scratch,” and “scripts” in one flat folder causes:
 
 - Agents treating drafts as standards.
-- Encyclopedic product docs polluting execution modules.
+- Encyclopedic product docs mixed into the kernel tooling tree.
 - No clear ingest funnel.
 
 Zones encode **lifecycle and authority**: inbox → curated vault/standards; kernel runs tools and domain execution docs; standards bind governance.
@@ -124,7 +124,6 @@ Zones encode **lifecycle and authority**: inbox → curated vault/standards; ker
 | --- | --- |
 | `_inbox/` | Drop notes, logs, exports before MAINTAIN/INGEST. |
 | `kernel/*.py` | `okf_lookup`, lint, graph compile, serve UI. |
-| `kernel/modules|vendors` | Optional domain execution pointers (empty until you add a domain). |
 | `standards/` | Governance Engine inputs — **simplicity-first**, **okf-prompt-injection**, **metadata-headers** (plus any domain standards you add). |
 | `vault/` | Playbooks agents follow; concepts humans/agents reference. |
 
@@ -155,7 +154,7 @@ status: active
 ---
 ```
 
-Known types: `Concept`, `Playbook`, `System`, `Incident`, `Reference`, `Module`, `Vendor`.  
+Known types: `Concept`, `Playbook`, `System`, `Incident`, `Reference`, `Profile` (optional).  
 Enforced/warned by `kernel/okf.py lint`.
 
 #### Why built this way
@@ -230,6 +229,93 @@ Removing `context.toon` eliminates a tempting fat paste target. The catalog is r
 | Keep `context.toon` as agent context | Recreates fat-dump tax; stale vs files. |
 | Always paste full playbook | Exceeds token budget; drowns the MUST lines. |
 | Embeddings / RAG | Extra infra; approximate retrieval; worse for exact standards. |
+
+---
+
+### D11 — Split knowledge cache vs corpus search (architecture enhancement on D4)
+
+> **ADR role:** record design choice, trade-offs, and future direction only.  
+> **Not** agent operating procedure — that lives in `_okf_knowledge/standards/okf-prompt-injection.md`.
+
+#### Context / issue
+
+Agents were treating the vault and CI graders as just another Grep corpus. That fights D4 (lookup + Prompt Cards): high turn cost, weak use of `compile` artifacts, and temptation to put domain path bans into `AGENTS.md`.
+
+#### Architecture decision
+
+1. **Two retrieval surfaces (structural):**
+   - **Knowledge plane** — OKF vault + compiled `index.json` / `prompt_cards.json` + `okf.py lookup` (curated, cacheable).
+   - **Corpus plane** — task workspace via Glob/Grep/Read (live product code/config).
+2. **Warm cache is compile output**, not ad-hoc vault walks every turn. Kernel may mtime-cache those JSON files in-process.
+3. **Catalog freshness model:** vault is the durable cache; live upstream fetch is a refresh path when data is stale/missing; durable results write back through the maintain playbook (same as other brain mutations).
+4. **Control-plane thinness:** `AGENTS.md` stays a short pointer. Domain grader isolation (e.g. bench answer-key globs) is a **task/bench concern**, not a forever list in the control plane or this ADR’s body.
+5. **Future:** optional separate code-index lane remains D8; do not merge into default vault lookup.
+
+#### Consequences
+
+| Improves | Watch |
+| --- | --- |
+| Clear home for curated vs live search | Cards must carry catalogs or agents will Grep again |
+| Aligns with industry “agentic Grep for code, packs for policy” | Maintainers must `compile` after vault catalog updates |
+| Keeps ADR / AGENTS out of per-domain path ban lists | Bench prompts own isolation globs |
+
+#### Normative behavior (pointer only)
+
+Agent-facing MUST/SHOULD for ladders, freshness order, and when grader files may be opened: **`standards/okf-prompt-injection.md`** only.
+
+#### Alternatives rejected
+
+| Alternative | Why not |
+| --- | --- |
+| Encode full retrieval procedure in ADR or AGENTS.md | Wrong doc type; ADR is design history, AGENTS must stay thin |
+| Default vector RAG over the vault | Extra infra; worse for exact standards; duplicates OKF cards |
+| No compiled index (always live walk) | Slower lookup; wastes the compile pipeline from D5 |
+
+---
+
+### D12 — Kernel ergonomics inspired by repo-packers (not becoming one)
+
+> **ADR role:** design choice only. Agent procedure stays in `okf-prompt-injection.md` / `AGENTS.md`.
+
+#### Context / issue
+
+Tools like [Repomix](https://github.com/yamadashy/repomix) excel at packing **source trees** into AI-friendly blobs (token counts, ignore files, secretlint, XML/JSON/MD export, MCP). Aegis `okf.py` had overlapping *needs* (budget math, safe ingest, machine API) but a **different job**: curated Prompt Packs over an OKF vault — never full-brain dumps.
+
+#### Decision
+
+Enhance `okf.py` **v1.2** with Repomix-adjacent capabilities that preserve OKF semantics:
+
+| Capability | Behavior |
+| --- | --- |
+| Token budgets | Prefer `tiktoken` `cl100k_base` when installed; else improved heuristic (not raw `chars//4` only) |
+| Secret scan | Block `scrape` / Reference writes on common credential patterns (`DBG-403`) |
+| Ignore | `.okfignore` (+ optional `.gitignore`) filters concept walks |
+| Config | `okf.config.json` for max_cards, token_budget, compress, secret_scan |
+| Pack export | `okf.py pack` → markdown \| json \| xml of **cards only** |
+| Machine API | `lookup --json` for agents/CI |
+| Compress | Structure-preserving Reference trim (headings + short bodies) |
+| Dedup | Single `assemble_prompt_pack()` shared by `lookup --card` and `pack` |
+
+#### Benefits
+
+1. **Honest budgets** — pack eviction matches real LLM token cost when tiktoken is present.
+2. **Safer ingest** — scraped upstream cannot silently land secrets in the vault.
+3. **Faster / cleaner walks** — ignore noise (`_archive`, tmp) without hardcoding every path.
+4. **Agent integration** — `--json` / `pack` give stable machine output without scraping prose.
+5. **Repomix formats without Repomix anti-pattern** — XML/MD/JSON export of the Prompt Pack only; corpus packing stays out of band (use Repomix/Grep for code).
+6. **Less duplicate work** — one pack assembler; config defaults once.
+
+#### Alternatives rejected
+
+| Alternative | Why not |
+| --- | --- |
+| Make `okf.py pack` dump the whole vault/repo | Contradicts D4 / Rule #2 |
+| Require Node/Secretlint/Tree-sitter always | Breaks stdlib-first portability; optional tiktoken is enough |
+| Encode packer UX into AGENTS.md | Wrong layer; keep DNA thin |
+
+#### Normative home
+
+Runtime flags/config: `kernel/okf.py` + optional `okf.config.json` / `.okfignore`. Agent injection rules unchanged.
 
 ---
 
@@ -328,7 +414,7 @@ Extending the framework is documented in `vault/concepts/extending-aegis.md`.
 
 #### Why built this way
 
-If Aegis were hard-wired to one domain, it could not host Kubernetes, Terraform, GitHub Actions, or other domains later. The control plane must stay **domain-agnostic**; domains plug in as OKF documents + optional kernel modules/vendors.
+If Aegis were hard-wired to one domain, it could not host Kubernetes, Terraform, GitHub Actions, or other domains later. The control plane must stay **domain-agnostic**; domains plug in as OKF documents under `standards/` and `vault/` (Concepts, Systems, Playbooks).
 
 #### What it is used for
 
@@ -337,7 +423,7 @@ If Aegis were hard-wired to one domain, it could not host Kubernetes, Terraform,
 | `vault/systems/<name>.md` | System of record for a running product |
 | `standards/<name>.md` | Binding house rules for that domain |
 | `vault/playbooks/<name>.md` | Agent procedures |
-| `kernel/modules/` / `kernel/vendors/` | Optional execution routing |
+| `vault/concepts/<name>.md` | Domain routing / patterns (replaces former Module/Vendor slots) |
 | Future domains | Same slots, different files |
 
 #### Alternatives rejected
@@ -443,7 +529,7 @@ Names and folder layout are illustrative. Cursor/Copilot may map each file to a 
 2. **One schema** — OKF frontmatter, Prompt Cards, lookup, compile/lint remain shared (`D3`–`D6`).
 3. **One precedence & budget** — knowledge precedence, evidence grades, 8-card / ~1200-token pack rules stay identical; agents must not invent divergent budgets.
 4. **Single maintain playbook** — MAINTAIN/INGEST still binds to `maintain-aegis-system.md` (`D6`).
-5. **Profiles remain the capability gate** — splitting agents does **not** replace `kernel/profiles/`; Profiles still decide which modules/vendors/standards may load (`AGENTS.md` §4.1).
+5. **Profiles** (if used later) are optional capability templates — not a Module/Vendor registry. Domain knowledge loads via OKF lookup over `standards/` + `vault/`.
 6. **Router or shared preamble** — intent detection and handoff rules live in exactly one place (thin root `AGENTS.md` or `agents/_common.md`) so Path selection cannot drift.
 7. **Laziness Ladder** — do not split until the unified file is proven costly; prefer Profiles + Path sections first (`D7` / Rule #1).
 
@@ -491,7 +577,7 @@ If none apply, **keep the monolith** and use Profiles + intent matrix instead.
 | Thin `AGENTS.md` | Default agent; intent detect → hand off or load Profile |
 | Specialized agent files | Smaller protocol surface per role |
 | Shared brain + lookup | Same `okf.py lookup` / Prompt Cards for all entrypoints |
-| Profiles | Still gate modules/vendors/standards per job |
+| Profiles | Optional templates only; not a Module/Vendor runtime gate |
 
 #### Alternatives rejected
 
@@ -501,16 +587,17 @@ If none apply, **keep the monolith** and use Profiles + intent matrix instead.
 | One agent **per Profile** only | Profiles are capability sets, not full pipeline contracts; orthogonal to Path A/B/C |
 | Separate brains per agent | Divergent law, broken graph, unmaintainable |
 | Copy-paste full protocol into each agent file | Drift guaranteed; contradicts D4 token discipline |
-| Replace Profiles with agent split | Loses allow-list capability check semantics |
+| Replace Profiles with agent split | Orthogonal concerns; Profiles remain optional templates |
 
 #### Relationship to Profiles
 
 | Mechanism | Answers |
 | --- | --- |
-| **Profile** (`kernel/profiles/`) | *Which* modules/vendors/standards may load for this job? |
+| **Profile** (`kernel/profiles/`) | Optional future RBAC template (unimplemented) |
 | **Agent entrypoint** (future split) | *Which* pipeline contract (generate vs validate vs execute vs maintain) is in context? |
+| **OKF lookup** | *Which* standards/vault docs apply for this task? |
 
-Use both: e.g. agent `generate.md` + Profile `architect.md`.
+Prefer lookup + cards; do not assume a Module/Vendor loader.
 
 ---
 
@@ -522,7 +609,8 @@ User / IDE agent
        ├─ reads AGENTS.md          (routing, Path A/B/C, §1.5 lookup rules)
        │
        ├─ okf.py lookup "<q>"      (find concept ids / paths)
-       │       └─ --card           (Prompt Pack for generation)
+       │       ├─ --card           (Prompt Pack for generation)
+       │       └─ --json / pack    (machine export of cards only — D12)
        │
        ├─ optional deep read       (full playbook AFTER lookup)
        │
@@ -563,7 +651,7 @@ okf.py serve → aegis-brain.html → fetch/embed graph.json + lint.json
 
 ### Follow-ups (non-blocking)
 
-1. Implement `aegis-okf` (or similar) wrapper: `lookup` / `code` / `gen` / `pack`.
+1. ~~Implement `aegis-okf` wrapper: `lookup` / `pack`.~~ **Partial (D12):** `okf.py pack` + `lookup --json` land in-kernel; optional outer wrapper still open.
 2. Optionally make `graph.json`/`lint.json` (and `index.json` / `prompt_cards.json`) gitignored caches with server/CLI regenerate-only — only if offline HTML story is preserved via embed.
 3. ~~Add mechanical checks (hook/CI) that Prompt Cards exist on all `standards/*`.~~ **Done** — `okf.py lint` emits `DBG-308` (error) when a `standards/*` concept lacks a non-empty `## Prompt Card`; oversized cards warn as `DBG-309`. CI: `.github/workflows/okf-lint.yml`.
 4. **Optional multi-agent split (D10):** only if trigger criteria fire — extract Path A/B/C/Maintain into `agents/*.md` with shared `_common.md`; keep one `_okf_knowledge/` brain. Documented in [`docs/16-multi-agent-split.md`](docs/16-multi-agent-split.md).
@@ -575,7 +663,9 @@ okf.py serve → aegis-brain.html → fetch/embed graph.json + lint.json
 | Decision | Normative / procedural home |
 | --- | --- |
 | D1–D3, D5 | [`AGENTS.md`](AGENTS.md) §1 |
-| D4 + lookup UX | [`AGENTS.md`](AGENTS.md) §1.4–1.5; [`standards/okf-prompt-injection.md`](_okf_knowledge/standards/okf-prompt-injection.md) (**keep** — Rule #2) |
+| D4 + lookup UX | [`AGENTS.md`](AGENTS.md) Rule #1 / §1.5; [`standards/okf-prompt-injection.md`](_okf_knowledge/standards/okf-prompt-injection.md) (**keep** — Rule #2) |
+| D11 knowledge plane vs corpus plane | This ADR (design record only); agent procedure in [`standards/okf-prompt-injection.md`](_okf_knowledge/standards/okf-prompt-injection.md) |
+| D12 okf.py pack/tokens/secrets/ignore | This ADR; runtime in [`kernel/okf.py`](_okf_knowledge/kernel/okf.py) v1.2 |
 | D6 | [`vault/playbooks/maintain-aegis-system.md`](_okf_knowledge/vault/playbooks/maintain-aegis-system.md) |
 | D7 | [`vault/concepts/extending-aegis.md`](_okf_knowledge/vault/concepts/extending-aegis.md); shipped standards under [`standards/`](_okf_knowledge/standards/) |
 | D8 | This ADR (directional); future wrapper + generate path |
@@ -588,6 +678,9 @@ okf.py serve → aegis-brain.html → fetch/embed graph.json + lint.json
 
 | Version | Date | Notes |
 | --- | --- | --- |
+| 1.6 | 2026-07-17 | D12: okf.py v1.2 — token estimate, secret scan, .okfignore, okf.config.json, pack export, lookup --json; shared assemble_prompt_pack. |
+| 1.5 | 2026-07-17 | Removed unused `kernel/modules` and `kernel/vendors` slots; domain routing lives in `vault/concepts` (design: content-only, no Module/Vendor runtime). |
+| 1.4 | 2026-07-17 | D11: architecture split knowledge-plane (OKF compile/lookup cache) vs corpus Grep; agent procedure stays in `okf-prompt-injection` only (ADR not a runbook). |
 | 1.3 | 2026-07-14 | D10: optional future split of `AGENTS.md` into specialized agents; protocol header → v4.6.1; follow-up #4. |
 | 1.2 | 2026-07-13 | Follow-up #3 done: standards Prompt Card gate in `okf.py lint` + `okf-lint` CI workflow. |
 | 1.1 | 2026-07-13 | Clean-slate ADR: D7 documents empty domain slots; D2/D3 examples de-domainized; Rule #2 (`okf-prompt-injection`) called out as non-optional shipped standard. |

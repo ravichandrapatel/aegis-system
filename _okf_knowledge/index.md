@@ -13,7 +13,7 @@ Welcome to the **Aegis Brain**. 4 zones per [AGENTS.md](/AGENTS.md). Starter: [E
 | Zone | Directory | Purpose | Analogy |
 | :--- | :--- | :--- | :--- |
 | **Zone 1** | [`_inbox/`](/_inbox/) | Untriaged material, logs, and raw queries. | The Scratchpad |
-| **Zone 2** | [`kernel/`](/kernel/) | Orchestration scripts, modules, and vendors. | The CPU |
+| **Zone 2** | [`kernel/`](/kernel/) | Orchestration scripts (`okf.py`); optional profiles. | The CPU |
 | **Zone 3** | [`standards/`](/standards/) | Binding technical policies and MUST/SHOULD rules. | The Law |
 | **Zone 4** | [`vault/`](/vault/) | Passive memory: Concepts, Playbooks, Systems, etc. | The Dictionary |
 
@@ -28,9 +28,7 @@ Welcome to the **Aegis Brain**. 4 zones per [AGENTS.md](/AGENTS.md). Starter: [E
 
 ## 🚀 Active Protocol
 
-* [**AGENTS.md**](/AGENTS.md) — Control plane (v4.3.0).
-* [**Modules**](/kernel/modules/) — Core domain execution logic.
-* [**Vendors**](/kernel/vendors/) — Cloud/tool-specific extensions.
+* [**AGENTS.md**](/AGENTS.md) — Control plane.
 * [**Maintenance**](/vault/playbooks/maintain-aegis-system.md) — Required for all brain mutations.
 * [**Activity Log**](/log.md) — Historical record of system mutations.
 

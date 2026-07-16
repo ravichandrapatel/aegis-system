@@ -2,7 +2,7 @@
 
 Passive memory lives here under `vault/`. Types are declared in frontmatter; files may be grouped by domain.
 
-**Boundary:** `kernel/vendors/` and `kernel/modules/` are Zone 2 execution (`type: Vendor` / `type: Module`). Do not put encyclopedic product docs there — put those here as `System` / `Concept` and cross-link.
+Domain routing and tool overviews live here as `Concept` / `System` (not under `kernel/`).
 
 ## 📂 Vault Categories
 
