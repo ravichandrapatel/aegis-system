@@ -15,8 +15,8 @@ python3 _okf_knowledge/kernel/okf.py <subcommand> …
 | --- | --- | --- | --- |
 | **`okf.py lookup`** | Find concepts; build Prompt Pack | stdout hits / cards | Read-only |
 | **`okf.py card`** | Extract cards for known paths | stdout cards | Read-only |
-| **`okf.py compile`** | After any durable brain edit | `graph.json`, `index.json`, `prompt_cards.json`, HTML embed | Writes compiled artifacts |
-| **`okf.py lint`** | After edits; CI; pre-merge | console + `lint.json` | Writes `lint.json` |
+| **`okf.py compile`** | After any durable brain edit | `index.json`, `prompt_cards.json`, HTML graph embed | Writes compiled artifacts |
+| **`okf.py lint`** | After edits; CI; pre-merge | console report + HTML lint embed | Rewrites the embed (no `lint.json`) |
 | **`okf.py serve`** | Local brain visualizer | HTTP on `:8080` | Serves files; may trigger compile/lint APIs |
 | **`okf.py optimize`** | Normalize references / rebuild indexes | Updated reference indexes + compile | Rewrites reference-related indexes; runs compiler |
 | **`okf.py enrich`** | Fill missing description/tags/Prompt Card via LLM | Report; `--write` edits concepts | Network (LLM); `--write` edits vault files |
@@ -40,10 +40,9 @@ Full detail: [Lookup & Prompt Cards](09-lookup-and-prompt-cards.md).
 
 Produces:
 
-1. `graph.json` — nodes/edges (+ truncated content for UI)  
-2. `index.json` — slim search index  
-3. `prompt_cards.json` — card cache  
-4. Updates embed inside `aegis-brain.html` when possible  
+1. `index.json` — slim search index (+ inverted tokens + adjacency)  
+2. `prompt_cards.json` — card cache  
+3. Graph embed inside `aegis-brain.html` (no `graph.json` sidecar)  
 
 Also deletes legacy `context.toon` if present.
 
@@ -53,7 +52,7 @@ Also deletes legacy `context.toon` if present.
 
 **Use when:** verifying vault health after mutations; CI gate.
 
-Checks include (among others): frontmatter presence/type, link integrity, orphans, and **standards Prompt Card gate** (`DBG-308` / `DBG-309`).
+Checks include (among others): frontmatter presence/type, link integrity, orphans, and **standards Prompt Card gate** (`DBG-308` / `DBG-309`). Zone 5 `type: Code` concepts get the OKF v0.2 checks instead: required `schema_version` / `language` / `kind` / `source` (error `DBG-310`), `schema_version` mismatch warning (`DBG-311`), and exemption from orphan warnings.
 
 Success criterion for maintain checklist: **`0 error(s)`**.
 
@@ -91,7 +90,7 @@ python3 _okf_knowledge/kernel/okf.py enrich --write [--only playbooks] [--limit 
 
 Gap-fill only and idempotent: existing fields are never overwritten, tags are merged, cards are inserted before `# Related`, and LLM output is sanitized and clamped (card ≤ 600 chars) before any write. Follow with the compile + lint loop.
 
-**Do not use when:** the gap is judgment content (steps, ownership tables) — write that by hand per the maintain playbook.
+**Do not use when:** the gap is judgment content (steps, ownership tables) — write that by hand per the maintain playbook. `type: Code` concepts (Zone 5) are always skipped — regenerate them externally instead.
 
 ## `okf.py scrape`
 

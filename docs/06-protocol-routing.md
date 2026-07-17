@@ -2,11 +2,11 @@
 
 [← Table of contents](README.md)
 
-Binding source: [`../AGENTS.md`](../AGENTS.md) (v4.6.1). Normative keywords follow RFC 2119 (**MUST**, **SHOULD**, …).
+Binding source: [`../AGENTS.md`](../AGENTS.md) (version in file header). Normative keywords follow RFC 2119 (**MUST**, **SHOULD**, …).
 
 ## Persona & mission (short)
 
-Aegis never guesses. It maps requirements against the local brain, resolves dependencies via **typed graph traversal**, mandates **approval gates** where required, and verifies against local standards. Absolute bar: **Zero Downtime, Zero Surprises.**
+Aegis never guesses. It maps requirements against the local brain, resolves dependencies via **typed graph traversal**, mandates a **Mutation Gate** where risk warrants, and verifies against local standards. Absolute bar: **Zero Downtime, Zero Surprises.**
 
 ## Intent → pipeline matrix
 
@@ -44,19 +44,19 @@ Before planning or traversing, verify the loaded Profile’s required modules, v
 
 ### Context expansion & budget (§4.2)
 
-Build a Context / Prompt Pack by traversing `graph.json` (and using lookup for cards). **Do not** paste `graph.json` into the generation prompt.
+Build a Context / Prompt Pack by traversing the `index.json` adjacency map (and using lookup for cards). **Do not** paste compiled artifacts into the generation prompt.
 
 | Budget rule | Value |
 | --- | --- |
 | Max Prompt Cards (normative) | **8** |
-| Max tokens (advisory) | **~1200** |
+| Target tokens (guidance) | **≈1200** (tokenizers differ; ≤8 cards is the hard rule) |
 
 **Deterministic eviction** when over budget (apply in order):
 
-1. Priority tier: Standards > Modules > Vendors > Playbooks > References  
+1. Priority tier: Standards > Playbooks > Systems/Concepts > References > Code  
 2. Graph distance (fewer hops from target wins)  
 3. Higher frontmatter `priority`  
-4. Newer `last_modified`
+4. Newer `timestamp`
 
 Drop lowest-ranking cards until ≤ 8 cards remain.
 
@@ -66,7 +66,7 @@ Drop lowest-ranking cards until ≤ 8 cards remain.
 | --- | --- | --- |
 | `depends_on` | Strict structural requirement | EKS → VPC |
 | `implements` | Execution relationship | Terraform → AWS |
-| `governed_by` | Policy enforcement | Module → Standard |
+| `governed_by` | Policy enforcement | System → Standard |
 | `references` | Contextual linkage | Incident → Playbook |
 | `compatible_with` | Hard gate; missing/violated → **HALT** | Version constraints |
 | `supersedes` | Evict older node; replace with newer | B supersedes A |
@@ -79,12 +79,11 @@ When sources conflict, resolve in this order:
 
 1. Local Brain **standards** (via lookup / Prompt Cards)  
 2. Local workspace (`_inbox/`, terminal context)  
-3. **Vendors**  
-4. **Modules**  
-5. Passive **vault**  
-6. Official external metadata (OCI / Git APIs)
+3. Passive **vault**  
+4. **Code facts** (`code/`, OKF v0.2 — grade `observed`)  
+5. Official external metadata (OCI / Git APIs)
 
-**Owns / priority:** overlapping standards or modules → document whose `owns` claims the domain wins; if both claim it, higher `priority` wins.  
+**Owns / priority:** overlapping standards → document whose `owns` claims the domain wins; if both claim it, higher `priority` wins.  
 **Fail-closed:** same `owns` + same `priority` → conflict error, **HALT** exit `1`, no guessing.
 
 ## Evidence grades (§2.1)

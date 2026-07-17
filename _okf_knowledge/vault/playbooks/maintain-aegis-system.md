@@ -1,21 +1,25 @@
 ---
 type: Playbook
 title: Maintain aegis-system
-description: How to add or update concepts, playbooks, references, scripts, and skills in the aegis-system OKF vault — with post-change verification.
-tags: [aegis-system, ingest, maintenance, okf, procedure]
-timestamp: 2026-07-14T17:40:00Z
+description: MAINTAIN/INGEST playbook — add or update vault knowledge, self-learning write-back (Rung 1 inbox capture → Rung 2 full ingest), cross-links, compile+lint verification.
+tags: [aegis-system, ingest, maintenance, okf, procedure, write-back, inbox, self-learn, maintain]
+timestamp: 2026-07-18T03:00:00Z
 status: active
+pack_force_when: [maintain, ingest, write-back, inbox]
 ---
 
 # Trigger
 
 You need to add or change durable knowledge in aegis-system: a concept, house standard,
-playbook, reference, vault script, agent bridge, or Cursor skill.
+playbook, reference, vault script, or Cursor skill — either because a user
+asked (MAINTAIN/INGEST) or because a self-learn write-back trigger fired
+([AGENTS.md](/AGENTS.md) §1.6 — full trigger/ladder detail in
+§ Self-learning write-back below).
 
 # Preconditions
 
 - [AGENTS.md](/AGENTS.md) §1.2 binds all brain mutations to this playbook — follow it end-to-end.
-- Read [AGENTS.md](/AGENTS.md) §1.3 for the OKF frontmatter schema before creating files.
+- Read [OKF House Schema](/standards/okf-house-schema.md) for the frontmatter schema before creating files (AGENTS.md §1.3 points there).
 - Raw source material (if any) is in [`_inbox/`](/_inbox/) and has not been edited.
 - You know which `type` the content is (see decision table below).
 
@@ -51,6 +55,9 @@ description: One-line summary for indexes and okf_lookup.
 tags: [kebab-case, topic]
 timestamp: 2026-07-13T00:00:00Z
 status: active
+# Optional exceptions (dense catalogs only — see okf-prompt-injection):
+# prompt_card_max_chars: 1200          # DBG-309 / enrich clamp override (hard max 2000)
+# pack_force_when: [catalog, pin, version]  # force-include in Prompt Pack when query matches
 ---
 ```
 
@@ -58,7 +65,8 @@ status: active
 
 - Prefer headings, tables, lists, and fenced code over long prose.
 - Standards: normative **MUST** / **SHOULD** / **FORBIDDEN** language.
-- Binding standards **MUST** include a non-empty `## Prompt Card` section (≤150 tokens / ~600 chars) — enforced by `okf.py lint` (`DBG-308` / `DBG-309`). See [OKF Prompt Injection](/standards/okf-prompt-injection.md).
+- Binding standards **MUST** include a non-empty `## Prompt Card` section (default ≤150 tokens / ~600 chars) — enforced by `okf.py lint` (`DBG-308` / `DBG-309`). Override with `prompt_card_max_chars` only when a denser card is justified. See [OKF Prompt Injection](/standards/okf-prompt-injection.md).
+- Catalogs that must survive pack eviction **SHOULD** set `pack_force_when: [keywords…]`.
 - Other agent-facing concepts **SHOULD** include a `## Prompt Card` for slim injection.
 - External claims: `# Citations` with numbered `[1] [title](url)` entries.
 - Link to related concepts with bundle-absolute paths.
@@ -88,14 +96,48 @@ The kernel is a single script, `kernel/okf.py`, with one subcommand per operatio
 
 | Subcommand | Role |
 |--------|------|
-| `okf.py compile` | Regenerate `graph.json`, `index.json`, `prompt_cards.json`; embed graph in `aegis-brain.html` |
-| `okf.py lint` | Conformance + broken links + orphans + **standards Prompt Card gate** → `lint.json` |
+| `okf.py compile` | Regenerate `index.json` + `prompt_cards.json`; embed visualizer graph into `aegis-brain.html` |
+| `okf.py lint` | Conformance + broken links + orphans + **standards Prompt Card gate** (stdout + HTML embed) |
 | `okf.py card` | Extract `## Prompt Card` sections for slim agent injection |
 | `okf.py lookup` | Search via `index.json` (fallback: live vault); list hits or budgeted `--card` |
+| `okf.py pack` | Cards-only Prompt Pack export (markdown/json/xml) |
 | `okf.py enrich` | LLM gap-fill for retrieval fields (description, tags, `## Prompt Card`); dry-run by default, `--write` to apply |
 | `okf.py scrape` | JIT upstream fetch → `vault/` |
 | `okf.py optimize` | Normalize references, rebuild vault indexes, run compiler |
-| `okf.py serve` | Local server + `POST /api/lint` / `POST /api/compile` |
+| `okf.py serve` | Local visualizer (`aegis-brain.html`) + `POST /api/lint` / `POST /api/compile` |
+| `okf.py list` / `show` | Inspect concepts (`--type`, `--raw`, `--card`) |
+| `okf.py log-append` | Ephemeral chronology on `log.md` (`--category Decision` etc.) — **not** vault ingest |
+| `okf.py doctor` | Setup/health diagnostics (zones, compile artifacts, cards, lint) |
+| `okf.py snapshot` / `restore` | Filesystem checkpoints under `.okf-snapshots/` (`restore` needs `--yes`) |
+
+Runtime knobs live in `DEFAULT_OKF_CONFIG` inside `kernel/okf.py`. No `okf.config.json` / `graph.json` / `lint.json` — visualizer data is embedded in `aegis-brain.html`.
+
+**Ephemeral vs durable:** `log-append` / session notes are chronology. Durable knowledge still goes through this playbook (frontmatter + indexes + compile/lint). Do not invent Hermes-style `Decision`/`Session` types in the house taxonomy — use `log-append --category …` or ingest a proper Concept/Incident/Playbook.
+
+# Self-learning write-back (AGENTS.md §1.6 mechanics)
+
+INGEST is not only user-triggered. A turn that produces durable knowledge the vault
+does not yet hold MUST close the loop before it ends.
+
+## Triggers (any one fires the loop)
+
+1. The user corrects a fact that a vault card or standard currently states (or omits).
+2. Aegis resolved something live that vault-first should have answered — a pin/SHA, version, catalog entry, or upstream behavior (per the freshness rules in [OKF Prompt Injection](/standards/okf-prompt-injection.md)).
+3. A troubleshooting/OPERATE task uncovered a root cause worth a post-mortem (`Incident`).
+4. Rule #1 lookup returned no relevant card for a domain this brain is supposed to cover (retrieval gap).
+5. A procedure was executed that took more than one attempt to get right (playbook candidate).
+
+## Ladder (pick the lowest rung that fits the remaining turn budget)
+
+- **Rung 1 — Capture (minimum, always allowed):** Write one raw note to `_inbox/<date>-<slug>.md` stating what was learned, the evidence grade, and the intended vault destination. No frontmatter or index updates required in `_inbox/`.
+- **Rung 2 — Full ingest:** Execute this playbook end-to-end (Path C): correct type/dir, [house-schema](/standards/okf-house-schema.md) frontmatter (`timestamp`, not `last_modified`), cross-links, index updates, `log.md` entry, `compile` + `lint` (0 errors), then archive the `_inbox/` source.
+
+## Rules
+
+1. A turn that fired a trigger MUST NOT end without at least a Rung 1 capture — silently discarding learned knowledge is a governance failure.
+2. Rung 1 captures are debt, not storage. Touch `_inbox/` when a write-back trigger fired or the intent is MAINTAIN/INGEST — do **not** sweep inbox on every engineering turn. When you do open `_inbox/` and find untriaged files (anything besides `README.md` / `_archive/`), surface them and offer INGEST.
+3. Write-back is exempt from the Mutation Gate — brain mutations gate on this playbook's own verification (`lint` ending `0 error(s)`), not on user approval. Destructive vault operations (deleting/deprecating existing knowledge) still require approval.
+4. **Code-structure facts are NOT write-back candidates.** Facts owned by Zone 5 (symbols, resources, manifests, their relationships) are refreshed by regenerating `code/` externally — never hand-write or ingest them into `code/` or the curated vault. Write-back stays for corrections, incidents, procedures, and pins.
 
 # Post-change checklist
 
@@ -118,7 +160,7 @@ python3 _okf_knowledge/kernel/okf.py lint
 
 # Verification
 
-- [ ] New/edited file has valid frontmatter per [AGENTS.md](/AGENTS.md) §1.3
+- [ ] New/edited file has valid frontmatter per [OKF House Schema](/standards/okf-house-schema.md)
 - [ ] Every affected `index.md` lists the new or changed page
 - [ ] `python3 _okf_knowledge/kernel/okf.py lint` reports clean (or warnings only, with plan)
 - [ ] `log.md` has a dated entry
@@ -127,15 +169,16 @@ python3 _okf_knowledge/kernel/okf.py lint
 ## Prompt Card
 
 ```text
-Brain mutations MUST: correct type/dir per decision table; required frontmatter;
-cross-link both directions; update every affected index.md; log.md entry.
-Standards MUST ship a ## Prompt Card (≤600 chars). After every change run
-okf.py compile then okf.py lint — must end 0 error(s). Archive _inbox source.
+MAINTAIN/INGEST + write-back: type/dir per decision table; required frontmatter;
+cross-link both ways; update index.md; log.md. Standards need ## Prompt Card.
+Write-back: trigger → Rung 1 `_inbox/<date>-<slug>.md` (min) or Rung 2 full ingest.
+No every-turn inbox sweep. After change: okf.py compile then lint (0 errors); archive inbox.
 ```
 
 # Related
 
-- Schema contract + maintenance binding: [AGENTS.md](/AGENTS.md) (§1.2, §1.3, MAINTAIN/INGEST intent)
+- Maintenance binding: [AGENTS.md](/AGENTS.md) (§1.2, §1.6, MAINTAIN/INGEST intent)
+- Schema: [OKF House Schema](/standards/okf-house-schema.md)
 - Standards: [Simplicity First](/standards/simplicity-first.md)
 - Starter: [Extending Aegis](/vault/concepts/extending-aegis.md)
 - Profile template: [Profile schema](/kernel/profiles/_schema.md)

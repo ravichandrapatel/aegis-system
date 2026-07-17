@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 # file_name: okf.py
 # description: Single-file Aegis OKF kernel — lookup, card, compile, lint,
-#              enrich, optimize, scrape, and serve as subcommands. Stdlib only.
-#              Consolidates okf_common / prompt_card / okf_lookup /
-#              graph_compiler / okf_lint / okf_enrich / cache_optimizer /
-#              registry_scraper / serve_vault.
-# version: 1.2.0
+#              enrich, optimize, scrape, serve, list/show, log-append, doctor,
+#              and snapshot/restore. Stdlib only.
+# version: 1.4.0
 # authors: contributors
 #
 # Usage:
@@ -18,16 +16,24 @@
 #   python3 _okf_knowledge/kernel/okf.py optimize
 #   python3 _okf_knowledge/kernel/okf.py scrape "<query or URL>"
 #   python3 _okf_knowledge/kernel/okf.py serve [--port 8080]
+#   python3 _okf_knowledge/kernel/okf.py list [--type T]
+#   python3 _okf_knowledge/kernel/okf.py show <concept-id> [--raw|--card]
+#   python3 _okf_knowledge/kernel/okf.py log-append "<msg>" [--category C]
+#   python3 _okf_knowledge/kernel/okf.py doctor
+#   python3 _okf_knowledge/kernel/okf.py snapshot [--note TEXT] [--list]
+#   python3 _okf_knowledge/kernel/okf.py restore [name] --yes
 """
 intent: One CLI for every kernel operation on the Aegis OKF brain.
 input: subcommand + flags (see Usage above); env OKF_VAULT_ROOT overrides the
        brain root; env OKF_LLM_* configures the enrich endpoint;
-       optional okf.config.json / .okfignore under the brain root.
-output: subcommand-specific stdout; compiled artifacts / lint.json / vault
-        edits depending on the subcommand.
+       optional .okfignore under the brain root. Runtime knobs live in
+       DEFAULT_OKF_CONFIG (embedded — no okf.config.json).
+output: subcommand-specific stdout; compiled index.json / prompt_cards.json;
+        visualizer data embedded in aegis-brain.html (no graph.json/lint.json).
 role: kernel entry point (replaces the previous per-script CLIs).
-side_effects: read-only for lookup/card/pack; compile/lint/enrich/optimize/scrape
-              write under the brain; serve binds a TCP port.
+side_effects: read-only for lookup/card/pack/list/show/doctor; compile/lint/
+              enrich/optimize/scrape/log-append/snapshot/restore write under
+              the brain; serve binds a TCP port.
 
 v1.1 speed: mtime-memoized artifact loads, compile-time normalized fields +
 inverted token index, camelCase/snake_case tokenization, incremental compile
@@ -35,6 +41,13 @@ cache (skip unchanged concepts; no-op when vault hash-clean).
 
 v1.2 (D12): better token estimate (+ optional tiktoken), secret scan on scrape,
 .okfignore, shared Prompt Pack assembly, pack export, lookup --json.
+
+v1.3: embed DEFAULT_OKF_CONFIG; fold hop-adjacency into index.json; visualizer
+stays as aegis-brain.html + serve with graph/lint embedded in HTML only
+(no graph.json / lint.json sidecars).
+
+v1.4: CRUD inspect (list/show), log-append, doctor diagnostics, filesystem
+snapshot/restore under .okf-snapshots/ (Hermes-inspired; no agent SDK).
 """
 from __future__ import annotations
 
@@ -45,6 +58,7 @@ import ipaddress
 import json
 import os
 import re
+import shutil
 import socket
 import sys
 import urllib.error
@@ -73,7 +87,6 @@ RESERVED_FILENAMES = {"index.md", "log.md"}
 _CONTROL_PLANE_SEED = {
     "AGENTS.md",
     "README.md",
-    "ADR.md",
     "CLAUDE.md",
     "GEMINI.md",
     "COPILOT.md",
@@ -98,9 +111,16 @@ _TYPE_SEED = {
     "Reference",
     "Incident",
     "Profile",
+    "Code",
 }
+# OKF v0.2 dialect: fields required on type: Code concepts (Zone 5 code/).
+CODE_REQUIRED_FIELDS = ("schema_version", "language", "kind", "source")
+# Optional typed-relationship lists on Code frontmatter; resolvable ids
+# become graph/adjacency edges (maps onto the §1.4 edge vocabulary).
+CODE_RELATIONSHIP_FIELDS = ("depends_on", "references", "calls", "called_by")
+CODE_SCHEMA_VERSION = "0.2"
 GRAPH_CONTENT_MAX = 4000
-INDEX_FORMAT_VERSION = 2
+INDEX_FORMAT_VERSION = 3
 COMPILE_CACHE_VERSION = 1
 COMPILE_CACHE_NAME = ".okf-compile-cache.json"
 
@@ -223,22 +243,27 @@ def control_plane_filenames() -> set[str]:
 def known_types() -> set[str]:
     """
     intent: House taxonomy of frontmatter `type` values.
-    input: none — prefers AGENTS.md "Known type values" table; falls back to seed.
+    input: none — prefers the okf-house-schema standard "Known type values"
+           table, then the AGENTS.md table (legacy), then the seed.
     output: set of type names (includes Profile, Concept, …).
-    role: lint taxonomy source (dynamic — tracks AGENTS.md).
+    role: lint taxonomy source (dynamic — tracks the house-schema standard).
     side_effects: none (read-only).
     """
     types = set(_TYPE_SEED)
-    agents = VAULT_ROOT.parent / "AGENTS.md"
-    if not agents.is_file():
-        return types
-    try:
-        text = agents.read_text(encoding="utf-8")
-    except OSError:
-        return types
-    # Rows like: | `Concept` | 3 or 4 | …
-    for match in re.finditer(r"^\|\s*`([A-Z][A-Za-z0-9_-]*)`\s*\|", text, re.MULTILINE):
-        types.add(match.group(1))
+    sources = (
+        VAULT_ROOT / "standards" / "okf-house-schema.md",
+        VAULT_ROOT.parent / "AGENTS.md",
+    )
+    for source in sources:
+        if not source.is_file():
+            continue
+        try:
+            text = source.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        # Rows like: | `Concept` | 3 or 4 | …
+        for match in re.finditer(r"^\|\s*`([A-Z][A-Za-z0-9_-]*)`\s*\|", text, re.MULTILINE):
+            types.add(match.group(1))
     return types
 
 
@@ -382,7 +407,8 @@ def extract_links(body: str) -> list[str]:
 def inject_into_aegis_brain(tag_id: str, payload_json: str, root: Path = BRAIN_ROOT) -> bool:
     """
     intent: Embed a JSON payload into aegis-brain.html's data script tag so the
-            graph auto-loads even when the file is opened as file://.
+            visualizer auto-loads without graph.json / lint.json sidecars
+            (works for file:// and for okf.py serve).
     input: tag_id — "graph-data" or "lint-data"; payload_json — serialized JSON;
            root — directory containing aegis-brain.html.
     output: True if the tag was found and replaced, False otherwise.
@@ -399,7 +425,6 @@ def inject_into_aegis_brain(tag_id: str, payload_json: str, root: Path = BRAIN_R
         rf'(<script id="{tag_id}" type="application/json">).*?(</script>)',
         re.DOTALL,
     )
-    # Lambda replacement so backslashes in the JSON are not treated as regex escapes.
     new_html, count = pattern.subn(lambda m: m.group(1) + safe + m.group(2), html)
     if count == 0:
         print(
@@ -559,9 +584,20 @@ DEFAULT_MAX_CARDS = 8
 DEFAULT_TOKEN_BUDGET = 1200
 # Fallback chars≈tokens*4 when tiktoken is unavailable.
 CHARS_PER_TOKEN = 4
-CONFIG_NAME = "okf.config.json"
 OKFIGNORE_NAME = ".okfignore"
-_CONFIG_CACHE: dict[str, object] | None = None
+# Embedded runtime knobs (was okf.config.json). Edit here — no sidecar file.
+# Use credential_scan (not *secret*) so Bandit B105 does not treat the flag as a password.
+DEFAULT_OKF_CONFIG: dict[str, object] = {
+    "max_cards": DEFAULT_MAX_CARDS,
+    "token_budget": DEFAULT_TOKEN_BUDGET,
+    "prompt_card_max_chars": 600,
+    "reference_max_chars": 20_000,
+    "reference_compress": True,
+    "credential_scan": True,
+    "respect_gitignore": True,
+    # Optional: [{"id": "vault/references/…", "when": ["pin", "sha"]}]
+    "force_catalogs": [],
+}
 _IGNORE_CACHE: list[str] | None = None
 _TIKTOKEN_ENC = None  # lazy; False = tried and missing
 _SECRET_PATTERNS: list[tuple[re.Pattern[str], str]] = [
@@ -577,36 +613,10 @@ _SECRET_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 
 def load_okf_config() -> dict[str, object]:
     """
-    intent: Load optional okf.config.json once (mtime not required — small file).
-    output: merged defaults + file overrides.
+    intent: Return embedded DEFAULT_OKF_CONFIG (copy — callers may not mutate globals).
+    output: config dict.
     """
-    global _CONFIG_CACHE
-    if _CONFIG_CACHE is not None:
-        return _CONFIG_CACHE
-    # Use credential_scan (not *secret*) so Bandit B105 does not treat the flag as a password.
-    cfg: dict[str, object] = {
-        "max_cards": DEFAULT_MAX_CARDS,
-        "token_budget": DEFAULT_TOKEN_BUDGET,
-        "prompt_card_max_chars": 600,
-        "reference_max_chars": 20_000,
-        "reference_compress": True,
-        "credential_scan": True,
-        "respect_gitignore": True,
-    }
-    path = VAULT_ROOT / CONFIG_NAME
-    if path.is_file():
-        try:
-            raw = json.loads(path.read_text(encoding="utf-8"))
-            if isinstance(raw, dict):
-                cfg.update({k: v for k, v in raw.items() if v is not None})
-                # Backward compat with okf.config.json key from v1.2 draft
-                legacy = "secret" + "_scan"
-                if legacy in raw and "credential_scan" not in raw:
-                    cfg["credential_scan"] = bool(raw[legacy])
-        except (OSError, json.JSONDecodeError):
-            pass
-    _CONFIG_CACHE = cfg
-    return cfg
+    return dict(DEFAULT_OKF_CONFIG)
 
 
 def _read_ignore_file(path: Path) -> list[str]:
@@ -717,6 +727,8 @@ class IndexEntry:
     tags: list[str] = field(default_factory=list)
     ctype: str = ""
     path: Path | None = None
+    # Query tokens that force this card into packs (domain-declared in frontmatter).
+    pack_force_when: list[str] = field(default_factory=list)
     # Compile-time normalized fields (filled from index v2; computed on fallback).
     id_norm: str = ""
     title_norm: str = ""
@@ -940,6 +952,9 @@ def _entry_from_row(row: dict) -> IndexEntry | None:
     tok_list = row.get("tokens") or []
     if not isinstance(tok_list, list):
         tok_list = []
+    pfw = row.get("pack_force_when", [])
+    if not isinstance(pfw, list):
+        pfw = [pfw] if pfw else []
     entry = IndexEntry(
         concept_id=cid,
         title=str(row.get("title", "")),
@@ -947,6 +962,7 @@ def _entry_from_row(row: dict) -> IndexEntry | None:
         tags=[str(t) for t in tags],
         ctype=str(row.get("type", "")),
         path=VAULT_ROOT / f"{cid}.md",
+        pack_force_when=[str(t).lower() for t in pfw if t],
         id_norm=str(row.get("id_norm", "")),
         title_norm=str(row.get("title_norm", "")),
         desc_norm=str(row.get("desc_norm", "")),
@@ -1025,6 +1041,9 @@ def _entries_from_vault() -> list[IndexEntry]:
         tags = fm.get("tags", [])
         if not isinstance(tags, list):
             tags = [tags] if tags else []
+        pfw = fm.get("pack_force_when", [])
+        if not isinstance(pfw, list):
+            pfw = [pfw] if pfw else []
         entry = IndexEntry(
             concept_id=concept.concept_id,
             title=str(fm.get("title", "")),
@@ -1032,6 +1051,7 @@ def _entries_from_vault() -> list[IndexEntry]:
             tags=[str(t) for t in tags],
             ctype=str(fm.get("type", "")),
             path=concept.path,
+            pack_force_when=[str(t).lower() for t in pfw if t],
         )
         _ensure_norms(entry)
         entries.append(entry)
@@ -1040,17 +1060,16 @@ def _entries_from_vault() -> list[IndexEntry]:
 
 def _load_adjacency() -> dict[str, set[str]]:
     """
-    intent: Undirected adjacency from graph.json for proximity boosts.
+    intent: Undirected adjacency from index.json for proximity boosts.
     input: none.
     output: concept_id → neighbor ids.
     role: graph loader.
-    side_effects: reads graph.json if present (mtime-cached).
+    side_effects: reads index.json if present (mtime-cached).
     """
-    path = BRAIN_ROOT / "graph.json"
+    path = BRAIN_ROOT / "index.json"
     raw = _cached_load(_ADJ_CACHE, path)
     if not isinstance(raw, dict):
         return {}
-    # Cache parsed adjacency, not raw JSON, on second access path:
     cached_adj = getattr(_ADJ_CACHE, "_adj", None)
     if (
         cached_adj is not None
@@ -1059,14 +1078,14 @@ def _load_adjacency() -> dict[str, set[str]]:
     ):
         return cached_adj  # type: ignore[return-value]
     adj: dict[str, set[str]] = {}
-    for edge in raw.get("edges", []):
-        if not isinstance(edge, dict):
-            continue
-        src, tgt = edge.get("source"), edge.get("target")
-        if not src or not tgt:
-            continue
-        adj.setdefault(str(src), set()).add(str(tgt))
-        adj.setdefault(str(tgt), set()).add(str(src))
+    stored = raw.get("adjacency") or {}
+    if isinstance(stored, dict):
+        for src, neighbors in stored.items():
+            if not isinstance(neighbors, list):
+                continue
+            for tgt in neighbors:
+                adj.setdefault(str(src), set()).add(str(tgt))
+                adj.setdefault(str(tgt), set()).add(str(src))
     _ADJ_CACHE._adj = adj  # type: ignore[attr-defined]
     _ADJ_CACHE._adj_mtime = _ADJ_CACHE.mtime_ns  # type: ignore[attr-defined]
     return adj
@@ -1211,6 +1230,72 @@ def _est_tokens(text: str) -> int:
     return count_tokens(text)
 
 
+def _forced_catalog_hits(query: str) -> list[Hit]:
+    """
+    intent: Domain-dynamic force-include — any concept with frontmatter
+            pack_force_when: [keywords…] is prepended when the query matches.
+            Kernel stays domain-agnostic; vault declares catalogs (bench lesson:
+            rules without concrete catalogs → rem loops).
+    """
+    terms = set(_tokens(query or ""))
+    if not terms:
+        return []
+    entries = _load_index()
+    if entries is None:
+        entries = _entries_from_vault()
+    # Optional config override: {"force_catalogs":[{"id":"…","when":["a","b"]}]}
+    cfg = load_okf_config()
+    cfg_force: dict[str, set[str]] = {}
+    for row in cfg.get("force_catalogs") or []:
+        if not isinstance(row, dict):
+            continue
+        cid = str(row.get("id") or "").strip()
+        when = row.get("when") or row.get("pack_force_when") or []
+        if not cid or not isinstance(when, list):
+            continue
+        cfg_force[cid] = {str(t).lower() for t in when if t}
+
+    forced: list[Hit] = []
+    seen: set[str] = set()
+    for entry in entries:
+        keys = set(entry.pack_force_when) | cfg_force.get(entry.concept_id, set())
+        if not keys:
+            continue
+        if keys & terms:
+            forced.append(
+                Hit(entry=entry, score=10_000, matched=["pack_force_when"])
+            )
+            seen.add(entry.concept_id)
+    # Config-only ids not yet in index (misconfigured) — skip silently
+    return forced
+
+
+def _pack_row(hit: Hit, cache: dict[str, str]) -> dict[str, object]:
+    """Build one Prompt Pack row (card or path stub) from a hit."""
+    card = _card_for(hit, cache)
+    if card:
+        kind = "card"
+        body = f"### Card: {hit.entry.concept_id}.md (score={hit.score})\n{card}"
+    else:
+        kind = "stub"
+        body = (
+            f"### Path: _okf_knowledge/{hit.entry.concept_id}.md "
+            f"(score={hit.score})\n"
+            f"(no ## Prompt Card — open file only if needed)"
+        )
+    return {
+        "id": hit.entry.concept_id,
+        "path": hit.entry.concept_id + ".md",
+        "type": hit.entry.ctype,
+        "title": hit.entry.title,
+        "score": hit.score,
+        "kind": kind,
+        "text": body,
+        "tokens": count_tokens(body),
+        "forced": "pack_force_when" in (hit.matched or []),
+    }
+
+
 def assemble_prompt_pack(
     query: str,
     *,
@@ -1222,47 +1307,52 @@ def assemble_prompt_pack(
     """
     intent: Shared Prompt Pack builder for lookup --card and pack.
     output: (pack rows, raw hits). Each row: id, score, kind, text, tokens.
+    Concepts with pack_force_when (vault frontmatter) or DEFAULT_OKF_CONFIG
+    force_catalogs are force-included first (bypass max_cards + token budget,
+    capped by MAX_FORCED_CARDS); remaining slots fill from ranked hits.
     """
     cfg = load_okf_config()
     max_cards = int(max_cards if max_cards is not None else cfg.get("max_cards", DEFAULT_MAX_CARDS))
     budget = int(budget if budget is not None else cfg.get("token_budget", DEFAULT_TOKEN_BUDGET))
     hits = lookup(query, limit=limit, type_filter=type_filter)
-    if not hits:
+    forced = _forced_catalog_hits(query)[:MAX_FORCED_CARDS]
+    forced_ids = {h.entry.concept_id for h in forced}
+    # Ranked hits excluding already-forced ids (forced are assembled separately).
+    # Eviction tier (§4.2): Code ranks below every curated type — code cards
+    # fill remaining slots but can never crowd curated cards out of the budget.
+    ranked = [h for h in hits if h.entry.concept_id not in forced_ids]
+    ranked.sort(
+        key=lambda h: (
+            1 if h.entry.ctype == "Code" else 0,
+            -h.score,
+            h.entry.concept_id,
+        )
+    )
+    all_hits = forced + ranked
+    if not all_hits:
         return [], []
+
     cache = _load_card_cache()
     pack: list[dict[str, object]] = []
     used = 0
-    for hit in hits:
+
+    # 1) Forced catalogs first — bypass max_cards and token budget.
+    for hit in forced:
+        row = _pack_row(hit, cache)
+        pack.append(row)
+        used += int(row["tokens"])
+
+    # 2) Fill remaining slots from ranked hits until max_cards / budget.
+    for hit in ranked:
         if len(pack) >= max(1, max_cards):
             break
-        card = _card_for(hit, cache)
-        if card:
-            kind = "card"
-            body = f"### Card: {hit.entry.concept_id}.md (score={hit.score})\n{card}"
-        else:
-            kind = "stub"
-            body = (
-                f"### Path: _okf_knowledge/{hit.entry.concept_id}.md "
-                f"(score={hit.score})\n"
-                f"(no ## Prompt Card — open file only if needed)"
-            )
-        cost = count_tokens(body)
+        row = _pack_row(hit, cache)
+        cost = int(row["tokens"])
         if pack and used + cost > budget:
             break
-        pack.append(
-            {
-                "id": hit.entry.concept_id,
-                "path": hit.entry.concept_id + ".md",
-                "type": hit.entry.ctype,
-                "title": hit.entry.title,
-                "score": hit.score,
-                "kind": kind,
-                "text": body,
-                "tokens": cost,
-            }
-        )
+        pack.append(row)
         used += cost
-    return pack, hits
+    return pack, all_hits
 
 
 def format_pack(pack: list[dict[str, object]], style: str, query: str) -> str:
@@ -1448,14 +1538,39 @@ def _graph_content(body: str) -> str:
     return stripped[:GRAPH_CONTENT_MAX] + "\n\n…"
 
 
-def compile_graph(concepts: list[Concept]) -> dict[str, list[dict[str, str]]]:
+def relationship_edge_targets(c: Concept, ids: set[str]) -> list[str]:
     """
-    intent: Build the node/edge graph implied by markdown cross-links. Nodes
-            carry the concept's markdown body so aegis-brain's reading pane
-            works without filesystem access.
+    intent: Resolve typed-relationship frontmatter lists (Code concepts) into
+            concept ids for graph/adjacency edges. Non-resolvable entries
+            (external symbols, unscanned files) stay metadata-only.
+    input: c — loaded concept; ids — all known concept ids.
+    output: list of target concept ids (deduped, self excluded).
+    side_effects: none.
+    """
+    if str(c.frontmatter.get("type", "")) != "Code":
+        return []
+    targets: list[str] = []
+    seen: set[str] = set()
+    for fld in CODE_RELATIONSHIP_FIELDS:
+        raw = c.frontmatter.get(fld, [])
+        if not isinstance(raw, list):
+            raw = [raw] if raw else []
+        for item in raw:
+            cid = str(item).strip().lstrip("/")
+            if cid.endswith(".md"):
+                cid = cid[: -len(".md")]
+            if cid and cid != c.concept_id and cid in ids and cid not in seen:
+                seen.add(cid)
+                targets.append(cid)
+    return targets
+
+
+def compile_graph(concepts: list[Concept]) -> dict[str, list[dict[str, object]]]:
+    """
+    intent: Build the node/edge graph for the visualizer (embedded in HTML only).
     input: concepts — loaded vault.
-    output: {"nodes": [...], "edges": [...]} dict for graph.json.
-    role: graph builder.
+    output: {"nodes": [...], "edges": [...]} — never written as graph.json.
+    role: visualizer graph builder.
     side_effects: none.
     """
     ids = {c.concept_id for c in concepts}
@@ -1470,7 +1585,7 @@ def compile_graph(concepts: list[Concept]) -> dict[str, list[dict[str, str]]]:
         }
         for c in concepts
     ]
-    edges = []
+    edges: list[dict[str, str]] = []
     for c in concepts:
         for target in extract_links(c.body):
             resolved = resolve_link(target, c.path)
@@ -1479,7 +1594,34 @@ def compile_graph(concepts: list[Concept]) -> dict[str, list[dict[str, str]]]:
                 continue
             if target_id in ids and target_id != c.concept_id:
                 edges.append({"source": c.concept_id, "target": target_id})
+        for target_id in relationship_edge_targets(c, ids):
+            edges.append({"source": c.concept_id, "target": target_id})
     return {"nodes": nodes, "edges": edges}
+
+
+def compile_adjacency(concepts: list[Concept]) -> dict[str, list[str]]:
+    """
+    intent: Build undirected neighbor lists from markdown cross-links for
+            lookup hop-boost (stored inside index.json — no graph.json).
+    input: concepts — loaded vault.
+    output: concept_id → sorted neighbor ids.
+    role: adjacency builder.
+    side_effects: none.
+    """
+    ids = {c.concept_id for c in concepts}
+    adj: dict[str, set[str]] = {}
+    for c in concepts:
+        for target in extract_links(c.body):
+            resolved = resolve_link(target, c.path)
+            target_id = concept_id_from_path(resolved)
+            if target_id is None or target_id not in ids or target_id == c.concept_id:
+                continue
+            adj.setdefault(c.concept_id, set()).add(target_id)
+            adj.setdefault(target_id, set()).add(c.concept_id)
+        for target_id in relationship_edge_targets(c, ids):
+            adj.setdefault(c.concept_id, set()).add(target_id)
+            adj.setdefault(target_id, set()).add(c.concept_id)
+    return {cid: sorted(neighbors) for cid, neighbors in sorted(adj.items())}
 
 
 def _index_row_for_concept(c: Concept) -> dict[str, object]:
@@ -1502,6 +1644,10 @@ def _index_row_for_concept(c: Concept) -> dict[str, object]:
     for t in tag_strs:
         tok.update(_tokenize(t))
     tok.update(_tokenize(ctype))
+    pfw = c.frontmatter.get("pack_force_when", [])
+    if not isinstance(pfw, list):
+        pfw = [pfw] if pfw else []
+    pfw_strs = [str(t).lower() for t in pfw if t]
     return {
         "id": c.concept_id,
         "path": c.concept_id + ".md",
@@ -1509,6 +1655,7 @@ def _index_row_for_concept(c: Concept) -> dict[str, object]:
         "description": description,
         "tags": tag_strs,
         "type": ctype,
+        "pack_force_when": pfw_strs,
         "id_norm": id_norm,
         "title_norm": title_norm,
         "desc_norm": desc_norm,
@@ -1520,9 +1667,9 @@ def _index_row_for_concept(c: Concept) -> dict[str, object]:
 
 def compile_index(concepts: list[Concept]) -> dict[str, object]:
     """
-    intent: Slim frontmatter index + inverted token map for lookup.
+    intent: Slim frontmatter index + inverted token map + hop adjacency.
     input: concepts — parseable vault concepts.
-    output: index.json v2 document {version, entries, inverted}.
+    output: index.json v3 document {version, entries, inverted, adjacency}.
     role: lookup index builder.
     side_effects: none.
     """
@@ -1538,6 +1685,7 @@ def compile_index(concepts: list[Concept]) -> dict[str, object]:
         "version": INDEX_FORMAT_VERSION,
         "entries": entries,
         "inverted": inverted,
+        "adjacency": compile_adjacency(concepts),
     }
 
 
@@ -1704,34 +1852,49 @@ def load_vault_incremental(force: bool = False) -> tuple[list[Concept], int, int
 
 
 def _artifacts_fresh(concept_count: int) -> bool:
-    """True when index/graph/cards exist and look like a complete prior compile."""
+    """True when index + cards + HTML graph embed look like a prior compile."""
     index_p = BRAIN_ROOT / "index.json"
-    graph_p = BRAIN_ROOT / "graph.json"
     cards_p = BRAIN_ROOT / "prompt_cards.json"
-    if not (index_p.is_file() and graph_p.is_file() and cards_p.is_file()):
+    html_p = BRAIN_ROOT / "aegis-brain.html"
+    if not (index_p.is_file() and cards_p.is_file() and html_p.is_file()):
         return False
     try:
         raw = json.loads(index_p.read_text(encoding="utf-8"))
         if isinstance(raw, dict) and isinstance(raw.get("entries"), list):
-            return len(raw["entries"]) == concept_count and raw.get("version") == INDEX_FORMAT_VERSION
-        if isinstance(raw, list):
-            return False  # force upgrade to v2
+            index_ok = (
+                len(raw["entries"]) == concept_count
+                and raw.get("version") == INDEX_FORMAT_VERSION
+                and isinstance(raw.get("adjacency"), dict)
+            )
+        elif isinstance(raw, list):
+            return False  # force upgrade
+        else:
+            return False
+        if not index_ok:
+            return False
+        html = html_p.read_text(encoding="utf-8")
+        m = re.search(
+            r'<script id="graph-data" type="application/json">(.*?)</script>',
+            html,
+            re.DOTALL,
+        )
+        if not m:
+            return False
+        body = m.group(1).strip()
+        return body.startswith("{") and body != "null"
     except (OSError, json.JSONDecodeError):
         return False
-    return False
 
 
 def cmd_compile(args: argparse.Namespace | None = None) -> int:
     """
-    intent: Write graph.json, index.json (v2+inverted), prompt_cards.json and
-            embed the graph into aegis-brain.html. Skips work when the
-            incremental compile cache reports zero dirty concepts and artifacts
-            are already current (unless --force).
+    intent: Write index.json (v3+inverted+adjacency) + prompt_cards.json, and
+            embed the visualizer graph into aegis-brain.html (no graph.json).
     input: optional --force.
     output: process exit code.
     role: subcommand.
-    side_effects: writes graph/index/prompt_cards JSON; rewrites aegis-brain.html;
-                  updates .okf-compile-cache.json.
+    side_effects: writes index/prompt_cards; rewrites aegis-brain.html embed;
+                  drops legacy graph.json/lint.json/okf.config.json if present.
     """
     force = bool(getattr(args, "force", False)) if args is not None else False
     try:
@@ -1751,15 +1914,15 @@ def cmd_compile(args: argparse.Namespace | None = None) -> int:
             )
             return 0
 
-        # Drop legacy TOON index if present from older Aegis versions.
-        legacy = BRAIN_ROOT / "context.toon"
-        if legacy.exists():
-            legacy.unlink()
-        graph = compile_graph(concepts)
+        # Drop legacy sidecars (config is in-script; graph/lint live in HTML).
+        for legacy_name in ("context.toon", "graph.json", "lint.json", "okf.config.json"):
+            legacy = BRAIN_ROOT / legacy_name
+            if legacy.exists():
+                legacy.unlink()
+
         index = compile_index(concepts)
         cards = compile_prompt_cards(concepts)
-        graph_json = json.dumps(graph, indent=2)
-        (BRAIN_ROOT / "graph.json").write_text(graph_json + "\n", encoding="utf-8")
+        graph = compile_graph(concepts)
         (BRAIN_ROOT / "index.json").write_text(
             json.dumps(index, indent=2) + "\n", encoding="utf-8"
         )
@@ -1770,18 +1933,22 @@ def cmd_compile(args: argparse.Namespace | None = None) -> int:
         for slot in (_INDEX_CACHE, _ADJ_CACHE, _CARD_CACHE, _INVERTED_CACHE):
             slot.mtime_ns = None
             slot.payload = None
-        embedded = inject_into_aegis_brain("graph-data", graph_json)
+        embedded = inject_into_aegis_brain("graph-data", json.dumps(graph))
+        # Stash last graph for serve API (avoids re-parse on POST /api/compile).
+        cmd_compile._last_graph = graph  # type: ignore[attr-defined]
     except OSError as exc:
-        print(f"[DBG-201] graph compile failed: {exc}", file=sys.stderr)
+        print(f"[DBG-201] compile failed: {exc}", file=sys.stderr)
         return 1
     skipped_note = f", {len(skipped)} skipped" if skipped else ""
     inv_n = len(index.get("inverted", {})) if isinstance(index, dict) else 0
+    adj_n = len(index.get("adjacency", {})) if isinstance(index, dict) else 0
     print(
-        f"[DBG-200] wrote graph.json ({len(concepts)} concepts{skipped_note}, "
-        f"{len(graph['edges'])} edges), index.json v{INDEX_FORMAT_VERSION} "
-        f"({inv_n} inv tokens), prompt_cards.json ({len(cards)} cards); "
-        f"parsed={dirty} reused={reused} for {VAULT_ROOT}"
-        + ("; embedded graph into aegis-brain.html" if embedded else "")
+        f"[DBG-200] wrote index.json v{INDEX_FORMAT_VERSION} "
+        f"({len(concepts)} concepts{skipped_note}, {inv_n} inv tokens, "
+        f"{adj_n} adj nodes), prompt_cards.json ({len(cards)} cards), "
+        f"{len(graph['edges'])} graph edges"
+        + ("; embedded into aegis-brain.html" if embedded else "; HTML embed skipped")
+        + f"; parsed={dirty} reused={reused} for {VAULT_ROOT}"
     )
     return 0
 
@@ -1793,6 +1960,33 @@ def cmd_compile(args: argparse.Namespace | None = None) -> int:
 HOUSE_REQUIRED_FIELDS = ("title", "description")
 # Rule #2 target: ≤150 tokens ≈ 600 characters (see `okf.py card --max-chars`).
 PROMPT_CARD_MAX_CHARS = 600
+# Absolute ceiling for per-doc frontmatter prompt_card_max_chars overrides.
+PROMPT_CARD_MAX_CHARS_HARD = 2000
+# Safety cap: forced pack_force_when catalogs that bypass max_cards/budget.
+MAX_FORCED_CARDS = 4
+
+
+def prompt_card_char_limit(frontmatter: dict | None = None) -> int:
+    """
+    intent: Resolve effective Prompt Card char budget for a concept.
+    input: optional frontmatter (may declare prompt_card_max_chars).
+    output: positive int — default from DEFAULT_OKF_CONFIG, clamped to HARD.
+    """
+    default = int(
+        load_okf_config().get("prompt_card_max_chars", PROMPT_CARD_MAX_CHARS)
+    )
+    if not frontmatter:
+        return default
+    raw = frontmatter.get("prompt_card_max_chars")
+    if raw is None or str(raw).strip() == "":
+        return default
+    try:
+        n = int(raw)
+    except (TypeError, ValueError):
+        return default
+    if n < 1:
+        return default
+    return min(n, PROMPT_CARD_MAX_CHARS_HARD)
 
 
 def collect_findings() -> tuple[list[dict[str, str]], int]:
@@ -1800,7 +1994,7 @@ def collect_findings() -> tuple[list[dict[str, str]], int]:
     intent: Run every check and return structured findings.
     input: none (reads vault from disk).
     output: (findings, concept_count) — each finding has severity/concept/code/message.
-    role: core checker, shared by the CLI report and lint.json.
+    role: core checker for the CLI lint report.
     side_effects: none (read-only).
     """
     concepts = load_vault()
@@ -1822,16 +2016,28 @@ def collect_findings() -> tuple[list[dict[str, str]], int]:
         if not str(c.frontmatter.get("type", "")).strip():
             add("error", c.concept_id, "DBG-301", "missing required 'type' field")
 
-        # -- House schema (AGENTS.md taxonomy, loaded dynamically) --
+        # -- House schema (okf-house-schema / AGENTS.md taxonomy, loaded dynamically) --
         ctype = str(c.frontmatter.get("type", ""))
         taxonomy = known_types()
         if ctype and ctype not in taxonomy:
             add("warning", c.concept_id, "DBG-302",
-                f"unknown type '{ctype}' (not in AGENTS.md taxonomy)")
+                f"unknown type '{ctype}' (not in house-schema taxonomy)")
         for fld in HOUSE_REQUIRED_FIELDS:
             if not str(c.frontmatter.get(fld, "")).strip():
                 add("warning", c.concept_id, "DBG-303",
                     f"missing house-required field '{fld}'")
+
+        # -- OKF v0.2 Code concepts (Zone 5 code/, regenerate-only) --
+        if ctype == "Code":
+            for fld in CODE_REQUIRED_FIELDS:
+                if not str(c.frontmatter.get(fld, "")).strip():
+                    add("error", c.concept_id, "DBG-310",
+                        f"Code concept missing required v0.2 field '{fld}'")
+            sv = str(c.frontmatter.get("schema_version", "")).strip()
+            if sv and sv != CODE_SCHEMA_VERSION:
+                add("warning", c.concept_id, "DBG-311",
+                    f"unexpected schema_version '{sv}' "
+                    f"(expected {CODE_SCHEMA_VERSION})")
 
         # -- Standards Prompt Card gate (path standards/* OR tag `standard`) --
         if is_standard_concept(c):
@@ -1843,14 +2049,41 @@ def collect_findings() -> tuple[list[dict[str, str]], int]:
                     "DBG-308",
                     "standard concepts MUST include a non-empty ## Prompt Card section",
                 )
-            elif len(card) > PROMPT_CARD_MAX_CHARS:
-                add(
-                    "warning",
-                    c.concept_id,
-                    "DBG-309",
-                    f"Prompt Card is {len(card)} chars "
-                    f"(target ≤{PROMPT_CARD_MAX_CHARS} ≈150 tokens)",
-                )
+            else:
+                limit = prompt_card_char_limit(c.frontmatter)
+                raw_override = c.frontmatter.get("prompt_card_max_chars")
+                if raw_override is not None and str(raw_override).strip() != "":
+                    try:
+                        asked = int(raw_override)
+                        if asked > PROMPT_CARD_MAX_CHARS_HARD:
+                            add(
+                                "warning",
+                                c.concept_id,
+                                "DBG-309",
+                                f"prompt_card_max_chars={asked} exceeds hard ceiling "
+                                f"{PROMPT_CARD_MAX_CHARS_HARD}; clamped to {limit}",
+                            )
+                    except (TypeError, ValueError):
+                        add(
+                            "warning",
+                            c.concept_id,
+                            "DBG-309",
+                            f"invalid prompt_card_max_chars={raw_override!r}; "
+                            f"using default {limit}",
+                        )
+                if len(card) > limit:
+                    override_note = (
+                        f", override prompt_card_max_chars={limit}"
+                        if limit != PROMPT_CARD_MAX_CHARS
+                        else ""
+                    )
+                    add(
+                        "warning",
+                        c.concept_id,
+                        "DBG-309",
+                        f"Prompt Card is {len(card)} chars "
+                        f"(target ≤{limit}{override_note})",
+                    )
 
         # -- Links --
         for target in extract_links(c.body):
@@ -1882,7 +2115,13 @@ def collect_findings() -> tuple[list[dict[str, str]], int]:
             if target_id is not None and resolved.exists():
                 linked_ids.add(target_id)
 
-    for orphan in sorted(ids - linked_ids):
+    # Code concepts are machine-produced leaves; inbound links are not expected.
+    code_ids = {
+        c.concept_id
+        for c in concepts
+        if str(c.frontmatter.get("type", "")) == "Code"
+    }
+    for orphan in sorted(ids - linked_ids - code_ids):
         add(
             "warning",
             orphan,
@@ -1893,16 +2132,36 @@ def collect_findings() -> tuple[list[dict[str, str]], int]:
     return findings, len(concepts)
 
 
+def build_lint_report() -> tuple[dict[str, object], list[dict[str, str]], int]:
+    """
+    intent: Build the structured lint report (stdout + HTML embed + serve API).
+    output: (report, findings, concept_count).
+    """
+    findings, concept_count = collect_findings()
+    errors = [f for f in findings if f["severity"] == "error"]
+    warnings = [f for f in findings if f["severity"] == "warning"]
+    report: dict[str, object] = {
+        "generated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "vault": VAULT_ROOT.name,
+        "summary": {
+            "concepts": concept_count,
+            "errors": len(errors),
+            "warnings": len(warnings),
+        },
+        "findings": findings,
+    }
+    return report, findings, concept_count
+
+
 def cmd_lint(_args: argparse.Namespace | None = None) -> int:
     """
-    intent: Print the lint report, write lint.json (also embedded into
-            aegis-brain.html for file:// auto-load), exit non-zero on errors.
+    intent: Print the lint report, embed it into aegis-brain.html (no lint.json).
     input: none.
     output: process exit code (0 clean/warnings-only, 1 errors).
     role: subcommand.
-    side_effects: writes lint.json at the vault root; rewrites aegis-brain.html.
+    side_effects: rewrites aegis-brain.html lint-data embed when HTML exists.
     """
-    findings, concept_count = collect_findings()
+    report, findings, concept_count = build_lint_report()
     errors = [f for f in findings if f["severity"] == "error"]
     warnings = [f for f in findings if f["severity"] == "warning"]
 
@@ -1915,26 +2174,14 @@ def cmd_lint(_args: argparse.Namespace | None = None) -> int:
         print("  clean — vault is conformant and healthy")
     print(f"summary: {len(errors)} error(s), {len(warnings)} warning(s)")
 
-    report = {
-        "generated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        # Package-relative label only — never embed absolute machine paths.
-        "vault": VAULT_ROOT.name,
-        "summary": {
-            "concepts": concept_count,
-            "errors": len(errors),
-            "warnings": len(warnings),
-        },
-        "findings": findings,
-    }
-    write_ok = True
     try:
         report_json = json.dumps(report, indent=2)
-        (BRAIN_ROOT / "lint.json").write_text(report_json + "\n", encoding="utf-8")
         inject_into_aegis_brain("lint-data", report_json)
+        cmd_lint._last_report = report  # type: ignore[attr-defined]
     except OSError as exc:
-        write_ok = False
-        print(f"[DBG-307] could not write lint.json: {exc}", file=sys.stderr)
-    return 1 if errors or not write_ok else 0
+        print(f"[DBG-307] could not embed lint into aegis-brain.html: {exc}", file=sys.stderr)
+        return 1
+    return 1 if errors else 0
 
 
 # =============================================================================
@@ -2064,14 +2311,21 @@ def _parse_json_reply(raw: str) -> dict:
     return data if isinstance(data, dict) else {}
 
 
-def _sanitize_enrich_reply(data: dict) -> dict:
+def _sanitize_enrich_reply(
+    data: dict, *, max_card_chars: int | None = None
+) -> dict:
     """
     intent: Shape/length-validate model output before touching vault files.
-    input: parsed reply dict.
+    input: parsed reply dict; optional per-doc Prompt Card char limit.
     output: dict with only safe, clamped fields.
     role: validation boundary (LLM output is untrusted input).
     side_effects: none.
     """
+    limit = (
+        PROMPT_CARD_MAX_CHARS
+        if max_card_chars is None
+        else max(1, min(int(max_card_chars), PROMPT_CARD_MAX_CHARS_HARD))
+    )
     out: dict = {}
     desc = str(data.get("description", "")).strip().replace("\n", " ")
     if desc:
@@ -2087,7 +2341,7 @@ def _sanitize_enrich_reply(data: dict) -> dict:
             out["tags"] = clean
     card = str(data.get("prompt_card", "")).strip()
     if card:
-        out["prompt_card"] = card[:PROMPT_CARD_MAX_CHARS]
+        out["prompt_card"] = card[:limit]
     return out
 
 
@@ -2154,6 +2408,10 @@ def cmd_enrich(args: argparse.Namespace) -> int:
     for concept in load_vault():
         if concept.parse_error:
             continue
+        # Code concepts are machine-produced (Zone 5) — regenerate externally,
+        # never LLM-mutate.
+        if str(concept.frontmatter.get("type", "")) == "Code":
+            continue
         if args.only and args.only not in concept.concept_id:
             continue
         gaps = _enrich_needs(concept)
@@ -2182,9 +2440,10 @@ def cmd_enrich(args: argparse.Namespace) -> int:
     if args.limit > 0:
         targets = targets[: args.limit]
     for concept, gaps in targets:
+        card_limit = prompt_card_char_limit(concept.frontmatter)
         prompt = ENRICH_PROMPT.format(
             max_tags=ENRICH_MAX_TAGS,
-            card_chars=PROMPT_CARD_MAX_CHARS,
+            card_chars=card_limit,
             ctype=str(concept.frontmatter.get("type", "")),
             concept_id=concept.concept_id,
             title=str(concept.frontmatter.get("title", "")),
@@ -2198,7 +2457,9 @@ def cmd_enrich(args: argparse.Namespace) -> int:
             print(f"  SKIP {concept.concept_id}: LLM call failed ({exc})", file=sys.stderr)
             skipped += 1
             continue
-        fix = _sanitize_enrich_reply(_parse_json_reply(reply))
+        fix = _sanitize_enrich_reply(
+            _parse_json_reply(reply), max_card_chars=card_limit
+        )
         if not fix:
             print(f"  SKIP {concept.concept_id}: unusable LLM reply", file=sys.stderr)
             skipped += 1
@@ -2668,7 +2929,7 @@ def write_reference(
     if leaks:
         raise ValueError(
             f"[DBG-403] secret scan blocked scrape write ({', '.join(leaks)}). "
-            "Redact upstream content or set credential_scan:false in okf.config.json."
+            "Redact upstream content or set credential_scan:false in DEFAULT_OKF_CONFIG."
         )
     cfg = load_okf_config()
     domain_slug = (domain or _domain_from_url(url)).strip() or "upstream"
@@ -2741,14 +3002,14 @@ def cmd_scrape(args: argparse.Namespace) -> int:
 
 
 # =============================================================================
-# Serve (formerly serve_vault.py)
+# Serve (visualizer — HTML embeds only; no graph.json / lint.json)
 # =============================================================================
 
 class VaultHandler(SimpleHTTPRequestHandler):
     """
-    intent: Serve the vault as static files and expose POST /api/lint + /api/compile.
+    intent: Serve the vault and expose POST /api/lint + /api/compile.
     input: HTTP requests.
-    output: static files, or lint.json / graph.json regenerated in-process.
+    output: static files, or in-memory graph/lint JSON (also embedded in HTML).
     role: development server for aegis-brain.
     side_effects: runs lint/compile on POST.
     """
@@ -2757,9 +3018,6 @@ class VaultHandler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=str(VAULT_ROOT), **kwargs)
 
     def do_GET(self) -> None:
-        """
-        intent: Serve aegis-brain.html by default when visiting root.
-        """
         if self.path == "/":
             self.send_response(302)
             self.send_header("Location", "/aegis-brain.html")
@@ -2768,35 +3026,34 @@ class VaultHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self) -> None:
-        """
-        intent: Run vault lint or compile and return results.
-        input: POST /api/lint or /api/compile.
-        output: HTTP 200 + JSON body, or 4xx/5xx on failure.
-        role: API handler.
-        """
         if self.path == "/api/lint":
-            self._run_and_send(cmd_lint, BRAIN_ROOT / "lint.json", "DBG-601", "lint")
+            self._run_lint_api()
         elif self.path == "/api/compile":
-            self._run_and_send(cmd_compile, BRAIN_ROOT / "graph.json", "DBG-602", "compile")
+            self._run_compile_api()
         else:
             self.send_error(404, "not found")
 
-    def _run_and_send(self, fn, artifact: Path, code: str, label: str) -> None:
-        """
-        intent: Run a kernel command in-process and return its artifact.
-        input: fn — cmd_lint/cmd_compile; artifact — produced JSON path.
-        output: HTTP response with the artifact contents.
-        role: API helper (single-file kernel: no subprocess needed).
-        side_effects: whatever fn writes.
-        """
+    def _run_compile_api(self) -> None:
         try:
-            fn(None)
-            if not artifact.exists():
-                self.send_error(500, f"{artifact.name} not produced")
+            rc = cmd_compile(None)
+            graph = getattr(cmd_compile, "_last_graph", None)
+            if graph is None:
+                concepts = [c for c in load_vault() if c.parse_error is None]
+                graph = compile_graph(concepts)
+            if rc != 0 and graph is None:
+                self.send_error(500, "compile failed")
                 return
-            self._send_json(artifact.read_text(encoding="utf-8"))
+            self._send_json(json.dumps(graph))
         except OSError as exc:
-            self.send_error(500, f"[{code}] {label} failed: {exc}")
+            self.send_error(500, f"[DBG-602] compile failed: {exc}")
+
+    def _run_lint_api(self) -> None:
+        try:
+            report, _, _ = build_lint_report()
+            inject_into_aegis_brain("lint-data", json.dumps(report, indent=2))
+            self._send_json(json.dumps(report))
+        except OSError as exc:
+            self.send_error(500, f"[DBG-601] lint failed: {exc}")
 
     def _send_json(self, payload: str) -> None:
         self.send_response(200)
@@ -2806,14 +3063,13 @@ class VaultHandler(SimpleHTTPRequestHandler):
         self.wfile.write(payload.encode("utf-8"))
 
     def log_message(self, fmt: str, *args) -> None:
-        """Suppress default request logging unless --verbose."""
         if getattr(self.server, "verbose", False):
             super().log_message(fmt, *args)
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
     """
-    intent: Start the vault HTTP server.
+    intent: Start the vault HTTP server for aegis-brain.html.
     input: parsed args (--host, --port, --verbose).
     output: process exit code (runs until interrupted).
     role: subcommand.
@@ -2827,6 +3083,378 @@ def cmd_serve(args: argparse.Namespace) -> int:
         server.serve_forever()
     except KeyboardInterrupt:
         print("\n[DBG-600] stopped")
+    return 0
+
+
+# =============================================================================
+# Inspect / doctor / snapshot (v1.4 — Hermes-inspired, Aegis-shaped)
+# =============================================================================
+
+SNAPSHOT_DIR_NAME = ".okf-snapshots"
+SNAPSHOT_EXCLUDE_NAMES = frozenset(
+    {
+        SNAPSHOT_DIR_NAME,
+        COMPILE_CACHE_NAME,
+        "__pycache__",
+        ".git",
+    }
+)
+
+
+def _resolve_concept_path(concept_id: str) -> Path | None:
+    """
+    intent: Map a concept id (or path) to an on-disk .md under the brain.
+    input: concept_id — e.g. standards/simplicity-first or …/file.md.
+    output: Path if the file exists, else None.
+    """
+    raw = (concept_id or "").strip().removesuffix(".md").lstrip("/")
+    if not raw:
+        return None
+    candidate = (VAULT_ROOT / Path(raw)).resolve()
+    try:
+        candidate.relative_to(VAULT_ROOT.resolve())
+    except ValueError:
+        return None
+    md = candidate if candidate.suffix == ".md" else candidate.with_suffix(".md")
+    return md if md.is_file() else None
+
+
+def cmd_list(args: argparse.Namespace) -> int:
+    """
+    intent: List durable concepts (id, type, title).
+    input: optional --type filter.
+    output: exit 0 (or 1 if none match a requested type).
+    """
+    want = (args.type_filter or "").strip().lower() or None
+    rows: list[tuple[str, str, str]] = []
+    for c in load_vault():
+        ctype = str(c.frontmatter.get("type", "") or "")
+        if want and ctype.lower() != want:
+            continue
+        title = str(c.frontmatter.get("title", "") or c.concept_id)
+        rows.append((c.concept_id, ctype or "?", title))
+    if not rows:
+        print("okf list: no concepts" + (f" matching type={args.type_filter}" if want else ""))
+        return 1 if want else 0
+    width = max(len(r[0]) for r in rows)
+    for cid, ctype, title in rows:
+        print(f"{cid:<{width}}  [{ctype}]  {title}")
+    print(f"okf list: {len(rows)} concept(s)")
+    return 0
+
+
+def cmd_show(args: argparse.Namespace) -> int:
+    """
+    intent: Inspect one concept (summary, --raw file, or --card).
+    input: concept id; mutually exclusive --raw / --card.
+    output: exit 0 on hit, 1 if missing.
+    """
+    path = _resolve_concept_path(args.concept_id)
+    if path is None:
+        print(f"okf show: not found: {args.concept_id}", file=sys.stderr)
+        return 1
+    text = path.read_text(encoding="utf-8")
+    if args.raw:
+        print(text, end="" if text.endswith("\n") else "\n")
+        return 0
+    if args.card:
+        card = extract_prompt_card(text)
+        if not card:
+            print(f"okf show: no ## Prompt Card in {path.relative_to(VAULT_ROOT)}",
+                  file=sys.stderr)
+            return 1
+        print(card, end="" if card.endswith("\n") else "\n")
+        return 0
+    c = load_concept(path)
+    print(f"# {c.concept_id}")
+    print(f"path: {path.relative_to(VAULT_ROOT)}")
+    for key in ("type", "title", "description", "tags", "timestamp", "status",
+                "owns", "priority", "pack_force_when"):
+        if key in c.frontmatter:
+            print(f"{key}: {c.frontmatter[key]}")
+    print("---")
+    print(c.body.rstrip())
+    print()
+    return 0
+
+
+def cmd_log_append(args: argparse.Namespace) -> int:
+    """
+    intent: Append a dated category entry to brain log.md (ephemeral chronology).
+    input: message; optional --category (default Note).
+    output: exit 0 on write.
+    side_effects: appends to log.md — not a durable concept; use maintain playbook for vault knowledge.
+    """
+    log_path = VAULT_ROOT / "log.md"
+    if not log_path.is_file():
+        print(f"okf log-append: missing {log_path}", file=sys.stderr)
+        return 1
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    category = (args.category or "Note").strip() or "Note"
+    msg = (args.message or "").strip()
+    if not msg:
+        print("okf log-append: empty message", file=sys.stderr)
+        return 1
+    block = f"\n## {ts} — {category}\n\n{msg}\n"
+    with log_path.open("a", encoding="utf-8") as fh:
+        fh.write(block)
+    print(f"okf log-append: wrote {category} @ {ts}")
+    return 0
+
+
+def cmd_doctor(args: argparse.Namespace) -> int:
+    """
+    intent: Setup / health diagnostics (Hermes validate-config analogue).
+    input: none (reads brain + package root).
+    output: exit 0 if all critical checks pass, else 1.
+    """
+    del args  # unused — CLI symmetry
+    pkg = VAULT_ROOT.parent
+    checks: list[tuple[str, str, str]] = []  # severity, name, detail
+
+    def ok(name: str, detail: str = "") -> None:
+        checks.append(("ok", name, detail))
+
+    def warn(name: str, detail: str) -> None:
+        checks.append(("warn", name, detail))
+
+    def crit(name: str, detail: str) -> None:
+        checks.append(("crit", name, detail))
+
+    if VAULT_ROOT.is_dir():
+        ok("brain_root", str(VAULT_ROOT))
+    else:
+        crit("brain_root", f"missing {VAULT_ROOT}")
+
+    agents = pkg / "AGENTS.md"
+    if agents.is_file():
+        ok("agents_md", str(agents.relative_to(pkg)))
+    else:
+        crit("agents_md", f"missing {agents}")
+
+    for zone, path in (
+        ("zone_inbox", VAULT_ROOT / "_inbox"),
+        ("zone_kernel", VAULT_ROOT / "kernel" / "okf.py"),
+        ("zone_standards", VAULT_ROOT / "standards"),
+        ("zone_vault", VAULT_ROOT / "vault"),
+        ("zone_code", VAULT_ROOT / "code"),
+    ):
+        if path.exists():
+            ok(zone, str(path.relative_to(VAULT_ROOT)))
+        else:
+            crit(zone, f"missing {path.relative_to(VAULT_ROOT)}")
+
+    for reserved in ("index.md", "log.md"):
+        p = VAULT_ROOT / reserved
+        if p.is_file():
+            ok(f"reserved_{reserved}", "present")
+        else:
+            crit(f"reserved_{reserved}", "missing")
+
+    index_path = VAULT_ROOT / "index.json"
+    if index_path.is_file():
+        try:
+            idx = json.loads(index_path.read_text(encoding="utf-8"))
+            n = len(idx.get("entries") or [])
+            ver = idx.get("version", "?")
+            if n:
+                ok("index_json", f"v{ver}, {n} entries")
+            else:
+                warn("index_json", "exists but 0 entries — run compile")
+        except (OSError, json.JSONDecodeError) as exc:
+            crit("index_json", f"unreadable: {exc}")
+    else:
+        crit("index_json", "missing — run okf.py compile")
+
+    cards_path = VAULT_ROOT / "prompt_cards.json"
+    if cards_path.is_file():
+        try:
+            cards = json.loads(cards_path.read_text(encoding="utf-8"))
+            if isinstance(cards, dict) and cards:
+                ok("prompt_cards", f"{len(cards)} cards")
+            else:
+                warn("prompt_cards", "empty — run compile")
+        except (OSError, json.JSONDecodeError) as exc:
+            crit("prompt_cards", f"unreadable: {exc}")
+    else:
+        crit("prompt_cards", "missing — run okf.py compile")
+
+    html = VAULT_ROOT / "aegis-brain.html"
+    if html.is_file():
+        ok("visualizer", "aegis-brain.html")
+    else:
+        warn("visualizer", "aegis-brain.html missing")
+
+    types = known_types()
+    if types:
+        ok("taxonomy", f"{len(types)} types")
+    else:
+        crit("taxonomy", "known_types() empty")
+
+    std_dir = VAULT_ROOT / "standards"
+    if std_dir.is_dir():
+        missing_cards = 0
+        for p in sorted(std_dir.glob("*.md")):
+            if p.name in RESERVED_FILENAMES:
+                continue
+            body = p.read_text(encoding="utf-8")
+            if not extract_prompt_card(body):
+                missing_cards += 1
+                warn("standard_card", f"{p.name} missing ## Prompt Card")
+        if missing_cards == 0:
+            ok("standard_cards", "all standards have Prompt Cards")
+
+    _, findings, n_concepts = build_lint_report()
+    errors = [f for f in findings if f["severity"] == "error"]
+    warnings = [f for f in findings if f["severity"] == "warning"]
+    if errors:
+        crit("lint", f"{len(errors)} error(s) in {n_concepts} concepts")
+    elif warnings:
+        warn("lint", f"0 errors, {len(warnings)} warning(s), {n_concepts} concepts")
+    else:
+        ok("lint", f"clean ({n_concepts} concepts)")
+
+    snap_root = VAULT_ROOT / SNAPSHOT_DIR_NAME
+    if snap_root.is_dir():
+        n_snap = len([p for p in snap_root.iterdir() if p.is_dir()])
+        ok("snapshots", f"{n_snap} under {SNAPSHOT_DIR_NAME}/")
+    else:
+        warn("snapshots", f"no {SNAPSHOT_DIR_NAME}/ yet (optional)")
+
+    n_ok = sum(1 for s, _, _ in checks if s == "ok")
+    n_warn = sum(1 for s, _, _ in checks if s == "warn")
+    n_crit = sum(1 for s, _, _ in checks if s == "crit")
+    for sev, name, detail in checks:
+        mark = {"ok": "OK  ", "warn": "WARN", "crit": "FAIL"}[sev]
+        print(f"  [{mark}] {name}: {detail}" if detail else f"  [{mark}] {name}")
+    print(f"okf doctor: {n_ok} ok, {n_warn} warn, {n_crit} fail")
+    if n_crit:
+        print("Fix FAIL items, then run compile + lint.")
+        return 1
+    print("Brain looks ready — Rule #1: lookup --card / pack before generation.")
+    return 0
+
+
+def _snapshot_root() -> Path:
+    return VAULT_ROOT / SNAPSHOT_DIR_NAME
+
+
+def _list_snapshots() -> list[Path]:
+    root = _snapshot_root()
+    if not root.is_dir():
+        return []
+    return sorted([p for p in root.iterdir() if p.is_dir()], key=lambda p: p.name)
+
+
+def _snapshot_ignore(directory: str, names: list[str]) -> set[str]:
+    """shutil.copytree ignore: skip snapshot dir, cache, VCS, bytecode."""
+    ignored: set[str] = set()
+    for name in names:
+        if name in SNAPSHOT_EXCLUDE_NAMES or name.endswith(".pyc"):
+            ignored.add(name)
+        if name.startswith(".") and name not in {".okfignore"}:
+            # Keep .okfignore; skip other dotfiles/dirs at this level.
+            if name != ".okfignore":
+                ignored.add(name)
+    # Never nest snapshots when copying from brain root.
+    if Path(directory).resolve() == VAULT_ROOT.resolve():
+        ignored.add(SNAPSHOT_DIR_NAME)
+    return ignored
+
+
+def cmd_snapshot(args: argparse.Namespace) -> int:
+    """
+    intent: Filesystem snapshot of the brain (or list existing snapshots).
+    input: --list | optional --note.
+    output: exit 0; writes under .okf-snapshots/<utc-id>/.
+    """
+    if args.list:
+        snaps = _list_snapshots()
+        if not snaps:
+            print("okf snapshot: no snapshots yet")
+            return 0
+        for p in snaps:
+            note_path = p / "MANIFEST.txt"
+            note = ""
+            if note_path.is_file():
+                for line in note_path.read_text(encoding="utf-8").splitlines():
+                    if line.startswith("note:"):
+                        note = line[5:].strip()
+                        break
+            suffix = f"  — {note}" if note else ""
+            print(f"{p.name}{suffix}")
+        print(f"okf snapshot: {len(snaps)} snapshot(s)")
+        return 0
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    dest = _snapshot_root() / stamp
+    if dest.exists():
+        print(f"okf snapshot: already exists {dest.name}", file=sys.stderr)
+        return 1
+    dest.mkdir(parents=True, exist_ok=False)
+    # Copy brain contents into dest (not dest-as-brain-root nesting).
+    for child in sorted(VAULT_ROOT.iterdir()):
+        if child.name in SNAPSHOT_EXCLUDE_NAMES:
+            continue
+        if child.name.startswith(".") and child.name != ".okfignore":
+            continue
+        target = dest / child.name
+        if child.is_dir():
+            shutil.copytree(child, target, ignore=_snapshot_ignore)
+        else:
+            shutil.copy2(child, target)
+    note = (args.note or "").strip()
+    manifest = (
+        f"created: {datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}\n"
+        f"source: {VAULT_ROOT}\n"
+        f"note: {note}\n"
+    )
+    (dest / "MANIFEST.txt").write_text(manifest, encoding="utf-8")
+    print(f"okf snapshot: wrote {dest.relative_to(VAULT_ROOT)}")
+    return 0
+
+
+def cmd_restore(args: argparse.Namespace) -> int:
+    """
+    intent: Restore brain files from a snapshot (destructive; requires --yes).
+    input: optional snapshot name (default: latest); --yes required.
+    output: exit 0 on success.
+    side_effects: overwrites brain files; leaves .okf-snapshots/ intact.
+    """
+    if not args.yes:
+        print("okf restore: refusing without --yes (destructive)", file=sys.stderr)
+        return 1
+    snaps = _list_snapshots()
+    if not snaps:
+        print("okf restore: no snapshots under .okf-snapshots/", file=sys.stderr)
+        return 1
+    if args.name:
+        match = [p for p in snaps if p.name == args.name]
+        if not match:
+            print(f"okf restore: unknown snapshot {args.name!r}", file=sys.stderr)
+            print("available:", ", ".join(p.name for p in snaps), file=sys.stderr)
+            return 1
+        src = match[0]
+    else:
+        src = snaps[-1]
+
+    restored = 0
+    for child in sorted(src.iterdir()):
+        if child.name == "MANIFEST.txt":
+            continue
+        dest = VAULT_ROOT / child.name
+        if dest.exists():
+            if dest.is_dir():
+                shutil.rmtree(dest)
+            else:
+                dest.unlink()
+        if child.is_dir():
+            shutil.copytree(child, dest)
+        else:
+            shutil.copy2(child, dest)
+        restored += 1
+    print(f"okf restore: applied {src.name} ({restored} top-level items)")
+    print("Next: python3 _okf_knowledge/kernel/okf.py compile && … lint")
     return 0
 
 
@@ -2848,8 +3476,9 @@ def main(argv: list[str] | None = None) -> int:
 
     parser = argparse.ArgumentParser(
         prog="okf.py",
-        description="Aegis OKF kernel — lookup, pack, cards, compile, "
-        "lint, enrich, optimize, scrape, and serve.",
+        description="Aegis OKF kernel — lookup, pack, cards, compile, lint, "
+        "enrich, optimize, scrape, serve, list/show, log-append, doctor, "
+        "snapshot/restore.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -2899,7 +3528,7 @@ def main(argv: list[str] | None = None) -> int:
 
     p = sub.add_parser(
         "compile",
-        help="Rebuild graph.json / index.json (v2+inverted) / prompt_cards.json + HTML embed",
+        help="Rebuild index.json / prompt_cards.json; embed graph in aegis-brain.html",
     )
     p.add_argument(
         "--force",
@@ -2908,7 +3537,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.set_defaults(func=cmd_compile)
 
-    p = sub.add_parser("lint", help="Vault health check; writes lint.json")
+    p = sub.add_parser(
+        "lint",
+        help="Vault health check (stdout + embed into aegis-brain.html; no lint.json)",
+    )
     p.set_defaults(func=cmd_lint)
 
     p = sub.add_parser("enrich",
@@ -2932,12 +3564,57 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("query", help="Catalog keyword (e.g. 'workflow syntax') or a direct URL")
     p.set_defaults(func=cmd_scrape)
 
-    p = sub.add_parser("serve", help="Local brain server with /api/lint and /api/compile")
+    p = sub.add_parser("serve", help="Local brain visualizer with /api/lint and /api/compile")
     p.add_argument("--host", default="127.0.0.1",
                    help="bind address (default: 127.0.0.1 — local only)")
     p.add_argument("--port", type=int, default=8080, help="listen port (default 8080)")
     p.add_argument("--verbose", action="store_true", help="log each HTTP request")
     p.set_defaults(func=cmd_serve)
+
+    p = sub.add_parser("list", help="List concepts (id, type, title)")
+    p.add_argument("--type", dest="type_filter", default=None,
+                   help="Filter by frontmatter type (e.g. Playbook)")
+    p.set_defaults(func=cmd_list)
+
+    p = sub.add_parser("show", help="Show one concept (summary, --raw, or --card)")
+    p.add_argument("concept_id", help="Concept id (e.g. standards/simplicity-first)")
+    g = p.add_mutually_exclusive_group()
+    g.add_argument("--raw", action="store_true", help="Print the full markdown file")
+    g.add_argument("--card", action="store_true", help="Print ## Prompt Card only")
+    p.set_defaults(func=cmd_show)
+
+    p = sub.add_parser(
+        "log-append",
+        help="Append a dated note to log.md (ephemeral chronology — not vault ingest)",
+    )
+    p.add_argument("message", help="Log message body")
+    p.add_argument("--category", default="Note",
+                   help="Category label (default Note; e.g. Decision, Observation)")
+    p.set_defaults(func=cmd_log_append)
+
+    p = sub.add_parser(
+        "doctor",
+        help="Setup/health diagnostics (zones, compile artifacts, cards, lint)",
+    )
+    p.set_defaults(func=cmd_doctor)
+
+    p = sub.add_parser(
+        "snapshot",
+        help="Filesystem snapshot of the brain under .okf-snapshots/",
+    )
+    p.add_argument("--note", default="", help="Optional note stored in MANIFEST.txt")
+    p.add_argument("--list", action="store_true", help="List snapshots instead of creating")
+    p.set_defaults(func=cmd_snapshot)
+
+    p = sub.add_parser(
+        "restore",
+        help="Restore brain from a snapshot (destructive; requires --yes)",
+    )
+    p.add_argument("name", nargs="?", default=None,
+                   help="Snapshot id (default: latest)")
+    p.add_argument("--yes", action="store_true",
+                   help="Required confirmation — overwrite current brain files")
+    p.set_defaults(func=cmd_restore)
 
     args = parser.parse_args(argv)
     return args.func(args)

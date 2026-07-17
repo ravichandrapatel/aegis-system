@@ -4,7 +4,7 @@
 
 Every durable markdown concept under the brain **MUST** declare a `type` in YAML frontmatter. Lint treats missing `type` as an error.
 
-## Known types (protocol §1.3)
+## Known types ([okf-house-schema](../_okf_knowledge/standards/okf-house-schema.md); AGENTS.md §1.3 stub)
 
 | `type` | Zone | Directory (under `_okf_knowledge/`) | Primary job |
 | --- | --- | --- | --- |
@@ -13,9 +13,8 @@ Every durable markdown concept under the brain **MUST** declare a `type` in YAML
 | `System` | 4 | `vault/systems/` | A running system you operate |
 | `Incident` | 4 | `vault/incidents/` | Post-mortem / learning from failure |
 | `Reference` | 4 | `vault/references/` | Cached upstream documentation |
-| `Module` | 2 | `kernel/modules/` | Core domain execution + artifact ownership |
-| `Vendor` | 2 | `kernel/vendors/` | Cloud/tool execution extension |
-| `Profile` | 2 | `kernel/profiles/` | Dynamic role context from `_schema.md` (intents, modes, modules, standards) |
+| `Profile` | 2 | `kernel/profiles/` | Dynamic role context from `_schema.md` (intents, modes, standards) |
+| `Code` | 5 | `code/` | OKF v0.2 code fact (machine-produced, regenerate-only) |
 
 ## Decision table (practical)
 
@@ -27,9 +26,8 @@ Every durable markdown concept under the brain **MUST** declare a `type` in YAML
 | Cached upstream docs | `Reference` | `vault/references/` | Run `okf.py optimize` when applicable |
 | Running system in workspace | `System` | `vault/systems/` | `systems/index.md` |
 | Post-mortem | `Incident` | `vault/incidents/` | Link systems/playbooks |
-| Core execution logic / ownership | `Module` | `kernel/modules/` | `modules/index.md` |
-| Cloud/tool execution extension | `Vendor` | `kernel/vendors/` | `vendors/index.md` |
 | Who/what is loaded for a role | `Profile` | `kernel/profiles/` | Profile index / schema as you define it |
+| Code artifact fact (resource, function, manifest) | `Code` | `code/` (external producer writes it) | Nothing by hand — regenerate the zone |
 | Vault tooling (lint, compile) | Python script | `kernel/` | Maintain playbook § Scripts |
 | Control-plane behavior | Markdown | `AGENTS.md` (package root) | Brain `index.md` if orientation changes |
 
@@ -69,44 +67,27 @@ Required section skeleton (maintain playbook convention):
 
 References are **not** law. Prefer linking; do not paste entire references into generation prompts.
 
-## Deep dive: Module vs Vendor
-
-| | **Module** | **Vendor** |
-| --- | --- | --- |
-| Scope | Core domain (e.g. Kubernetes patterns your org owns) | Third-party / cloud surface (e.g. AWS EKS specifics) |
-| Owns | Triggers, validation rules, **artifact file ownership** | Execution extensions, vendor-specific gates |
-| MUST NOT | Become a dumping ground for encyclopedias | Duplicate System/Concept encyclopedias of the product |
-
-**Anti-collision rule**
-
-| Layer | Owns | MUST NOT |
-| --- | --- | --- |
-| `kernel/vendors/` | Triggers, minimum evidence, execution pipelines, ownership vs modules | Duplicate System/Concept encyclopedias |
-| `vault/` | Passive facts, architecture, runbooks, incidents, cached docs | Embed vendor routing/trigger tables |
-
-Cross-link instead: Vendor → System/Concept; System → Vendor.  
-On conflict, **vendors beat vault** in knowledge precedence (`AGENTS.md` §2.2).
+> **Retired types:** `Module` / `Vendor` kernel registries no longer exist (`AGENTS.md` §1.1 / §4.1 — "no separate Module/Vendor runtime registry"). Domain knowledge lives under `standards/` and `vault/` and loads via OKF lookup.
 
 ## Deep dive: Profile
 
 **Use when:** you need a named **dynamic** operational context (any role), authored from `kernel/profiles/_schema.md`.
 
-Profiles gate the **Capability Registry Check** (`AGENTS.md` §4.1): authorized intents, execution modes, required modules, and enforced standards. If a required module or standard is missing, Aegis **HALTs** with exit code `4` (Unsupported).
+Profiles are optional capability templates (schema-only today): authorized intents, execution modes, and enforced standards. The runtime capability check is `AGENTS.md` §4.1 — required standards/evidence from the Prompt Pack present, else **HALT** exit code `4` (Unsupported).
 
 See [Profiles](07-profiles.md) for the full dynamic schema, RBAC sections, and authoring steps.
 
 ## Precedence reminder (conflicts)
 
-When two sources disagree:
+When two sources disagree (`AGENTS.md` §2.2):
 
 1. Standards (via Prompt Cards / lookup)
 2. Local workspace / `_inbox` / terminal context
-3. Vendors
-4. Modules
-5. Passive vault
-6. External OCI/Git metadata
+3. Passive vault
+4. Code facts (`code/`, OKF v0.2)
+5. External OCI/Git metadata
 
-Within overlapping standards/modules: **`owns` list wins**; if both claim the domain, higher **`priority`** wins; identical `owns`+`priority` → **fail closed** (exit `1`).
+Within overlapping standards: **`owns` list wins**; if both claim the domain, higher **`priority`** wins; identical `owns`+`priority` → **fail closed** (exit `1`).
 
 ## Related
 

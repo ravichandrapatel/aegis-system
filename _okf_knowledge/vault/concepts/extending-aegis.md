@@ -61,4 +61,3 @@ Follow vault/playbooks/maintain-aegis-system.md end-to-end.
 - Maintenance: [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md)
 - Law: [Simplicity First](/standards/simplicity-first.md)
 - Profile template: [Profile schema](/kernel/profiles/_schema.md)
-- Architecture ADR (package root, outside vault): see `ADR.md` next to `README.md`

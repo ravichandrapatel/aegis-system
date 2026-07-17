@@ -6,8 +6,6 @@ This is a **clean-slate** package: domain-agnostic control plane only. No produc
 
 **Human documentation (standalone):** [`docs/`](docs/README.md) — detailed TOC covering every file, when to use what, protocol, tools, and workflows.
 
-**Architecture decisions (full ADR):** [`ADR.md`](ADR.md) — why the system is built this way and what each decision is for.
-
 **OKF vs no-OKF A/B bench (parent prompt template):** [`BENCH_PROMPT.md`](BENCH_PROMPT.md) — fill placeholders, paste into chat, launch two subagents, plot metrics.
 
 ## What’s included
@@ -15,7 +13,6 @@ This is a **clean-slate** package: domain-agnostic control plane only. No produc
 | Piece | Role |
 | :--- | :--- |
 | [`AGENTS.md`](AGENTS.md) | Immutable protocol (routing, Path A/B/C, lookup rules) |
-| [`ADR.md`](ADR.md) | Architecture rationale (human-facing; not agent prompt fuel) |
 | `_okf_knowledge/standards/` | Binding house law (keep these) |
 | `_okf_knowledge/vault/` | Empty slots + starter docs |
 | `_okf_knowledge/kernel/` | Lookup, Prompt Cards, lint, graph compile, serve |
@@ -44,9 +41,8 @@ Indexes under `systems/`, `references/`, `modules/`, and `vendors/` start empty 
 1. Zip this folder (keep `AGENTS.md` and `_okf_knowledge/` together).
 2. Unzip and place the **entire directory** into your IDE’s agents or skills folder, for example:
    - Cursor: `.cursor/agents/` or `.cursor/skills/`
-   - GitHub Copilot: `.github/agents/`
-   - Other IDEs: whatever directory that product uses for agents/skills
-3. Open your project in the IDE and select / invoke **Aegis** (this package’s `AGENTS.md`).
+   - GitHub Copilot / other: that product’s agents/skills directory
+3. Open your project in the IDE and select / invoke the agent that loads this package’s **`AGENTS.md`** (single protocol — no separate DNA file).
 4. Ask normally — Aegis follows the protocol and reads/writes knowledge under `_okf_knowledge/`.
 
 Paths are relative to this package folder wherever you drop it.

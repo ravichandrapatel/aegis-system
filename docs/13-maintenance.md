@@ -12,7 +12,7 @@
 | --- | --- |
 | New/edited Concept, Playbook, System, Incident, Reference | **Yes** |
 | New/edited Standard | **Yes** |
-| New/edited Module, Vendor, Profile | **Yes** |
+| New/edited Profile | **Yes** |
 | New/edited kernel `.py` script | **Yes** (scripts section + verify) |
 | Protocol change in `AGENTS.md` | **Yes** (control-plane row) |
 | Edits only under `docs/` | No brain compile required; keep docs accurate |
@@ -56,7 +56,7 @@ python3 _okf_knowledge/kernel/okf.py lint
 
 ## Verification gates
 
-- [ ] Valid frontmatter per [schema](05-frontmatter-schema.md) / `AGENTS.md` §1.3  
+- [ ] Valid frontmatter per [schema](05-frontmatter-schema.md) / [okf-house-schema](../_okf_knowledge/standards/okf-house-schema.md)  
 - [ ] Indexes list the new/changed page  
 - [ ] Standards include `## Prompt Card`  
 - [ ] Lint clean  
@@ -70,8 +70,8 @@ Starter guide: [`extending-aegis.md`](../_okf_knowledge/vault/concepts/extending
 Typical growth order (Laziness Ladder friendly):
 
 1. Standards you actually enforce  
-2. One Module + optional Vendor for your domain  
-3. Profiles that allow-list those capabilities  
+2. Domain Concepts/Systems in `vault/` (lookup-discoverable)  
+3. Profiles that allow-list those capabilities (optional)  
 4. Playbooks for repeat procedures  
 5. Systems / Incidents / References as operations demand  
 

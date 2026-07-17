@@ -39,11 +39,11 @@ Applies to vault structure **and** code diffs.
 
 | MUST | FORBIDDEN |
 | --- | --- |
-| Build Prompt Pack from `## Prompt Card` sections | Paste `graph.json` / full standards into generation by default |
+| Build Prompt Pack from `## Prompt Card` sections | Paste compiled artifacts / full standards into generation by default |
 | Keep cards slim (≤ ~150 tokens each) | “Load the whole Aegis brain” as default authoring strategy |
 | Prefer lookup → `--card` | Treating multi-turn fix loops as better than a one-shot card |
 
-Protocol pack budget (`AGENTS.md` §4.2): **max 8 cards**, ~**1200** tokens advisory, with deterministic eviction.
+Protocol pack budget (`AGENTS.md` §4.2): **max 8 cards** (hard), target ≈**1200** tokens (guidance), with deterministic eviction.
 
 > The Prompt Injection standard’s card text may mention a tighter ~400-token SHOULD for a single generation turn. Treat **AGENTS.md §4.2 as the orchestration budget**; keep individual cards small either way.
 

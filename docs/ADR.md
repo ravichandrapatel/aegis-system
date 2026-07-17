@@ -5,10 +5,10 @@
 | **Status** | Accepted |
 | **Date** | 2026-07-13 |
 | **Package** | `aegis-system` |
-| **Protocol** | [`AGENTS.md`](AGENTS.md) v4.6.1 |
-| **Brain** | [`_okf_knowledge/`](_okf_knowledge/) |
+| **Protocol** | [`AGENTS.md`](../AGENTS.md) — version in file header (currently 4.9.2) |
+| **Brain** | [`_okf_knowledge/`](../_okf_knowledge/) |
 
-This document is the **full Architecture Decision Record** for aegis-system. It lives **outside** `_okf_knowledge/` (same level as `README.md`) so humans can read the “why” without treating the ADR as agent prompt fuel. Binding agent behavior remains in `AGENTS.md` and vault standards/playbooks.
+This document is the **full Architecture Decision Record** for aegis-system. It lives under `docs/` (outside `_okf_knowledge/`) so humans can read the “why” without treating the ADR as agent prompt fuel. Binding agent behavior remains in `AGENTS.md` and vault standards/playbooks.
 
 ---
 
@@ -84,7 +84,7 @@ Keeping them as siblings makes the package **zippable**: drop into `.cursor/agen
 | Consumer | Use |
 | --- | --- |
 | IDE agent | Loads `AGENTS.md` as the agent definition; reads/writes under `_okf_knowledge/`. |
-| Humans | README points here; ADR (this file) explains architecture. |
+| Humans | This file explains architecture (not linked from the public package docs). |
 | CI / maintain | Scripts run relative to package root. |
 
 #### Alternatives rejected
@@ -173,7 +173,7 @@ Plain markdown without frontmatter forces brittle path heuristics.
 | --- | --- |
 | `okf.py lookup` | Scoring and hit listing |
 | `okf.py lint` | Schema + health |
-| `okf.py compile` | Node labels/types in `graph.json` |
+| `okf.py compile` | Node labels/types in the graph embed (`aegis-brain.html`) |
 | Humans | Skim type/status in PRs |
 
 #### Alternatives rejected
@@ -320,6 +320,8 @@ Runtime flags/config: `kernel/okf.py` + optional `okf.config.json` / `.okfignore
 ---
 
 ### D5 — `graph.json` is a visualizer/tooling artifact, not agent context
+
+> **Superseded in part (kernel v1.3.1, 2026-07-17):** `graph.json` / `lint.json` sidecars no longer exist — graph and lint payloads are embedded directly into `aegis-brain.html` by `compile` / `lint`. The principle (compiled graph data is never agent context) stands; the on-disk shape below is historical.
 
 #### Decision
 
@@ -498,7 +500,7 @@ Module-level constants (e.g. `VAULT_ROOT`) remain SCREAMING_SNAKE — that is no
 
 #### Status
 
-**Accepted as direction only.** Not implemented. The shipping control plane remains a **single** root [`AGENTS.md`](AGENTS.md). This section records *when* a split is justified and *how* it must preserve one brain and one protocol family.
+**Accepted as direction only.** Not implemented. The shipping control plane remains a **single** root [`AGENTS.md`](../AGENTS.md). This section records *when* a split is justified and *how* it must preserve one brain and one protocol family.
 
 #### Decision (intent, future)
 
@@ -533,51 +535,9 @@ Names and folder layout are illustrative. Cursor/Copilot may map each file to a 
 6. **Router or shared preamble** — intent detection and handoff rules live in exactly one place (thin root `AGENTS.md` or `agents/_common.md`) so Path selection cannot drift.
 7. **Laziness Ladder** — do not split until the unified file is proven costly; prefer Profiles + Path sections first (`D7` / Rule #1).
 
-#### Suggested layout (when implemented)
+#### Operational guidance (single source: docs/16)
 
-```text
-aegis-system/
-├── AGENTS.md                 # thin router + shared MUST preamble (or re-export)
-├── agents/                   # optional specialized entrypoints
-│   ├── _common.md            # shared MUST (lookup, cards, precedence) — DRY
-│   ├── generate.md           # Path A
-│   ├── validate.md           # Path B
-│   ├── execute.md            # Path C
-│   └── maintain.md           # MAINTAIN / INGEST
-├── ADR.md
-├── docs/
-└── _okf_knowledge/           # unchanged single brain
-```
-
-IDE install story: drop the same package folder; register multiple agents that each point at one entry file, all with working directory / vault root = package.
-
-#### Trigger criteria (split only if most are true)
-
-| Signal | Threshold (guidance) |
-| --- | --- |
-| Protocol length | Unified `AGENTS.md` regularly crowds out Prompt Pack in practice |
-| Mis-routing | Agents frequently run Path A steps on Path C asks (or vice versa) |
-| Team demand | Distinct roles want distinct selectable agents in the IDE |
-| Maintenance cost | Editing one section regularly risks breaking unrelated paths |
-
-If none apply, **keep the monolith** and use Profiles + intent matrix instead.
-
-#### Migration sketch
-
-1. Extract shared MUST block → `agents/_common.md` (lookup, cards, precedence, exit codes).  
-2. Move Path A / B / C / Maintain sections into specialized files; root `AGENTS.md` becomes router + links.  
-3. Update `docs/` and README install instructions for multi-agent registration.  
-4. Add a lint or checklist: every specialized agent **MUST** include or reference `_common.md` invariants.  
-5. Do **not** duplicate the vault; do **not** create per-agent `graph.json`.
-
-#### What it is used for (when wired)
-
-| Piece | Use |
-| --- | --- |
-| Thin `AGENTS.md` | Default agent; intent detect → hand off or load Profile |
-| Specialized agent files | Smaller protocol surface per role |
-| Shared brain + lookup | Same `okf.py lookup` / Prompt Cards for all entrypoints |
-| Profiles | Optional templates only; not a Module/Vendor runtime gate |
+Proposed layout, trigger criteria, migration sketch, contract-delivery options, and usage tables live **only** in [`docs/16-multi-agent-split.md`](16-multi-agent-split.md) — this ADR records the decision and its invariants, not the how-to (previously both files carried near-identical copies, which drifted).
 
 #### Alternatives rejected
 
@@ -591,13 +551,7 @@ If none apply, **keep the monolith** and use Profiles + intent matrix instead.
 
 #### Relationship to Profiles
 
-| Mechanism | Answers |
-| --- | --- |
-| **Profile** (`kernel/profiles/`) | Optional future RBAC template (unimplemented) |
-| **Agent entrypoint** (future split) | *Which* pipeline contract (generate vs validate vs execute vs maintain) is in context? |
-| **OKF lookup** | *Which* standards/vault docs apply for this task? |
-
-Prefer lookup + cards; do not assume a Module/Vendor loader.
+Profiles and agent entrypoints are orthogonal (Profiles = capabilities; entrypoints = pipeline shape). Detail: [`docs/16-multi-agent-split.md`](16-multi-agent-split.md) §4 and [`docs/07-profiles.md`](07-profiles.md) §10. Prefer lookup + cards; do not assume a Module/Vendor loader.
 
 ---
 
@@ -619,14 +573,14 @@ User / IDE agent
        └─ MAINTAIN/INGEST          (maintain-aegis-system playbook)
                ├─ edit vault/standards
                ├─ log.md
-               ├─ okf.py compile → graph.json + index.json + prompt_cards.json + HTML embed
-               └─ okf.py lint → lint.json
+               ├─ okf.py compile → index.json + prompt_cards.json + HTML graph embed
+               └─ okf.py lint → console report + HTML lint embed
 ```
 
 Visualizer path (humans):
 
 ```text
-okf.py serve → aegis-brain.html → fetch/embed graph.json + lint.json
+okf.py serve → aegis-brain.html (graph + lint payloads embedded — no JSON sidecars)
                  UI buttons → POST /api/compile | /api/lint
 ```
 
@@ -652,9 +606,9 @@ okf.py serve → aegis-brain.html → fetch/embed graph.json + lint.json
 ### Follow-ups (non-blocking)
 
 1. ~~Implement `aegis-okf` wrapper: `lookup` / `pack`.~~ **Partial (D12):** `okf.py pack` + `lookup --json` land in-kernel; optional outer wrapper still open.
-2. Optionally make `graph.json`/`lint.json` (and `index.json` / `prompt_cards.json`) gitignored caches with server/CLI regenerate-only — only if offline HTML story is preserved via embed.
+2. ~~Optionally make `graph.json`/`lint.json` gitignored caches.~~ **Superseded (kernel v1.3.1):** graph/lint are embed-only inside `aegis-brain.html`; `index.json` / `prompt_cards.json` remain committed for offline lookup.
 3. ~~Add mechanical checks (hook/CI) that Prompt Cards exist on all `standards/*`.~~ **Done** — `okf.py lint` emits `DBG-308` (error) when a `standards/*` concept lacks a non-empty `## Prompt Card`; oversized cards warn as `DBG-309`. CI: `.github/workflows/okf-lint.yml`.
-4. **Optional multi-agent split (D10):** only if trigger criteria fire — extract Path A/B/C/Maintain into `agents/*.md` with shared `_common.md`; keep one `_okf_knowledge/` brain. Documented in [`docs/16-multi-agent-split.md`](docs/16-multi-agent-split.md).
+4. **Optional multi-agent split (D10):** only if trigger criteria fire — extract Path A/B/C/Maintain into `agents/*.md` with shared `_common.md`; keep one `_okf_knowledge/` brain. Documented in [`docs/16-multi-agent-split.md`](16-multi-agent-split.md).
 
 ---
 
@@ -662,15 +616,15 @@ okf.py serve → aegis-brain.html → fetch/embed graph.json + lint.json
 
 | Decision | Normative / procedural home |
 | --- | --- |
-| D1–D3, D5 | [`AGENTS.md`](AGENTS.md) §1 |
-| D4 + lookup UX | [`AGENTS.md`](AGENTS.md) Rule #1 / §1.5; [`standards/okf-prompt-injection.md`](_okf_knowledge/standards/okf-prompt-injection.md) (**keep** — Rule #2) |
-| D11 knowledge plane vs corpus plane | This ADR (design record only); agent procedure in [`standards/okf-prompt-injection.md`](_okf_knowledge/standards/okf-prompt-injection.md) |
-| D12 okf.py pack/tokens/secrets/ignore | This ADR; runtime in [`kernel/okf.py`](_okf_knowledge/kernel/okf.py) v1.2 |
-| D6 | [`vault/playbooks/maintain-aegis-system.md`](_okf_knowledge/vault/playbooks/maintain-aegis-system.md) |
-| D7 | [`vault/concepts/extending-aegis.md`](_okf_knowledge/vault/concepts/extending-aegis.md); shipped standards under [`standards/`](_okf_knowledge/standards/) |
+| D1–D3, D5 | [`AGENTS.md`](../AGENTS.md) §1 |
+| D4 + lookup UX | [`AGENTS.md`](../AGENTS.md) Rule #1 / §1.5; [`standards/okf-prompt-injection.md`](../_okf_knowledge/standards/okf-prompt-injection.md) (**keep** — Rule #2) |
+| D11 knowledge plane vs corpus plane | This ADR (design record only); agent procedure in [`standards/okf-prompt-injection.md`](../_okf_knowledge/standards/okf-prompt-injection.md) |
+| D12 okf.py pack/tokens/secrets/ignore | This ADR; runtime in [`kernel/okf.py`](../_okf_knowledge/kernel/okf.py) v1.2 |
+| D6 | [`vault/playbooks/maintain-aegis-system.md`](../_okf_knowledge/vault/playbooks/maintain-aegis-system.md) |
+| D7 | [`vault/concepts/extending-aegis.md`](../_okf_knowledge/vault/concepts/extending-aegis.md); shipped standards under [`standards/`](../_okf_knowledge/standards/) |
 | D8 | This ADR (directional); future wrapper + generate path |
-| D9 | [`standards/metadata-headers.md`](_okf_knowledge/standards/metadata-headers.md) |
-| D10 | This ADR (directional); human guide [`docs/16-multi-agent-split.md`](docs/16-multi-agent-split.md); shipping truth remains single [`AGENTS.md`](AGENTS.md) until split lands |
+| D9 | [`standards/metadata-headers.md`](../_okf_knowledge/standards/metadata-headers.md) |
+| D10 | This ADR (directional); human guide [`docs/16-multi-agent-split.md`](16-multi-agent-split.md); shipping truth remains single [`AGENTS.md`](../AGENTS.md) until split lands |
 
 ---
 
@@ -678,6 +632,10 @@ okf.py serve → aegis-brain.html → fetch/embed graph.json + lint.json
 
 | Version | Date | Notes |
 | --- | --- | --- |
+| 1.10 | 2026-07-18 | D15: protocol v4.9.2 — Rule #1 as Prompt Pack invariant; inbox only on write-back/MAINTAIN; Mutation Gate (risk-based); target budget ≈1200. |
+| 1.9 | 2026-07-18 | D14: protocol v4.9.1 — positive governance framing (AGENTS.md + DNA); adaptive compact/full output contracts; RFC-2119 diet (MUST only on true invariants). |
+| 1.8 | 2026-07-18 | D13: `AGENTS.md` slimmed to v4.9.0 bootloader (~140 lines); schema → `standards/okf-house-schema.md`; write-back mechanics → maintain playbook; `known_types()` reads house-schema first. |
+| 1.7 | 2026-07-18 | Relocated to `docs/ADR.md`. |
 | 1.6 | 2026-07-17 | D12: okf.py v1.2 — token estimate, secret scan, .okfignore, okf.config.json, pack export, lookup --json; shared assemble_prompt_pack. |
 | 1.5 | 2026-07-17 | Removed unused `kernel/modules` and `kernel/vendors` slots; domain routing lives in `vault/concepts` (design: content-only, no Module/Vendor runtime). |
 | 1.4 | 2026-07-17 | D11: architecture split knowledge-plane (OKF compile/lookup cache) vs corpus Grep; agent procedure stays in `okf-prompt-injection` only (ADR not a runbook). |

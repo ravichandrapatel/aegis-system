@@ -3,7 +3,6 @@
 [← Table of contents](README.md)
 
 **Status:** Directional only — **not implemented**.  
-**Normative ADR:** [`../ADR.md`](../ADR.md) **D10**.  
 **Shipping truth today:** a single root [`../AGENTS.md`](../AGENTS.md).
 
 This page is the human operator guide for the *optional* enhancement: exposing Aegis as multiple IDE agents while keeping **one brain**.
@@ -47,7 +46,7 @@ A **split** means multiple selectable agent files that each load a **smaller pip
 
 ## 3. Proposed entrypoints
 
-Illustrative layout (from ADR D10):
+Illustrative layout:
 
 ```text
 aegis-system/
@@ -87,9 +86,9 @@ Before merging any split, verify:
 - [ ] One `_okf_knowledge/` for all agents  
 - [ ] Shared lookup + Prompt Card rules (Rule #2)  
 - [ ] Shared knowledge precedence + evidence grades  
-- [ ] Shared pack budget (≤ 8 cards / ~1200 tokens advisory)  
+- [ ] Shared pack budget (≤ 8 cards hard; target ≈1200 tokens)  
 - [ ] MAINTAIN still binds to `maintain-aegis-system.md`  
-- [ ] Capability check still uses Profiles (exit `4` if missing)  
+- [ ] Capability check stays the shared `AGENTS.md` §4.1 gate — required standards/evidence from the Prompt Pack present, else exit `4`; Profiles remain optional schema, orthogonal to agent files  
 - [ ] Shared MUST lives in one place (`_common.md` or thin root) — no contradictory copies  
 - [ ] `docs/` + README updated for multi-agent IDE registration  
 
@@ -112,7 +111,13 @@ Otherwise keep the monolith.
 2. Move Path sections into specialized files; thin the root router.  
 3. Register multiple IDE agents pointing at those files (same package root).  
 4. Add a checklist/lint: every specialized agent references `_common.md`.  
-5. Recompile/lint brain unchanged — **no** per-agent `graph.json`.
+5. Recompile/lint brain unchanged — **no** per-agent compiled artifacts (`index.json` / `prompt_cards.json` / HTML embed).
+
+### Contract delivery (open design question)
+
+Static `agents/*.md` + `_common.md` has an unresolved mechanism problem: IDE agent files do **not** transclude other files. Each specialized agent must either instruct the model to read `_common.md` (one extra tool call every turn — the very context tax the split is meant to remove) or paste the shared MUSTs (the drift this page forbids, policed only by a lint).
+
+**Preferred future shape (OpenSpec-style runtime delivery):** keep the thin root router and have `okf.py` serve the per-path contract on demand (e.g. `okf.py contract generate`), the way `openspec instructions <artifact>` serves stage instructions from one schema. One source of truth, zero copies, no `_common.md`, no reference-lint. Evaluate this before committing to static agent files.
 
 ## 8. Until then
 

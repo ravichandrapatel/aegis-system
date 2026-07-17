@@ -1,9 +1,0 @@
-{
-  "max_cards": 8,
-  "token_budget": 1200,
-  "prompt_card_max_chars": 600,
-  "reference_max_chars": 20000,
-  "reference_compress": true,
-  "credential_scan": true,
-  "respect_gitignore": true
-}

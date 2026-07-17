@@ -3,7 +3,7 @@ type: Concept
 title: OKF Prompt Injection
 description: Binding rule — anytime Aegis runs, inject a dynamic Prompt Pack from live lookup; vault-first catalogs with live refresh when stale; grader reads only for explain/fix — not a static path ban-list.
 tags: [standard, okf, prompting, tokens, aegis, retrieval, cache]
-timestamp: 2026-07-17T03:05:00Z
+timestamp: 2026-07-18T02:45:00Z
 status: active
 ---
 
@@ -19,7 +19,7 @@ Domain graders differ by stack. **What is in-bounds for a turn is defined by the
 
 | Priority | Lane | How | Use for | Must not use for |
 | :---: | :--- | :--- | :--- | :--- |
-| 1 | **OKF knowledge cache** | `okf.py lookup --card` (+ ≤1 follow-up `lookup`/`card`) | Standards, playbooks, concepts, catalogs, pins/versions in the vault | Random vault Grep; paste `graph.json` / full docs |
+| 1 | **OKF knowledge cache** | `okf.py lookup --card` (+ ≤1 follow-up `lookup`/`card`) | Standards, playbooks, concepts, catalogs, pins/versions in the vault | Random vault Grep; paste compiled artifacts / full docs |
 | 2 | **Pointers from cards** | Read only paths the **current cards** name | One deep dive the pack pointed to | Opening every related file |
 | 3 | **Task corpus** | Glob → Grep → Read (or Explore subagent) | Product/code/config being changed or inspected | Discovering org compliance that should be on cards |
 | 4 | **Grader / answer key** | See [Grader access](#grader-access-daily-work) | Explain failure (what/why/where); fix from gate output | Authoring-time peek to invent compliance |
@@ -46,25 +46,41 @@ Agents **MUST NOT** default to live rediscovery when a current card already supp
 
 ## MUST
 
-1. Anytime Aegis is used, run `okf.py lookup --card` (or `lookup` then `card`) with **task-specific** keywords before vault Grep or generation.
+1. Anytime Aegis is used, run `okf.py lookup --card` (or `lookup` then `card` / `pack`) with **task-specific** keywords before vault Grep or generation.
 2. Assemble a **Prompt Pack** from returned `## Prompt Card` sections only.
-3. Each card **MUST** target **≤150 tokens** (~600 characters). Prefer shorter.
-4. Total Prompt Pack for one turn **SHOULD** stay **≤400 tokens** unless the user expands scope.
+3. Each card **MUST** target **≤150 tokens** (~600 characters) by default. Prefer shorter.
+4. Hard pack rule: **≤8 Prompt Cards**. Target budget **≈1200 tokens** (guidance — tokenizers differ; kernel default matches). Prefer fewer/shorter when the hit-set allows.
 5. Encyclopedic bodies **MUST** stay in the vault — **MUST NOT** be copied wholesale into the generation prompt.
 6. Binding rules **MUST** expose a `## Prompt Card` so lookup can surface them dynamically.
 7. Missing pin/version/constraint in the pack → **one** follow-up `lookup`/`card`, then act (or live-refresh per freshness rules above).
 
+## Prompt Card exceptions (frontmatter)
+
+Dense catalogs MAY declare exceptions — default ≤600 remains the norm:
+
+| Field | Effect |
+| :--- | :--- |
+| `prompt_card_max_chars: N` | Raises the DBG-309 lint / enrich clamp for that doc only (hard ceiling **2000**). |
+| `pack_force_when: [keywords…]` | When the query shares any keyword, the card is force-included first and **bypasses** pack `max_cards` + token budget (kernel safety cap: 4 forced cards). |
+
+Example:
+
+```yaml
+prompt_card_max_chars: 1200
+pack_force_when: [catalog, pin, version]
+```
+
 ## SHOULD
 
 1. `okf.py card <path>…` when paths are already known from lookup.
-2. Prefer **one-shot validation pass** (e.g. Conftest) when the Prompt Pack already encodes binding rules — avoid generate → fail → remediate loops when the first pack is sufficient.
-3. Keep domain catalogs/pins **on cards** so vault-first stays viable. Maintain a **pin cache** (tag → 40-char SHA) for common `uses:`; attach it when remediating pin findings (e.g. CKV2_SPVS_5) instead of live `gh` rediscovery.
-4. For authoring tasks, keep the pack to **MUST bullets + pin lines** only (still ≤150 tok/card).
+2. Prefer **one-shot validation pass** when the Prompt Pack already encodes binding rules — avoid generate → fail → remediate loops when the first pack is sufficient.
+3. Keep domain catalogs/pins **on cards** so vault-first stays viable. Prefer a vault reference (or card) for version/pin facts over live rediscovery every turn. Use `pack_force_when` so dense catalog cards survive pack eviction.
+4. For authoring tasks, keep the pack to **MUST bullets + concrete facts** only (still ≤150 tok/card unless `prompt_card_max_chars` justifies more).
 5. After vault edits: `okf.py compile` (and lint) so the knowledge cache stays fresh.
 
 ## FORBIDDEN
 
-1. Pasting `graph.json` or full standard/concept files into the prompt by default.
+1. Pasting compiled artifacts (`index.json`, graph embeds) or full standard/concept files into the prompt by default.
 2. “Load the whole Aegis brain” as the default strategy.
 3. Skipping live lookup and grepping the vault for compliance knowledge.
 4. Encoding a **static** forever ban/allow of domain grader paths in AGENTS.md (bench/task prompts or domain cards own isolation globs).
@@ -72,28 +88,22 @@ Agents **MUST NOT** default to live rediscovery when a current card already supp
 6. Preferring live pin/catalog rediscovery every run when a fresh vault card exists.
 7. Treating “no OKF is faster” as truth without measuring **time to validation pass** (include remediation turns).
 
-## Example minimal pack (GHA composite)
+## Example minimal pack (domain-agnostic)
 
 ```text
-SPVS composite MUST:
-- runs.using: composite; action.yml + readme.md
-- bash run: set -euo pipefail; no set -x
-- no ${{ inputs.* }} in run — map via env
-- uses: 40-char SHA only; no ../
-- no curl|bash; no AWS_* static keys
-
-Pins:
-docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772
-docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2
+Rule #1: simplest shortest minimal solution that works.
+Rule #2: lookup --card / pack first; inject cards only (≤150 tok/card; ≤8 cards; ≈1200 tok).
+New durable knowledge: frontmatter + maintain-aegis-system playbook; compile+lint.
+Catalogs: vault-first; live fetch only if stale/missing; write back.
 ```
 
 ## Prompt Card
 
 ```text
-Anytime Aegis: lookup --card first (dynamic pack ≤400 tok; cards ≤150 tok).
+Anytime Aegis: lookup --card / pack first (≤8 cards; ≈1200 tok; cards ≤150 tok / 600 chars).
+Exceptions: prompt_card_max_chars (≤2000); pack_force_when force-includes (≤4).
 Ladder: OKF cache → card pointers → task corpus Grep → grader only for explain/fix.
-Catalogs: vault-first; pin cache on cards; live only if stale/missing; write back.
-Prefer one-shot validation pass. Authoring: do not mine grader.
+Catalogs: vault-first on cards; live only if stale/missing; write back.
 FORBIDDEN: brain dump; skip lookup; static path bans in AGENTS.md.
 ```
 
@@ -117,6 +127,5 @@ A/B benches that isolate “cards vs grader” **MUST** name forbidden answer-ke
 
 - Principle: [Simplicity First](/standards/simplicity-first.md)
 - Control plane: [AGENTS.md](/AGENTS.md) Rule #1 (thin pointer)
-- Architecture record (design only, not a runbook): `/ADR.md` D4 / D11
 - Playbook: [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md)
 - Starter: [Extending Aegis](/vault/concepts/extending-aegis.md)

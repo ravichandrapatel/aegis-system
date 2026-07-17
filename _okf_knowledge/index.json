@@ -1,160 +1,48 @@
 {
-  "version": 2,
+  "version": 3,
   "entries": [
     {
       "id": "kernel/profiles/_schema",
       "path": "kernel/profiles/_schema.md",
       "title": "Profile schema",
-      "description": "One-sentence description of the persona's objective \u2014 template for optional kernel/profiles.",
+      "description": "Template for optional kernel/profiles \u2014 objective, intents, modes, required vault/standards lookup paths. Not a runtime Module/Vendor gate.",
       "tags": [
         "profile",
         "schema",
-        "template"
+        "template",
+        "persona",
+        "rbac"
       ],
       "type": "Profile",
+      "pack_force_when": [],
       "id_norm": "kernel profiles _schema",
       "title_norm": "profile schema",
-      "desc_norm": "one-sentence description of the persona's objective \u2014 template for optional kernel/profiles.",
-      "tags_norm": "profile schema template",
+      "desc_norm": "template for optional kernel/profiles \u2014 objective, intents, modes, required vault/standards lookup paths. not a runtime module/vendor gate.",
+      "tags_norm": "profile schema template persona rbac",
       "type_norm": "profile",
       "tokens": [
-        "description",
         "for",
+        "gate",
+        "intents",
         "kernel",
+        "lookup",
+        "modes",
+        "module",
+        "not",
         "objective",
-        "of",
-        "one",
         "optional",
+        "paths",
         "persona",
         "profile",
         "profiles",
+        "rbac",
+        "required",
+        "runtime",
         "schema",
-        "sentence",
+        "standards",
         "template",
-        "the"
-      ]
-    },
-    {
-      "id": "standards/gha-commit-subjects",
-      "path": "standards/gha-commit-subjects.md",
-      "title": "GHA Commit Subjects",
-      "description": "Ticket-prefixed conventional commit subjects required for hooks and SemVer bumps.",
-      "tags": [
-        "standard",
-        "github-actions",
-        "commits",
-        "semver"
-      ],
-      "type": "Concept",
-      "id_norm": "standards gha commit subjects",
-      "title_norm": "gha commit subjects",
-      "desc_norm": "ticket-prefixed conventional commit subjects required for hooks and semver bumps.",
-      "tags_norm": "standard github-actions commits semver",
-      "type_norm": "concept",
-      "tokens": [
-        "actions",
-        "and",
-        "bumps",
-        "commit",
-        "commits",
-        "concept",
-        "conventional",
-        "for",
-        "gha",
-        "github",
-        "hooks",
-        "prefixed",
-        "required",
-        "sem",
-        "semver",
-        "standard",
-        "standards",
-        "subjects",
-        "ticket",
-        "ver"
-      ]
-    },
-    {
-      "id": "standards/gha-component-layout",
-      "path": "standards/gha-component-layout.md",
-      "title": "GHA Component Layout",
-      "description": "Required directory contract for composite actions and reusable workflows in the monorepo.",
-      "tags": [
-        "standard",
-        "github-actions",
-        "layout",
-        "monorepo"
-      ],
-      "type": "Concept",
-      "id_norm": "standards gha component layout",
-      "title_norm": "gha component layout",
-      "desc_norm": "required directory contract for composite actions and reusable workflows in the monorepo.",
-      "tags_norm": "standard github-actions layout monorepo",
-      "type_norm": "concept",
-      "tokens": [
-        "actions",
-        "and",
-        "component",
-        "composite",
-        "concept",
-        "contract",
-        "directory",
-        "for",
-        "gha",
-        "github",
-        "in",
-        "layout",
-        "monorepo",
-        "required",
-        "reusable",
-        "standard",
-        "standards",
-        "the",
-        "workflows"
-      ]
-    },
-    {
-      "id": "standards/gha-spvs-yaml",
-      "path": "standards/gha-spvs-yaml.md",
-      "title": "GHA SPVS YAML",
-      "description": "OWASP SPVS Conftest policy catalog for workflow and composite action YAML (MUST pass, no soft-fail).",
-      "tags": [
-        "standard",
-        "github-actions",
-        "spvs",
-        "conftest",
-        "security"
-      ],
-      "type": "Concept",
-      "id_norm": "standards gha spvs yaml",
-      "title_norm": "gha spvs yaml",
-      "desc_norm": "owasp spvs conftest policy catalog for workflow and composite action yaml (must pass, no soft-fail).",
-      "tags_norm": "standard github-actions spvs conftest security",
-      "type_norm": "concept",
-      "tokens": [
-        "action",
-        "actions",
-        "and",
-        "catalog",
-        "composite",
-        "concept",
-        "conftest",
-        "fail",
-        "for",
-        "gha",
-        "github",
-        "must",
-        "no",
-        "owasp",
-        "pass",
-        "policy",
-        "security",
-        "soft",
-        "spvs",
-        "standard",
-        "standards",
-        "workflow",
-        "yaml"
+        "vault",
+        "vendor"
       ]
     },
     {
@@ -169,6 +57,7 @@
         "conventions"
       ],
       "type": "Concept",
+      "pack_force_when": [],
       "id_norm": "standards metadata headers",
       "title_norm": "metadata headers",
       "desc_norm": "required metadata blocks on every new file, function, and class across all languages.",
@@ -199,6 +88,55 @@
       ]
     },
     {
+      "id": "standards/okf-house-schema",
+      "path": "standards/okf-house-schema.md",
+      "title": "OKF House Schema",
+      "description": "Binding document schema for every durable brain concept \u2014 known types, required frontmatter, timestamp canon, Prompt Card exceptions, and the OKF v0.2 Code dialect.",
+      "tags": [
+        "standard",
+        "okf",
+        "schema",
+        "frontmatter",
+        "document-types"
+      ],
+      "type": "Concept",
+      "pack_force_when": [
+        "frontmatter"
+      ],
+      "id_norm": "standards okf house schema",
+      "title_norm": "okf house schema",
+      "desc_norm": "binding document schema for every durable brain concept \u2014 known types, required frontmatter, timestamp canon, prompt card exceptions, and the okf v0.2 code dialect.",
+      "tags_norm": "standard okf schema frontmatter document-types",
+      "type_norm": "concept",
+      "tokens": [
+        "and",
+        "binding",
+        "brain",
+        "canon",
+        "card",
+        "code",
+        "concept",
+        "dialect",
+        "document",
+        "durable",
+        "every",
+        "exceptions",
+        "for",
+        "frontmatter",
+        "house",
+        "known",
+        "okf",
+        "prompt",
+        "required",
+        "schema",
+        "standard",
+        "standards",
+        "the",
+        "timestamp",
+        "types"
+      ]
+    },
+    {
       "id": "standards/okf-prompt-injection",
       "path": "standards/okf-prompt-injection.md",
       "title": "OKF Prompt Injection",
@@ -213,6 +151,7 @@
         "cache"
       ],
       "type": "Concept",
+      "pack_force_when": [],
       "id_norm": "standards okf prompt injection",
       "title_norm": "okf prompt injection",
       "desc_norm": "binding rule \u2014 anytime aegis runs, inject a dynamic prompt pack from live lookup; vault-first catalogs with live refresh when stale; grader reads only for explain/fix \u2014 not a static path ban-list.",
@@ -272,6 +211,7 @@
         "principles"
       ],
       "type": "Concept",
+      "pack_force_when": [],
       "id_norm": "standards simplicity first",
       "title_norm": "simplicity first (rule #1)",
       "desc_norm": "the laziness ladder \u2014 always choose the simplest, shortest, minimal solution that works. overrides complexity in design, code, and vault structure.",
@@ -307,46 +247,6 @@
       ]
     },
     {
-      "id": "vault/concepts/component-tagging",
-      "path": "vault/concepts/component-tagging.md",
-      "title": "Component Tagging",
-      "description": "safe_name derivation and versioned vs stable tag conventions for GHA components.",
-      "tags": [
-        "github-actions",
-        "tagging",
-        "release",
-        "concepts"
-      ],
-      "type": "Concept",
-      "id_norm": "vault concepts component tagging",
-      "title_norm": "component tagging",
-      "desc_norm": "safe_name derivation and versioned vs stable tag conventions for gha components.",
-      "tags_norm": "github-actions tagging release concepts",
-      "type_norm": "concept",
-      "tokens": [
-        "actions",
-        "and",
-        "component",
-        "components",
-        "concept",
-        "concepts",
-        "conventions",
-        "derivation",
-        "for",
-        "gha",
-        "github",
-        "name",
-        "release",
-        "safe",
-        "stable",
-        "tag",
-        "tagging",
-        "vault",
-        "versioned",
-        "vs"
-      ]
-    },
-    {
       "id": "vault/concepts/extending-aegis",
       "path": "vault/concepts/extending-aegis.md",
       "title": "Extending Aegis",
@@ -357,6 +257,7 @@
         "framework"
       ],
       "type": "Concept",
+      "pack_force_when": [],
       "id_norm": "vault concepts extending aegis",
       "title_norm": "extending aegis",
       "desc_norm": "how to grow this empty framework with your own standards and vault knowledge.",
@@ -386,515 +287,101 @@
       ]
     },
     {
-      "id": "vault/concepts/gha-yaml-anchors",
-      "path": "vault/concepts/gha-yaml-anchors.md",
-      "title": "GHA YAML Anchors",
-      "description": "Reuse env, steps, or jobs inside one GitHub Actions workflow with YAML anchors (&) and aliases (*) \u2014 no merge keys.",
-      "tags": [
-        "github-actions",
-        "yaml",
-        "anchors",
-        "workflow",
-        "reuse"
-      ],
-      "type": "Concept",
-      "id_norm": "vault concepts gha yaml anchors",
-      "title_norm": "gha yaml anchors",
-      "desc_norm": "reuse env, steps, or jobs inside one github actions workflow with yaml anchors (&) and aliases (*) \u2014 no merge keys.",
-      "tags_norm": "github-actions yaml anchors workflow reuse",
-      "type_norm": "concept",
-      "tokens": [
-        "actions",
-        "aliases",
-        "anchors",
-        "and",
-        "concept",
-        "concepts",
-        "env",
-        "gha",
-        "git",
-        "github",
-        "hub",
-        "inside",
-        "jobs",
-        "keys",
-        "merge",
-        "no",
-        "one",
-        "or",
-        "reuse",
-        "steps",
-        "vault",
-        "with",
-        "workflow",
-        "yaml"
-      ]
-    },
-    {
-      "id": "vault/concepts/github-actions",
-      "path": "vault/concepts/github-actions.md",
-      "title": "GitHub Actions Domain",
-      "description": "Domain routing for composite actions, reusable workflows, Release Manager, and SPVS Conftest in gha-reusable-actions-workflows.",
-      "tags": [
-        "github-actions",
-        "spvs",
-        "domain"
-      ],
-      "type": "Concept",
-      "id_norm": "vault concepts github actions",
-      "title_norm": "github actions domain",
-      "desc_norm": "domain routing for composite actions, reusable workflows, release manager, and spvs conftest in gha-reusable-actions-workflows.",
-      "tags_norm": "github-actions spvs domain",
-      "type_norm": "concept",
-      "tokens": [
-        "actions",
-        "and",
-        "composite",
-        "concept",
-        "concepts",
-        "conftest",
-        "domain",
-        "for",
-        "gha",
-        "git",
-        "github",
-        "hub",
-        "in",
-        "manager",
-        "release",
-        "reusable",
-        "routing",
-        "spvs",
-        "vault",
-        "workflows"
-      ]
-    },
-    {
-      "id": "vault/concepts/release-manager-modes",
-      "path": "vault/concepts/release-manager-modes.md",
-      "title": "Release Manager Modes",
-      "description": "release, promote, and rollback semantics for the gha-reusable-actions-workflows Release Manager.",
-      "tags": [
-        "github-actions",
-        "release-manager",
-        "concepts"
-      ],
-      "type": "Concept",
-      "id_norm": "vault concepts release manager modes",
-      "title_norm": "release manager modes",
-      "desc_norm": "release, promote, and rollback semantics for the gha-reusable-actions-workflows release manager.",
-      "tags_norm": "github-actions release-manager concepts",
-      "type_norm": "concept",
-      "tokens": [
-        "actions",
-        "and",
-        "concept",
-        "concepts",
-        "for",
-        "gha",
-        "github",
-        "manager",
-        "modes",
-        "promote",
-        "release",
-        "reusable",
-        "rollback",
-        "semantics",
-        "the",
-        "vault",
-        "workflows"
-      ]
-    },
-    {
-      "id": "vault/concepts/semver-from-commits",
-      "path": "vault/concepts/semver-from-commits.md",
-      "title": "SemVer from Commits",
-      "description": "How ticket conventional commits map to SemVer bumps for component tags.",
-      "tags": [
-        "github-actions",
-        "semver",
-        "commits",
-        "concepts"
-      ],
-      "type": "Concept",
-      "id_norm": "vault concepts semver from commits",
-      "title_norm": "semver from commits",
-      "desc_norm": "how ticket conventional commits map to semver bumps for component tags.",
-      "tags_norm": "github-actions semver commits concepts",
-      "type_norm": "concept",
-      "tokens": [
-        "actions",
-        "bumps",
-        "commits",
-        "component",
-        "concept",
-        "concepts",
-        "conventional",
-        "for",
-        "from",
-        "github",
-        "how",
-        "map",
-        "sem",
-        "semver",
-        "tags",
-        "ticket",
-        "to",
-        "vault",
-        "ver"
-      ]
-    },
-    {
-      "id": "vault/concepts/spvs-lifecycle",
-      "path": "vault/concepts/spvs-lifecycle.md",
-      "title": "SPVS Lifecycle",
-      "description": "OWASP SPVS Plan/Integrate/Release/Operate stages mapped onto this monorepo \u2014 plus Dependency-Check runner constraints.",
-      "tags": [
-        "github-actions",
-        "spvs",
-        "lifecycle",
-        "owasp",
-        "concepts"
-      ],
-      "type": "Concept",
-      "id_norm": "vault concepts spvs lifecycle",
-      "title_norm": "spvs lifecycle",
-      "desc_norm": "owasp spvs plan/integrate/release/operate stages mapped onto this monorepo \u2014 plus dependency-check runner constraints.",
-      "tags_norm": "github-actions spvs lifecycle owasp concepts",
-      "type_norm": "concept",
-      "tokens": [
-        "actions",
-        "check",
-        "concept",
-        "concepts",
-        "constraints",
-        "dependency",
-        "github",
-        "integrate",
-        "lifecycle",
-        "mapped",
-        "monorepo",
-        "onto",
-        "operate",
-        "owasp",
-        "plan",
-        "plus",
-        "release",
-        "runner",
-        "spvs",
-        "stages",
-        "this",
-        "vault"
-      ]
-    },
-    {
-      "id": "vault/playbooks/author-gha-composite-action",
-      "path": "vault/playbooks/author-gha-composite-action.md",
-      "title": "Author GHA Composite Action",
-      "description": "Scaffold and validate a new composite action under actions/{category}/{name}/.",
-      "tags": [
-        "github-actions",
-        "playbook",
-        "authoring"
-      ],
-      "type": "Playbook",
-      "id_norm": "vault playbooks author gha composite action",
-      "title_norm": "author gha composite action",
-      "desc_norm": "scaffold and validate a new composite action under actions/{category}/{name}/.",
-      "tags_norm": "github-actions playbook authoring",
-      "type_norm": "playbook",
-      "tokens": [
-        "action",
-        "actions",
-        "and",
-        "author",
-        "authoring",
-        "category",
-        "composite",
-        "gha",
-        "github",
-        "name",
-        "new",
-        "playbook",
-        "playbooks",
-        "scaffold",
-        "under",
-        "validate",
-        "vault"
-      ]
-    },
-    {
-      "id": "vault/playbooks/bootstrap-spvs-dev-environment",
-      "path": "vault/playbooks/bootstrap-spvs-dev-environment.md",
-      "title": "Bootstrap SPVS Dev Environment",
-      "description": "Install local hooks and scanners for gha-reusable-actions-workflows development.",
-      "tags": [
-        "github-actions",
-        "spvs",
-        "playbook",
-        "bootstrap"
-      ],
-      "type": "Playbook",
-      "id_norm": "vault playbooks bootstrap spvs dev environment",
-      "title_norm": "bootstrap spvs dev environment",
-      "desc_norm": "install local hooks and scanners for gha-reusable-actions-workflows development.",
-      "tags_norm": "github-actions spvs playbook bootstrap",
-      "type_norm": "playbook",
-      "tokens": [
-        "actions",
-        "and",
-        "bootstrap",
-        "dev",
-        "development",
-        "environment",
-        "for",
-        "gha",
-        "github",
-        "hooks",
-        "install",
-        "local",
-        "playbook",
-        "playbooks",
-        "reusable",
-        "scanners",
-        "spvs",
-        "vault",
-        "workflows"
-      ]
-    },
-    {
       "id": "vault/playbooks/maintain-aegis-system",
       "path": "vault/playbooks/maintain-aegis-system.md",
       "title": "Maintain aegis-system",
-      "description": "How to add or update concepts, playbooks, references, scripts, and skills in the aegis-system OKF vault \u2014 with post-change verification.",
+      "description": "MAINTAIN/INGEST playbook \u2014 add or update vault knowledge, self-learning write-back (Rung 1 inbox capture \u2192 Rung 2 full ingest), cross-links, compile+lint verification.",
       "tags": [
         "aegis-system",
         "ingest",
         "maintenance",
         "okf",
-        "procedure"
+        "procedure",
+        "write-back",
+        "inbox",
+        "self-learn",
+        "maintain"
       ],
       "type": "Playbook",
+      "pack_force_when": [
+        "maintain",
+        "ingest",
+        "write-back",
+        "inbox"
+      ],
       "id_norm": "vault playbooks maintain aegis system",
       "title_norm": "maintain aegis-system",
-      "desc_norm": "how to add or update concepts, playbooks, references, scripts, and skills in the aegis-system okf vault \u2014 with post-change verification.",
-      "tags_norm": "aegis-system ingest maintenance okf procedure",
+      "desc_norm": "maintain/ingest playbook \u2014 add or update vault knowledge, self-learning write-back (rung 1 inbox capture \u2192 rung 2 full ingest), cross-links, compile+lint verification.",
+      "tags_norm": "aegis-system ingest maintenance okf procedure write-back inbox self-learn maintain",
       "type_norm": "playbook",
       "tokens": [
         "add",
         "aegis",
-        "and",
-        "change",
-        "concepts",
-        "how",
-        "in",
+        "back",
+        "capture",
+        "compile",
+        "cross",
+        "full",
+        "inbox",
         "ingest",
+        "knowledge",
+        "learn",
+        "learning",
+        "links",
+        "lint",
         "maintain",
         "maintenance",
         "okf",
         "or",
         "playbook",
         "playbooks",
-        "post",
         "procedure",
-        "references",
-        "scripts",
-        "skills",
+        "rung",
+        "self",
         "system",
-        "the",
-        "to",
         "update",
         "vault",
         "verification",
-        "with"
-      ]
-    },
-    {
-      "id": "vault/playbooks/release-gha-component",
-      "path": "vault/playbooks/release-gha-component.md",
-      "title": "Release GHA Component",
-      "description": "Run Release Manager mode release/promote/rollback for a monorepo component.",
-      "tags": [
-        "github-actions",
-        "playbook",
-        "release"
-      ],
-      "type": "Playbook",
-      "id_norm": "vault playbooks release gha component",
-      "title_norm": "release gha component",
-      "desc_norm": "run release manager mode release/promote/rollback for a monorepo component.",
-      "tags_norm": "github-actions playbook release",
-      "type_norm": "playbook",
-      "tokens": [
-        "actions",
-        "component",
-        "for",
-        "gha",
-        "github",
-        "manager",
-        "mode",
-        "monorepo",
-        "playbook",
-        "playbooks",
-        "promote",
-        "release",
-        "rollback",
-        "run",
-        "vault"
-      ]
-    },
-    {
-      "id": "vault/playbooks/run-gha-local-policy-tests",
-      "path": "vault/playbooks/run-gha-local-policy-tests.md",
-      "title": "Run GHA Local Policy Tests",
-      "description": "Execute Conftest verify/scan and policy unit tests for the monorepo.",
-      "tags": [
-        "github-actions",
-        "playbook",
-        "conftest",
-        "testing"
-      ],
-      "type": "Playbook",
-      "id_norm": "vault playbooks run gha local policy tests",
-      "title_norm": "run gha local policy tests",
-      "desc_norm": "execute conftest verify/scan and policy unit tests for the monorepo.",
-      "tags_norm": "github-actions playbook conftest testing",
-      "type_norm": "playbook",
-      "tokens": [
-        "actions",
-        "and",
-        "conftest",
-        "execute",
-        "for",
-        "gha",
-        "github",
-        "local",
-        "monorepo",
-        "playbook",
-        "playbooks",
-        "policy",
-        "run",
-        "scan",
-        "testing",
-        "tests",
-        "the",
-        "unit",
-        "vault",
-        "verify"
-      ]
-    },
-    {
-      "id": "vault/references/gha-reusable-readme",
-      "path": "vault/references/gha-reusable-readme.md",
-      "title": "gha-reusable-actions-workflows README",
-      "description": "Cached pointer to the monorepo README \u2014 architecture, SPVS catalog, release lifecycle.",
-      "tags": [
-        "github-actions",
-        "readme",
-        "reference"
-      ],
-      "type": "Reference",
-      "id_norm": "vault references gha reusable readme",
-      "title_norm": "gha-reusable-actions-workflows readme",
-      "desc_norm": "cached pointer to the monorepo readme \u2014 architecture, spvs catalog, release lifecycle.",
-      "tags_norm": "github-actions readme reference",
-      "type_norm": "reference",
-      "tokens": [
-        "actions",
-        "architecture",
-        "cached",
-        "catalog",
-        "gha",
-        "github",
-        "lifecycle",
-        "monorepo",
-        "pointer",
-        "readme",
-        "reference",
-        "references",
-        "release",
-        "reusable",
-        "spvs",
-        "the",
-        "to",
-        "vault",
-        "workflows"
-      ]
-    },
-    {
-      "id": "vault/systems/gha-reusable-actions-workflows",
-      "path": "vault/systems/gha-reusable-actions-workflows.md",
-      "title": "gha-reusable-actions-workflows",
-      "description": "Monorepo for reusable GitHub Actions, reusable workflows, SPVS Conftest policies, and Release Manager lifecycle.",
-      "tags": [
-        "github-actions",
-        "spvs",
-        "release-manager",
-        "monorepo",
-        "system"
-      ],
-      "type": "System",
-      "id_norm": "vault systems gha reusable actions workflows",
-      "title_norm": "gha-reusable-actions-workflows",
-      "desc_norm": "monorepo for reusable github actions, reusable workflows, spvs conftest policies, and release manager lifecycle.",
-      "tags_norm": "github-actions spvs release-manager monorepo system",
-      "type_norm": "system",
-      "tokens": [
-        "actions",
-        "and",
-        "conftest",
-        "for",
-        "gha",
-        "git",
-        "github",
-        "hub",
-        "lifecycle",
-        "manager",
-        "monorepo",
-        "policies",
-        "release",
-        "reusable",
-        "spvs",
-        "system",
-        "systems",
-        "vault",
-        "workflows"
+        "write"
       ]
     }
   ],
   "inverted": {
-    "description": [
-      "kernel/profiles/_schema"
-    ],
     "for": [
       "kernel/profiles/_schema",
-      "standards/gha-commit-subjects",
-      "standards/gha-component-layout",
-      "standards/gha-spvs-yaml",
-      "standards/okf-prompt-injection",
-      "vault/concepts/component-tagging",
-      "vault/concepts/github-actions",
-      "vault/concepts/release-manager-modes",
-      "vault/concepts/semver-from-commits",
-      "vault/playbooks/bootstrap-spvs-dev-environment",
-      "vault/playbooks/release-gha-component",
-      "vault/playbooks/run-gha-local-policy-tests",
-      "vault/systems/gha-reusable-actions-workflows"
+      "standards/okf-house-schema",
+      "standards/okf-prompt-injection"
+    ],
+    "gate": [
+      "kernel/profiles/_schema"
+    ],
+    "intents": [
+      "kernel/profiles/_schema"
     ],
     "kernel": [
       "kernel/profiles/_schema"
     ],
+    "lookup": [
+      "kernel/profiles/_schema",
+      "standards/okf-prompt-injection"
+    ],
+    "modes": [
+      "kernel/profiles/_schema"
+    ],
+    "module": [
+      "kernel/profiles/_schema"
+    ],
+    "not": [
+      "kernel/profiles/_schema",
+      "standards/okf-prompt-injection"
+    ],
     "objective": [
       "kernel/profiles/_schema"
     ],
-    "of": [
+    "optional": [
       "kernel/profiles/_schema"
     ],
-    "one": [
-      "kernel/profiles/_schema",
-      "vault/concepts/gha-yaml-anchors"
-    ],
-    "optional": [
+    "paths": [
       "kernel/profiles/_schema"
     ],
     "persona": [
@@ -906,281 +393,53 @@
     "profiles": [
       "kernel/profiles/_schema"
     ],
-    "schema": [
+    "rbac": [
       "kernel/profiles/_schema"
-    ],
-    "sentence": [
-      "kernel/profiles/_schema"
-    ],
-    "template": [
-      "kernel/profiles/_schema"
-    ],
-    "the": [
-      "kernel/profiles/_schema",
-      "standards/gha-component-layout",
-      "standards/simplicity-first",
-      "vault/concepts/release-manager-modes",
-      "vault/playbooks/maintain-aegis-system",
-      "vault/playbooks/run-gha-local-policy-tests",
-      "vault/references/gha-reusable-readme"
-    ],
-    "actions": [
-      "standards/gha-commit-subjects",
-      "standards/gha-component-layout",
-      "standards/gha-spvs-yaml",
-      "vault/concepts/component-tagging",
-      "vault/concepts/gha-yaml-anchors",
-      "vault/concepts/github-actions",
-      "vault/concepts/release-manager-modes",
-      "vault/concepts/semver-from-commits",
-      "vault/concepts/spvs-lifecycle",
-      "vault/playbooks/author-gha-composite-action",
-      "vault/playbooks/bootstrap-spvs-dev-environment",
-      "vault/playbooks/release-gha-component",
-      "vault/playbooks/run-gha-local-policy-tests",
-      "vault/references/gha-reusable-readme",
-      "vault/systems/gha-reusable-actions-workflows"
-    ],
-    "and": [
-      "standards/gha-commit-subjects",
-      "standards/gha-component-layout",
-      "standards/gha-spvs-yaml",
-      "standards/metadata-headers",
-      "standards/simplicity-first",
-      "vault/concepts/component-tagging",
-      "vault/concepts/extending-aegis",
-      "vault/concepts/gha-yaml-anchors",
-      "vault/concepts/github-actions",
-      "vault/concepts/release-manager-modes",
-      "vault/playbooks/author-gha-composite-action",
-      "vault/playbooks/bootstrap-spvs-dev-environment",
-      "vault/playbooks/maintain-aegis-system",
-      "vault/playbooks/run-gha-local-policy-tests",
-      "vault/systems/gha-reusable-actions-workflows"
-    ],
-    "bumps": [
-      "standards/gha-commit-subjects",
-      "vault/concepts/semver-from-commits"
-    ],
-    "commit": [
-      "standards/gha-commit-subjects"
-    ],
-    "commits": [
-      "standards/gha-commit-subjects",
-      "vault/concepts/semver-from-commits"
-    ],
-    "concept": [
-      "standards/gha-commit-subjects",
-      "standards/gha-component-layout",
-      "standards/gha-spvs-yaml",
-      "standards/metadata-headers",
-      "standards/okf-prompt-injection",
-      "standards/simplicity-first",
-      "vault/concepts/component-tagging",
-      "vault/concepts/extending-aegis",
-      "vault/concepts/gha-yaml-anchors",
-      "vault/concepts/github-actions",
-      "vault/concepts/release-manager-modes",
-      "vault/concepts/semver-from-commits",
-      "vault/concepts/spvs-lifecycle"
-    ],
-    "conventional": [
-      "standards/gha-commit-subjects",
-      "vault/concepts/semver-from-commits"
-    ],
-    "gha": [
-      "standards/gha-commit-subjects",
-      "standards/gha-component-layout",
-      "standards/gha-spvs-yaml",
-      "vault/concepts/component-tagging",
-      "vault/concepts/gha-yaml-anchors",
-      "vault/concepts/github-actions",
-      "vault/concepts/release-manager-modes",
-      "vault/playbooks/author-gha-composite-action",
-      "vault/playbooks/bootstrap-spvs-dev-environment",
-      "vault/playbooks/release-gha-component",
-      "vault/playbooks/run-gha-local-policy-tests",
-      "vault/references/gha-reusable-readme",
-      "vault/systems/gha-reusable-actions-workflows"
-    ],
-    "github": [
-      "standards/gha-commit-subjects",
-      "standards/gha-component-layout",
-      "standards/gha-spvs-yaml",
-      "vault/concepts/component-tagging",
-      "vault/concepts/gha-yaml-anchors",
-      "vault/concepts/github-actions",
-      "vault/concepts/release-manager-modes",
-      "vault/concepts/semver-from-commits",
-      "vault/concepts/spvs-lifecycle",
-      "vault/playbooks/author-gha-composite-action",
-      "vault/playbooks/bootstrap-spvs-dev-environment",
-      "vault/playbooks/release-gha-component",
-      "vault/playbooks/run-gha-local-policy-tests",
-      "vault/references/gha-reusable-readme",
-      "vault/systems/gha-reusable-actions-workflows"
-    ],
-    "hooks": [
-      "standards/gha-commit-subjects",
-      "vault/playbooks/bootstrap-spvs-dev-environment"
-    ],
-    "prefixed": [
-      "standards/gha-commit-subjects"
     ],
     "required": [
-      "standards/gha-commit-subjects",
-      "standards/gha-component-layout",
-      "standards/metadata-headers"
-    ],
-    "sem": [
-      "standards/gha-commit-subjects",
-      "vault/concepts/semver-from-commits"
-    ],
-    "semver": [
-      "standards/gha-commit-subjects",
-      "vault/concepts/semver-from-commits"
-    ],
-    "standard": [
-      "standards/gha-commit-subjects",
-      "standards/gha-component-layout",
-      "standards/gha-spvs-yaml",
+      "kernel/profiles/_schema",
       "standards/metadata-headers",
-      "standards/okf-prompt-injection",
-      "standards/simplicity-first"
+      "standards/okf-house-schema"
+    ],
+    "runtime": [
+      "kernel/profiles/_schema"
+    ],
+    "schema": [
+      "kernel/profiles/_schema",
+      "standards/okf-house-schema"
     ],
     "standards": [
-      "standards/gha-commit-subjects",
-      "standards/gha-component-layout",
-      "standards/gha-spvs-yaml",
+      "kernel/profiles/_schema",
       "standards/metadata-headers",
+      "standards/okf-house-schema",
       "standards/okf-prompt-injection",
       "standards/simplicity-first",
       "vault/concepts/extending-aegis"
     ],
-    "subjects": [
-      "standards/gha-commit-subjects"
+    "template": [
+      "kernel/profiles/_schema"
     ],
-    "ticket": [
-      "standards/gha-commit-subjects",
-      "vault/concepts/semver-from-commits"
-    ],
-    "ver": [
-      "standards/gha-commit-subjects",
-      "vault/concepts/semver-from-commits"
-    ],
-    "component": [
-      "standards/gha-component-layout",
-      "vault/concepts/component-tagging",
-      "vault/concepts/semver-from-commits",
-      "vault/playbooks/release-gha-component"
-    ],
-    "composite": [
-      "standards/gha-component-layout",
-      "standards/gha-spvs-yaml",
-      "vault/concepts/github-actions",
-      "vault/playbooks/author-gha-composite-action"
-    ],
-    "contract": [
-      "standards/gha-component-layout"
-    ],
-    "directory": [
-      "standards/gha-component-layout"
-    ],
-    "in": [
-      "standards/gha-component-layout",
+    "vault": [
+      "kernel/profiles/_schema",
+      "standards/okf-prompt-injection",
       "standards/simplicity-first",
-      "vault/concepts/github-actions",
+      "vault/concepts/extending-aegis",
       "vault/playbooks/maintain-aegis-system"
     ],
-    "layout": [
-      "standards/gha-component-layout"
-    ],
-    "monorepo": [
-      "standards/gha-component-layout",
-      "vault/concepts/spvs-lifecycle",
-      "vault/playbooks/release-gha-component",
-      "vault/playbooks/run-gha-local-policy-tests",
-      "vault/references/gha-reusable-readme",
-      "vault/systems/gha-reusable-actions-workflows"
-    ],
-    "reusable": [
-      "standards/gha-component-layout",
-      "vault/concepts/github-actions",
-      "vault/concepts/release-manager-modes",
-      "vault/playbooks/bootstrap-spvs-dev-environment",
-      "vault/references/gha-reusable-readme",
-      "vault/systems/gha-reusable-actions-workflows"
-    ],
-    "workflows": [
-      "standards/gha-component-layout",
-      "vault/concepts/github-actions",
-      "vault/concepts/release-manager-modes",
-      "vault/playbooks/bootstrap-spvs-dev-environment",
-      "vault/references/gha-reusable-readme",
-      "vault/systems/gha-reusable-actions-workflows"
-    ],
-    "action": [
-      "standards/gha-spvs-yaml",
-      "vault/playbooks/author-gha-composite-action"
-    ],
-    "catalog": [
-      "standards/gha-spvs-yaml",
-      "vault/references/gha-reusable-readme"
-    ],
-    "conftest": [
-      "standards/gha-spvs-yaml",
-      "vault/concepts/github-actions",
-      "vault/playbooks/run-gha-local-policy-tests",
-      "vault/systems/gha-reusable-actions-workflows"
-    ],
-    "fail": [
-      "standards/gha-spvs-yaml"
-    ],
-    "must": [
-      "standards/gha-spvs-yaml"
-    ],
-    "no": [
-      "standards/gha-spvs-yaml",
-      "vault/concepts/gha-yaml-anchors"
-    ],
-    "owasp": [
-      "standards/gha-spvs-yaml",
-      "vault/concepts/spvs-lifecycle"
-    ],
-    "pass": [
-      "standards/gha-spvs-yaml"
-    ],
-    "policy": [
-      "standards/gha-spvs-yaml",
-      "vault/playbooks/run-gha-local-policy-tests"
-    ],
-    "security": [
-      "standards/gha-spvs-yaml"
-    ],
-    "soft": [
-      "standards/gha-spvs-yaml"
-    ],
-    "spvs": [
-      "standards/gha-spvs-yaml",
-      "vault/concepts/github-actions",
-      "vault/concepts/spvs-lifecycle",
-      "vault/playbooks/bootstrap-spvs-dev-environment",
-      "vault/references/gha-reusable-readme",
-      "vault/systems/gha-reusable-actions-workflows"
-    ],
-    "workflow": [
-      "standards/gha-spvs-yaml",
-      "vault/concepts/gha-yaml-anchors"
-    ],
-    "yaml": [
-      "standards/gha-spvs-yaml",
-      "vault/concepts/gha-yaml-anchors"
+    "vendor": [
+      "kernel/profiles/_schema"
     ],
     "across": [
       "standards/metadata-headers"
     ],
     "all": [
       "standards/metadata-headers"
+    ],
+    "and": [
+      "standards/metadata-headers",
+      "standards/okf-house-schema",
+      "standards/simplicity-first",
+      "vault/concepts/extending-aegis"
     ],
     "blocks": [
       "standards/metadata-headers"
@@ -1190,17 +449,25 @@
     ],
     "code": [
       "standards/metadata-headers",
+      "standards/okf-house-schema",
       "standards/simplicity-first"
     ],
-    "conventions": [
+    "concept": [
       "standards/metadata-headers",
-      "vault/concepts/component-tagging"
+      "standards/okf-house-schema",
+      "standards/okf-prompt-injection",
+      "standards/simplicity-first",
+      "vault/concepts/extending-aegis"
+    ],
+    "conventions": [
+      "standards/metadata-headers"
     ],
     "documentation": [
       "standards/metadata-headers"
     ],
     "every": [
-      "standards/metadata-headers"
+      "standards/metadata-headers",
+      "standards/okf-house-schema"
     ],
     "file": [
       "standards/metadata-headers"
@@ -1218,14 +485,72 @@
       "standards/metadata-headers"
     ],
     "new": [
-      "standards/metadata-headers",
-      "vault/playbooks/author-gha-composite-action"
+      "standards/metadata-headers"
     ],
     "on": [
       "standards/metadata-headers"
     ],
     "quality": [
       "standards/metadata-headers"
+    ],
+    "standard": [
+      "standards/metadata-headers",
+      "standards/okf-house-schema",
+      "standards/okf-prompt-injection",
+      "standards/simplicity-first"
+    ],
+    "binding": [
+      "standards/okf-house-schema",
+      "standards/okf-prompt-injection"
+    ],
+    "brain": [
+      "standards/okf-house-schema"
+    ],
+    "canon": [
+      "standards/okf-house-schema"
+    ],
+    "card": [
+      "standards/okf-house-schema"
+    ],
+    "dialect": [
+      "standards/okf-house-schema"
+    ],
+    "document": [
+      "standards/okf-house-schema"
+    ],
+    "durable": [
+      "standards/okf-house-schema"
+    ],
+    "exceptions": [
+      "standards/okf-house-schema"
+    ],
+    "frontmatter": [
+      "standards/okf-house-schema"
+    ],
+    "house": [
+      "standards/okf-house-schema"
+    ],
+    "known": [
+      "standards/okf-house-schema"
+    ],
+    "okf": [
+      "standards/okf-house-schema",
+      "standards/okf-prompt-injection",
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "prompt": [
+      "standards/okf-house-schema",
+      "standards/okf-prompt-injection"
+    ],
+    "the": [
+      "standards/okf-house-schema",
+      "standards/simplicity-first"
+    ],
+    "timestamp": [
+      "standards/okf-house-schema"
+    ],
+    "types": [
+      "standards/okf-house-schema"
     ],
     "aegis": [
       "standards/okf-prompt-injection",
@@ -1236,9 +561,6 @@
       "standards/okf-prompt-injection"
     ],
     "ban": [
-      "standards/okf-prompt-injection"
-    ],
-    "binding": [
       "standards/okf-prompt-injection"
     ],
     "cache": [
@@ -1261,8 +583,7 @@
       "standards/okf-prompt-injection"
     ],
     "from": [
-      "standards/okf-prompt-injection",
-      "vault/concepts/semver-from-commits"
+      "standards/okf-prompt-injection"
     ],
     "grader": [
       "standards/okf-prompt-injection"
@@ -1279,16 +600,6 @@
     "live": [
       "standards/okf-prompt-injection"
     ],
-    "lookup": [
-      "standards/okf-prompt-injection"
-    ],
-    "not": [
-      "standards/okf-prompt-injection"
-    ],
-    "okf": [
-      "standards/okf-prompt-injection",
-      "vault/playbooks/maintain-aegis-system"
-    ],
     "only": [
       "standards/okf-prompt-injection"
     ],
@@ -1296,9 +607,6 @@
       "standards/okf-prompt-injection"
     ],
     "path": [
-      "standards/okf-prompt-injection"
-    ],
-    "prompt": [
       "standards/okf-prompt-injection"
     ],
     "prompting": [
@@ -1329,32 +637,12 @@
     "tokens": [
       "standards/okf-prompt-injection"
     ],
-    "vault": [
-      "standards/okf-prompt-injection",
-      "standards/simplicity-first",
-      "vault/concepts/component-tagging",
-      "vault/concepts/extending-aegis",
-      "vault/concepts/gha-yaml-anchors",
-      "vault/concepts/github-actions",
-      "vault/concepts/release-manager-modes",
-      "vault/concepts/semver-from-commits",
-      "vault/concepts/spvs-lifecycle",
-      "vault/playbooks/author-gha-composite-action",
-      "vault/playbooks/bootstrap-spvs-dev-environment",
-      "vault/playbooks/maintain-aegis-system",
-      "vault/playbooks/release-gha-component",
-      "vault/playbooks/run-gha-local-policy-tests",
-      "vault/references/gha-reusable-readme",
-      "vault/systems/gha-reusable-actions-workflows"
-    ],
     "when": [
       "standards/okf-prompt-injection"
     ],
     "with": [
       "standards/okf-prompt-injection",
-      "vault/concepts/extending-aegis",
-      "vault/concepts/gha-yaml-anchors",
-      "vault/playbooks/maintain-aegis-system"
+      "vault/concepts/extending-aegis"
     ],
     "always": [
       "standards/simplicity-first"
@@ -1366,6 +654,9 @@
       "standards/simplicity-first"
     ],
     "design": [
+      "standards/simplicity-first"
+    ],
+    "in": [
       "standards/simplicity-first"
     ],
     "ladder": [
@@ -1404,52 +695,8 @@
     "works": [
       "standards/simplicity-first"
     ],
-    "components": [
-      "vault/concepts/component-tagging"
-    ],
     "concepts": [
-      "vault/concepts/component-tagging",
-      "vault/concepts/extending-aegis",
-      "vault/concepts/gha-yaml-anchors",
-      "vault/concepts/github-actions",
-      "vault/concepts/release-manager-modes",
-      "vault/concepts/semver-from-commits",
-      "vault/concepts/spvs-lifecycle",
-      "vault/playbooks/maintain-aegis-system"
-    ],
-    "derivation": [
-      "vault/concepts/component-tagging"
-    ],
-    "name": [
-      "vault/concepts/component-tagging",
-      "vault/playbooks/author-gha-composite-action"
-    ],
-    "release": [
-      "vault/concepts/component-tagging",
-      "vault/concepts/github-actions",
-      "vault/concepts/release-manager-modes",
-      "vault/concepts/spvs-lifecycle",
-      "vault/playbooks/release-gha-component",
-      "vault/references/gha-reusable-readme",
-      "vault/systems/gha-reusable-actions-workflows"
-    ],
-    "safe": [
-      "vault/concepts/component-tagging"
-    ],
-    "stable": [
-      "vault/concepts/component-tagging"
-    ],
-    "tag": [
-      "vault/concepts/component-tagging"
-    ],
-    "tagging": [
-      "vault/concepts/component-tagging"
-    ],
-    "versioned": [
-      "vault/concepts/component-tagging"
-    ],
-    "vs": [
-      "vault/concepts/component-tagging"
+      "vault/concepts/extending-aegis"
     ],
     "empty": [
       "vault/concepts/extending-aegis"
@@ -1467,12 +714,11 @@
       "vault/concepts/extending-aegis"
     ],
     "how": [
-      "vault/concepts/extending-aegis",
-      "vault/concepts/semver-from-commits",
-      "vault/playbooks/maintain-aegis-system"
+      "vault/concepts/extending-aegis"
     ],
     "knowledge": [
-      "vault/concepts/extending-aegis"
+      "vault/concepts/extending-aegis",
+      "vault/playbooks/maintain-aegis-system"
     ],
     "own": [
       "vault/concepts/extending-aegis"
@@ -1482,194 +728,51 @@
     ],
     "system": [
       "vault/concepts/extending-aegis",
-      "vault/playbooks/maintain-aegis-system",
-      "vault/systems/gha-reusable-actions-workflows"
+      "vault/playbooks/maintain-aegis-system"
     ],
     "this": [
-      "vault/concepts/extending-aegis",
-      "vault/concepts/spvs-lifecycle"
+      "vault/concepts/extending-aegis"
     ],
     "to": [
-      "vault/concepts/extending-aegis",
-      "vault/concepts/semver-from-commits",
-      "vault/playbooks/maintain-aegis-system",
-      "vault/references/gha-reusable-readme"
+      "vault/concepts/extending-aegis"
     ],
     "your": [
       "vault/concepts/extending-aegis"
     ],
-    "aliases": [
-      "vault/concepts/gha-yaml-anchors"
-    ],
-    "anchors": [
-      "vault/concepts/gha-yaml-anchors"
-    ],
-    "env": [
-      "vault/concepts/gha-yaml-anchors"
-    ],
-    "git": [
-      "vault/concepts/gha-yaml-anchors",
-      "vault/concepts/github-actions",
-      "vault/systems/gha-reusable-actions-workflows"
-    ],
-    "hub": [
-      "vault/concepts/gha-yaml-anchors",
-      "vault/concepts/github-actions",
-      "vault/systems/gha-reusable-actions-workflows"
-    ],
-    "inside": [
-      "vault/concepts/gha-yaml-anchors"
-    ],
-    "jobs": [
-      "vault/concepts/gha-yaml-anchors"
-    ],
-    "keys": [
-      "vault/concepts/gha-yaml-anchors"
-    ],
-    "merge": [
-      "vault/concepts/gha-yaml-anchors"
-    ],
-    "or": [
-      "vault/concepts/gha-yaml-anchors",
-      "vault/playbooks/maintain-aegis-system"
-    ],
-    "reuse": [
-      "vault/concepts/gha-yaml-anchors"
-    ],
-    "steps": [
-      "vault/concepts/gha-yaml-anchors"
-    ],
-    "domain": [
-      "vault/concepts/github-actions"
-    ],
-    "manager": [
-      "vault/concepts/github-actions",
-      "vault/concepts/release-manager-modes",
-      "vault/playbooks/release-gha-component",
-      "vault/systems/gha-reusable-actions-workflows"
-    ],
-    "routing": [
-      "vault/concepts/github-actions"
-    ],
-    "modes": [
-      "vault/concepts/release-manager-modes"
-    ],
-    "promote": [
-      "vault/concepts/release-manager-modes",
-      "vault/playbooks/release-gha-component"
-    ],
-    "rollback": [
-      "vault/concepts/release-manager-modes",
-      "vault/playbooks/release-gha-component"
-    ],
-    "semantics": [
-      "vault/concepts/release-manager-modes"
-    ],
-    "map": [
-      "vault/concepts/semver-from-commits"
-    ],
-    "tags": [
-      "vault/concepts/semver-from-commits"
-    ],
-    "check": [
-      "vault/concepts/spvs-lifecycle"
-    ],
-    "constraints": [
-      "vault/concepts/spvs-lifecycle"
-    ],
-    "dependency": [
-      "vault/concepts/spvs-lifecycle"
-    ],
-    "integrate": [
-      "vault/concepts/spvs-lifecycle"
-    ],
-    "lifecycle": [
-      "vault/concepts/spvs-lifecycle",
-      "vault/references/gha-reusable-readme",
-      "vault/systems/gha-reusable-actions-workflows"
-    ],
-    "mapped": [
-      "vault/concepts/spvs-lifecycle"
-    ],
-    "onto": [
-      "vault/concepts/spvs-lifecycle"
-    ],
-    "operate": [
-      "vault/concepts/spvs-lifecycle"
-    ],
-    "plan": [
-      "vault/concepts/spvs-lifecycle"
-    ],
-    "plus": [
-      "vault/concepts/spvs-lifecycle"
-    ],
-    "runner": [
-      "vault/concepts/spvs-lifecycle"
-    ],
-    "stages": [
-      "vault/concepts/spvs-lifecycle"
-    ],
-    "author": [
-      "vault/playbooks/author-gha-composite-action"
-    ],
-    "authoring": [
-      "vault/playbooks/author-gha-composite-action"
-    ],
-    "category": [
-      "vault/playbooks/author-gha-composite-action"
-    ],
-    "playbook": [
-      "vault/playbooks/author-gha-composite-action",
-      "vault/playbooks/bootstrap-spvs-dev-environment",
-      "vault/playbooks/maintain-aegis-system",
-      "vault/playbooks/release-gha-component",
-      "vault/playbooks/run-gha-local-policy-tests"
-    ],
-    "playbooks": [
-      "vault/playbooks/author-gha-composite-action",
-      "vault/playbooks/bootstrap-spvs-dev-environment",
-      "vault/playbooks/maintain-aegis-system",
-      "vault/playbooks/release-gha-component",
-      "vault/playbooks/run-gha-local-policy-tests"
-    ],
-    "scaffold": [
-      "vault/playbooks/author-gha-composite-action"
-    ],
-    "under": [
-      "vault/playbooks/author-gha-composite-action"
-    ],
-    "validate": [
-      "vault/playbooks/author-gha-composite-action"
-    ],
-    "bootstrap": [
-      "vault/playbooks/bootstrap-spvs-dev-environment"
-    ],
-    "dev": [
-      "vault/playbooks/bootstrap-spvs-dev-environment"
-    ],
-    "development": [
-      "vault/playbooks/bootstrap-spvs-dev-environment"
-    ],
-    "environment": [
-      "vault/playbooks/bootstrap-spvs-dev-environment"
-    ],
-    "install": [
-      "vault/playbooks/bootstrap-spvs-dev-environment"
-    ],
-    "local": [
-      "vault/playbooks/bootstrap-spvs-dev-environment",
-      "vault/playbooks/run-gha-local-policy-tests"
-    ],
-    "scanners": [
-      "vault/playbooks/bootstrap-spvs-dev-environment"
-    ],
     "add": [
       "vault/playbooks/maintain-aegis-system"
     ],
-    "change": [
+    "back": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "capture": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "compile": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "cross": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "full": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "inbox": [
       "vault/playbooks/maintain-aegis-system"
     ],
     "ingest": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "learn": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "learning": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "links": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "lint": [
       "vault/playbooks/maintain-aegis-system"
     ],
     "maintain": [
@@ -1678,20 +781,22 @@
     "maintenance": [
       "vault/playbooks/maintain-aegis-system"
     ],
-    "post": [
+    "or": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "playbook": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "playbooks": [
       "vault/playbooks/maintain-aegis-system"
     ],
     "procedure": [
       "vault/playbooks/maintain-aegis-system"
     ],
-    "references": [
-      "vault/playbooks/maintain-aegis-system",
-      "vault/references/gha-reusable-readme"
-    ],
-    "scripts": [
+    "rung": [
       "vault/playbooks/maintain-aegis-system"
     ],
-    "skills": [
+    "self": [
       "vault/playbooks/maintain-aegis-system"
     ],
     "update": [
@@ -1700,51 +805,50 @@
     "verification": [
       "vault/playbooks/maintain-aegis-system"
     ],
-    "mode": [
-      "vault/playbooks/release-gha-component"
+    "write": [
+      "vault/playbooks/maintain-aegis-system"
+    ]
+  },
+  "adjacency": {
+    "kernel/profiles/_schema": [
+      "standards/okf-prompt-injection",
+      "vault/concepts/extending-aegis",
+      "vault/playbooks/maintain-aegis-system"
     ],
-    "run": [
-      "vault/playbooks/release-gha-component",
-      "vault/playbooks/run-gha-local-policy-tests"
+    "standards/metadata-headers": [
+      "standards/okf-house-schema",
+      "standards/simplicity-first"
     ],
-    "execute": [
-      "vault/playbooks/run-gha-local-policy-tests"
+    "standards/okf-house-schema": [
+      "standards/metadata-headers",
+      "standards/okf-prompt-injection",
+      "vault/playbooks/maintain-aegis-system"
     ],
-    "scan": [
-      "vault/playbooks/run-gha-local-policy-tests"
+    "standards/okf-prompt-injection": [
+      "kernel/profiles/_schema",
+      "standards/okf-house-schema",
+      "standards/simplicity-first",
+      "vault/concepts/extending-aegis",
+      "vault/playbooks/maintain-aegis-system"
     ],
-    "testing": [
-      "vault/playbooks/run-gha-local-policy-tests"
+    "standards/simplicity-first": [
+      "standards/metadata-headers",
+      "standards/okf-prompt-injection",
+      "vault/concepts/extending-aegis",
+      "vault/playbooks/maintain-aegis-system"
     ],
-    "tests": [
-      "vault/playbooks/run-gha-local-policy-tests"
+    "vault/concepts/extending-aegis": [
+      "kernel/profiles/_schema",
+      "standards/okf-prompt-injection",
+      "standards/simplicity-first",
+      "vault/playbooks/maintain-aegis-system"
     ],
-    "unit": [
-      "vault/playbooks/run-gha-local-policy-tests"
-    ],
-    "verify": [
-      "vault/playbooks/run-gha-local-policy-tests"
-    ],
-    "architecture": [
-      "vault/references/gha-reusable-readme"
-    ],
-    "cached": [
-      "vault/references/gha-reusable-readme"
-    ],
-    "pointer": [
-      "vault/references/gha-reusable-readme"
-    ],
-    "readme": [
-      "vault/references/gha-reusable-readme"
-    ],
-    "reference": [
-      "vault/references/gha-reusable-readme"
-    ],
-    "policies": [
-      "vault/systems/gha-reusable-actions-workflows"
-    ],
-    "systems": [
-      "vault/systems/gha-reusable-actions-workflows"
+    "vault/playbooks/maintain-aegis-system": [
+      "kernel/profiles/_schema",
+      "standards/okf-house-schema",
+      "standards/okf-prompt-injection",
+      "standards/simplicity-first",
+      "vault/concepts/extending-aegis"
     ]
   }
 }

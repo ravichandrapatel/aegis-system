@@ -565,7 +565,6 @@ Set `METHODOLOGY_NOTE_CLASS` to `hidden` when there is no remediation note; othe
 ## Related
 
 - Protocol: [`AGENTS.md`](AGENTS.md) (§1.5 lookup)
-- Architecture: [`ADR.md`](ADR.md)
 - Injection rule: [`_okf_knowledge/standards/okf-prompt-injection.md`](_okf_knowledge/standards/okf-prompt-injection.md)
 - Report template: [`BENCH_REPORT_TEMPLATE.html`](BENCH_REPORT_TEMPLATE.html)
 - Report renderer: [`render_bench_report.py`](render_bench_report.py)

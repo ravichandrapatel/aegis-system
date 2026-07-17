@@ -7,13 +7,11 @@
 1. Keep `AGENTS.md` and `_okf_knowledge/` together (zip the `aegis-system` folder).  
 2. Place the package into your IDE agents/skills location:
    - **Cursor:** `.cursor/agents/aegis-system/` or `.cursor/skills/aegis-system/`
-   - **GitHub Copilot:** in the target repository:
-     - Copy `.github/agents/aegis.agent.md` from this package → `.github/agents/aegis.agent.md`
-     - Place the rest of the package → `.github/agents/aegis-system/`
-3. Select / invoke **Aegis** (Copilot: pick **Aegis** from the agent picker).  
+   - **GitHub Copilot / other:** drop the whole package under that product’s agents folder (e.g. `.github/agents/aegis-system/`). Protocol is root `AGENTS.md` only — there is no separate Copilot DNA file.
+3. Select / invoke the agent that loads this package’s `AGENTS.md`.  
 4. Ask normally — Aegis follows the protocol and reads/writes under `_okf_knowledge/`.
 
-Paths in the protocol are **relative to the package directory** (e.g. `.github/agents/aegis-system/` for Copilot).
+Paths in the protocol are **relative to the package directory** (wherever you dropped it).
 
 ## Daily workflows
 
@@ -58,8 +56,8 @@ Workflow: `.github/workflows/okf-lint.yml` runs `okf.py lint`. Keep Prompt Cards
 | Artifact | Guidance |
 | --- | --- |
 | Source markdown under vault/standards/kernel | **Do** commit — source of truth |
-| `graph.json` / `index.json` / `prompt_cards.json` | Often committed for offline UI; always regenerable |
-| `lint.json` | Regenerable; useful for UI |
+| `index.json` / `prompt_cards.json` | Often committed for offline lookup; always regenerable |
+| Graph/lint embeds (inside `aegis-brain.html`) | Regenerable via `compile` / `lint`; no `graph.json` / `lint.json` sidecars |
 | `__pycache__/` | Ignored |
 
 ## Bench / evaluation

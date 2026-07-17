@@ -9,7 +9,7 @@ This is the core “cheap retrieval → slim injection” loop (Rule #2).
 | Bad pattern | Cost |
 | --- | --- |
 | Read hundreds of markdown files into the model | Token burn, missed MUST lines |
-| Paste `graph.json` or whole standards | Context collapse |
+| Paste compiled artifacts (`index.json`, graph embeds) or whole standards | Context collapse |
 | Grep randomly without ranking | Non-deterministic, slow |
 
 | Good pattern | Benefit |
@@ -52,7 +52,7 @@ python3 _okf_knowledge/kernel/okf.py lookup --card --max-cards 8 --budget 1200 "
 
 ### Ranking (lexical)
 
-Field weights (tunable constants in code): title > id > tags > description > type, with exact/prefix/substring multipliers. Optional **graph hop** bonuses if `graph.json` is present.
+Field weights (tunable constants in code): title > id > tags > description > type, with exact/prefix/substring multipliers. Optional **graph hop** bonuses from the `index.json` adjacency map.
 
 Listing metadata shows `matched=…` and `graph=N hop` for debugging.
 
@@ -62,7 +62,7 @@ Listing metadata shows `matched=…` and `graph=N hop` for debugging.
 | --- | --- | --- |
 | Candidate list | `index.json` | Live `load_vault()` frontmatter |
 | Card body | `prompt_cards.json` | Read `.md` + extract `## Prompt Card` |
-| Proximity | `graph.json` adjacency | No boost |
+| Proximity | `index.json` adjacency | No boost |
 
 ## Tool: `okf.py card`
 
@@ -106,8 +106,9 @@ Standards without a card fail lint (`DBG-308`).
 ## Protocol rules (MUST)
 
 1. Locate knowledge with lookup when the path is unknown.  
-2. Do **not** paste whole vault files or `graph.json` into generation by default.  
-3. Respect card/token budgets; stop expanding when the budget is hit.
+2. Do **not** paste whole vault files or compiled artifacts into generation by default.  
+3. Respect card/token budgets; stop expanding when the budget is hit.  
+4. Eviction tier: `Standards > Playbooks > Systems/Concepts > References > Code`. Zone 5 `Code` cards fill remaining slots only — pack assembly sorts them after every curated hit, so they can never crowd curated cards out of the budget.
 
 ## Related standards
 

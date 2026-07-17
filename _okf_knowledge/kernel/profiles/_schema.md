@@ -1,9 +1,9 @@
 ---
 type: Profile
 title: Profile schema
-description: One-sentence description of the persona's objective — template for optional kernel/profiles.
-tags: [profile, schema, template]
-last_modified: 2026-07-17T03:28:00Z
+description: Template for optional kernel/profiles — objective, intents, modes, required vault/standards lookup paths. Not a runtime Module/Vendor gate.
+tags: [profile, schema, template, persona, rbac]
+timestamp: 2026-07-18T02:45:00Z
 status: active
 ---
 
@@ -29,14 +29,22 @@ Define the scope, boundaries, and primary goal of this persona. What are they au
 
 ### 2.3 Required vault / standards (lookup)
 
-* Example paths: `vault/concepts/github-actions.md`, `vault/systems/gha-reusable-actions-workflows.md`
-* Example standard: `standards/gha-spvs-yaml.md`
+* Example paths: `vault/concepts/extending-aegis.md`, `vault/playbooks/maintain-aegis-system.md`
+* Example standard: `standards/simplicity-first.md`, `standards/okf-prompt-injection.md`
 * Documented for future Profile use — kernel does not enforce missing paths today
 
 ### 2.4 Enforced standards
 
 * Example: `standards/simplicity-first.md`, `standards/okf-prompt-injection.md`
 * Governance rules that strictly apply to this role's output
+
+## Prompt Card
+
+```text
+Optional Profile under kernel/profiles/: copy this template; set objective,
+authorized intents, modes (advisory|generate|enforce), required vault/standards
+paths, enforced standards. Not a Module/Vendor runtime gate — load domain via OKF lookup.
+```
 
 ## Related
 

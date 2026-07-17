@@ -25,7 +25,7 @@ If something the Profile requires is **MISSING** → **HALT** with exit code **4
 7. [Examples (filled from the template)](#7-examples-filled-from-the-template)
 8. [When to use which Profile](#8-when-to-use-which-profile)
 9. [Capability Check checklist](#9-capability-check-checklist)
-10. [Profiles vs Modules vs Vendors vs agent files](#10-profiles-vs-modules-vs-vendors-vs-agent-files)
+10. [Profiles vs lookup vs agent files](#10-profiles-vs-lookup-vs-agent-files)
 11. [Maintenance](#11-maintenance)
 
 ---
@@ -51,13 +51,13 @@ Aegis uses a **dynamic Profile** pattern: Profiles are not limited to a fixed tr
 | --- | --- |
 | **Dynamic** | Profile identity (title, tags, allow-lists) is role-specific and authored per persona |
 | **Schema-driven** | Every Profile MUST follow [`_schema.md`](../_okf_knowledge/kernel/profiles/_schema.md) |
-| **Capability-gated** | Missing listed modules/standards → exit `4` |
+| **Capability-gated** | Missing listed standards/evidence → exit `4` (§4.1 gate) |
 | **Intent-scoped** | `Authorized Intents` limit which Path A/B/C intents that persona may run |
 
 | File | Role |
 | --- | --- |
 | `kernel/profiles/_schema.md` | **Template / contract** for all Profiles (placeholders in `[brackets]`) |
-| `kernel/profiles/<role>.md` | Concrete Profile instances (e.g. `architect.md`, `operator.md`, `gha-maintainer.md`) |
+| `kernel/profiles/<role>.md` | Concrete Profile instances (e.g. `architect.md`, `operator.md`) |
 
 `_schema.md` itself is the blueprint. Do **not** treat the unresolved placeholders as a runnable Profile for production work — instantiate a named file from it.
 
@@ -73,7 +73,7 @@ type: Profile
 title: [Dynamic Role Name]
 description: [One-sentence description of the persona's objective]
 tags: [profile, dynamic, role-specific-tags]
-last_modified: [ISO-8601 Timestamp]
+timestamp: [ISO-8601 Timestamp]
 status: active
 ---
 ```
@@ -96,9 +96,9 @@ Body skeleton from the schema:
 * `[advisory | generate | enforce]`
 * *(Specify if any mode is strictly PROHIBITED for this role)*
 
-### 2.3 Required Core Modules
-* `kernel/modules/[module-name].md`
-* *(Aegis will HALT if these are missing during the Capability Check)*
+### 2.3 Required Vault / Standards (lookup)
+* `vault/[path].md` / `standards/[standard-name].md`
+* *(Documented for future Profile use — kernel does not enforce missing paths today)*
 
 ### 2.4 Enforced Standards
 * `standards/[standard-name].md`
@@ -117,7 +117,7 @@ Source of truth: [`_okf_knowledge/kernel/profiles/_schema.md`](../_okf_knowledge
 | `title` | **YES** | Dynamic role name (human-readable) |
 | `description` | **YES** | One-sentence persona objective (also used by lookup/index) |
 | `tags` | **YES** | Include `profile` and `dynamic`; add role-specific tags |
-| `last_modified` | **YES** | ISO-8601; update on every edit |
+| `timestamp` | **YES** | ISO-8601; update on every edit (kernel-canonical — not `last_modified`) |
 | `status` | **YES** | `active` \| `deprecated` \| `draft` |
 
 Example:
@@ -128,7 +128,7 @@ type: Profile
 title: Platform Architect
 description: Design and generate infrastructure contracts with strict simplicity and Prompt Card discipline.
 tags: [profile, dynamic, architect, design]
-last_modified: 2026-07-14T00:00:00Z
+timestamp: 2026-07-14T00:00:00Z
 status: active
 ---
 ```
@@ -147,7 +147,7 @@ State **scope**, **boundaries**, and **primary goal**. Explicitly say what the p
 | --- | --- | --- |
 | **2.1 Authorized Intents** | Allowed intents (`CREATE`, `REVIEW`, `DEPLOY`, `MAINTAIN`, …) | Reject / HALT if user intent is outside the list |
 | **2.2 Execution Modes** | `advisory` \| `generate` \| `enforce` (+ any **PROHIBITED** modes) | Constrain how strongly the agent may mutate state |
-| **2.3 Required Core Modules** | Paths under `kernel/modules/` | **HALT `4`** if any file missing |
+| **2.3 Required Vault / Standards** | Paths under `vault/` / `standards/` | Documented allow-list (future gate; kernel does not enforce today) |
 | **2.4 Enforced Standards** | Paths under `standards/` | **HALT `4`** if missing; always load their Prompt Cards into governance |
 
 #### Execution modes (guidance)
@@ -155,7 +155,7 @@ State **scope**, **boundaries**, and **primary goal**. Explicitly say what the p
 | Mode | Meaning |
 | --- | --- |
 | `advisory` | Recommend only; no artifact writes / no deploy mutations |
-| `generate` | May produce configs/code under Path A after approval gate |
+| `generate` | May produce configs/code under Path A; Mutation Gate when risk warrants |
 | `enforce` | May drive validation blocks / execution plans that change runtime state |
 
 A Profile **SHOULD** list prohibited modes explicitly (e.g. “`enforce` PROHIBITED”).
@@ -166,9 +166,8 @@ Not in the minimal `_schema.md`, but useful in concrete Profiles:
 
 | Extra section | Purpose |
 | --- | --- |
-| Required / allowed **Vendors** | `kernel/vendors/*.md` allow-list |
 | Evidence policy | Ban `assumed` for production operator roles |
-| Default Prompt Pack seeds | Standards/modules always considered first in eviction order |
+| Default Prompt Pack seeds | Standards always considered first in eviction order |
 
 ---
 
@@ -177,12 +176,12 @@ Not in the minimal `_schema.md`, but useful in concrete Profiles:
 1. Copy [`_schema.md`](../_okf_knowledge/kernel/profiles/_schema.md) → `kernel/profiles/<kebab-role>.md`.  
 2. Replace every `[placeholder]`.  
 3. Fill **Authorized Intents** from the protocol intent matrix ([Protocol](06-protocol-routing.md)).  
-4. List only modules/standards that **must** exist for this role.  
+4. List only vault/standards paths that **must** exist for this role.  
 5. Set execution modes and any **PROHIBITED** modes.  
-6. Update `last_modified`.  
+6. Update `timestamp`.  
 7. Follow [Maintenance](13-maintenance.md): indexes/log if you add an index entry, then `okf.py compile` + `okf.py lint`.
 
-**Naming:** prefer kebab-case filenames matching the role (`platform-architect.md`, `gha-operator.md`).
+**Naming:** prefer kebab-case filenames matching the role (`platform-architect.md`, `operator.md`).
 
 ---
 
@@ -194,7 +193,7 @@ Not in the minimal `_schema.md`, but useful in concrete Profiles:
 | --- | --- |
 | Intents | `CREATE`, `MODIFY`, `EXPLAIN`, `COMPARE`, `REVIEW` |
 | Modes | `advisory`, `generate` — **`enforce` PROHIBITED** |
-| Modules | domain modules required for design ownership |
+| Vault/standards | domain concepts/systems required for design ownership |
 | Standards | `simplicity-first`, `okf-prompt-injection`, `metadata-headers` |
 
 ### Operator (day-2)
@@ -242,7 +241,7 @@ Before Path A/B/C work:
 - [ ] Frontmatter `type: Profile` and `status: active`  
 - [ ] User intent ∈ **Authorized Intents**  
 - [ ] Requested execution mode ∈ allowed modes (and not PROHIBITED)  
-- [ ] Every **Required Core Module** path exists  
+- [ ] Every listed **vault/standards** path exists  
 - [ ] Every **Enforced Standard** path exists and is active  
 - [ ] (If declared) vendors exist; evidence policy respected  
 
@@ -250,13 +249,12 @@ Failure on missing required capability → report gaps; exit **4**.
 
 ---
 
-## 10. Profiles vs Modules vs Vendors vs agent files
+## 10. Profiles vs lookup vs agent files
 
 | Artifact | Answers |
 | --- | --- |
-| **Profile** (dynamic) | *Who* is acting, *which* intents/modes, *which* modules/standards must load? |
-| **Module** | *How* does our core domain execute / own artifacts? |
-| **Vendor** | *How* does a cloud/tool extend execution? |
+| **Profile** (dynamic) | *Who* is acting, *which* intents/modes, *which* standards must load? |
+| **OKF lookup** (`standards/` + `vault/`) | *Which* domain knowledge applies for this task? (Module/Vendor registries are retired — `AGENTS.md` §4.1) |
 | **Agent entrypoint** (future multi-agent split) | *Which* pipeline contract (generate/validate/execute) is in context? |
 
 Profiles and future agent splits are **orthogonal**: e.g. Generate agent + Architect Profile.
@@ -268,7 +266,7 @@ Profiles and future agent splits are **orthogonal**: e.g. Generate agent + Archi
 | Change | Action |
 | --- | --- |
 | New Profile from schema | Copy `_schema.md` → fill → compile/lint |
-| Edit allow-lists | Bump `last_modified`; re-run capability assumptions in reports |
+| Edit allow-lists | Bump `timestamp`; re-run capability assumptions in reports |
 | Deprecate a role | `status: deprecated`; point successors in Objective |
 
 Brain mutation rules: [Maintenance](13-maintenance.md). Document type row: [Document types](04-document-types.md).

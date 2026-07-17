@@ -2,13 +2,12 @@
 <!--
 FILE_NAME: aegis-brain.html
 DESCRIPTION: Self-contained OKF bundle graph (aegis-brain). No backend, no CDN, no
-             dependencies. Loads graph.json (from kernel/okf.py compile) and
-             lint.json (from kernel/okf.py lint) via fetch when served locally,
-             or via file picker / drag-and-drop when opened as file://.
-             Features: force-directed graph, interactive type legend (click to
-             filter), navigator sidebar with search, and a lint panel that
-             highlights problem nodes.
-VERSION: 0.2.1
+             dependencies. Graph + lint payloads are embedded in this file by
+             kernel/okf.py compile / lint (no graph.json / lint.json sidecars).
+             When served via okf.py serve, Run Compile / Run Lint refresh via API.
+             Features: force graph, declutter panel (labels/orphans/local
+             graph), type legend, navigator sidebar, and lint panel.
+VERSION: 0.2.9
 AUTHORS: contributors
 -->
 <html lang="en">
@@ -19,15 +18,18 @@ AUTHORS: contributors
   <title>aegis knowledge system</title>
   <style>
     :root {
-      --bg: #0f1117;
-      --panel: #171a23;
-      --panel2: #1c202c;
-      --text: #d7dae2;
-      --muted: #8b90a0;
-      --accent: #6aa2ff;
-      --border: #262a36;
+      --bg: #1a1a1a;
+      --panel: #202020;
+      --panel2: #262626;
+      --text: #dadada;
+      --muted: #8a8a8a;
+      --accent: #7f6df2;
+      --border: #333;
       --error: #f26d78;
       --warning: #f0c674;
+      --sidebar-w: 300px;
+      --topbar-h: 46px;
+      --reader-w: 440px;
     }
 
     * {
@@ -112,41 +114,28 @@ AUTHORS: contributors
       white-space: nowrap;
     }
 
-    #load input[type=file] {
-      display: none;
-    }
-
-    #load label {
-      cursor: pointer;
-      background: #232838;
-      color: var(--text);
-      border: 1px solid #313749;
-      border-radius: 6px;
-      padding: 4px 10px;
-      font-size: 12px;
-    }
-
     #status {
       color: var(--muted);
       font-size: 12px;
     }
 
-    #run-compile {
+    .tb-btn {
       cursor: pointer;
       background: #232838;
       color: var(--text);
       border: 1px solid #313749;
       border-radius: 6px;
-      padding: 4px 10px;
+      padding: 5px 12px;
       font-size: 12px;
+      font-weight: 600;
     }
 
-    #run-compile:hover:not(:disabled) {
+    .tb-btn:hover:not(:disabled) {
       border-color: var(--accent);
       color: var(--accent);
     }
 
-    #run-compile:disabled {
+    .tb-btn:disabled {
       opacity: 0.5;
       cursor: wait;
     }
@@ -188,16 +177,26 @@ AUTHORS: contributors
       overflow-y: auto;
       padding: 4px 6px 8px;
       min-height: 80px;
+      /* Shared tree columns: chevron/bullet | label | mark */
+      --nav-cols: 14px minmax(0, 1fr) auto;
+      --nav-gap: 3px;
+      --nav-indent: 12px;
+    }
+
+    .navgroup summary,
+    .navitem {
+      display: grid;
+      grid-template-columns: var(--nav-cols);
+      column-gap: var(--nav-gap);
+      align-items: center;
+      box-sizing: border-box;
+      padding: 5px 10px 5px calc(6px + (var(--depth, 0) * var(--nav-indent)));
+      min-height: 26px;
     }
 
     .navgroup summary {
       cursor: pointer;
       list-style: none;
-      display: grid;
-      grid-template-columns: 12px 10px 1fr;
-      gap: 6px;
-      align-items: center;
-      padding: 6px 10px;
       font-size: 13px;
       font-weight: 600;
       color: var(--muted);
@@ -211,11 +210,27 @@ AUTHORS: contributors
     }
 
     .navgroup summary::before {
-      content: "▸";
-      font-size: 12px;
+      content: "";
       grid-column: 1;
+      width: 14px;
+      height: 14px;
       justify-self: center;
-      transition: transform .1s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Expand arrow only when the folder/zone has nested folders or files */
+    .navgroup.has-children>summary::before {
+      content: "▸";
+      font-size: 13px;
+      line-height: 1;
+      font-weight: 700;
+      transition: transform .12s;
+    }
+
+    .navgroup.has-children[open]>summary::before {
+      transform: rotate(90deg);
     }
 
     .navgroup.zone-group {
@@ -230,35 +245,26 @@ AUTHORS: contributors
     }
 
     .navgroup.folder-group>summary {
-      color: var(--muted);
+      color: #fff;
       font-size: 12px;
-      margin-left: 0;
-    }
-
-    .navgroup[open] summary::before {
-      transform: rotate(90deg);
-    }
-
-    .navgroup summary .dot {
-      grid-column: 2;
-      width: 8px;
-      height: 8px;
+      text-transform: none;
+      letter-spacing: 0;
+      font-weight: 600;
     }
 
     .navgroup summary .nav-label {
-      grid-column: 3;
+      grid-column: 2;
       min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .navitem {
-      display: grid;
-      grid-template-columns: 12px 10px 1fr auto;
-      gap: 6px;
-      align-items: center;
       cursor: pointer;
-      padding: 5px 10px;
       border-radius: 6px;
-      font-size: 14px;
+      font-size: 13px;
+      color: #fff;
     }
 
     .navitem:hover {
@@ -269,22 +275,16 @@ AUTHORS: contributors
       background: #23304d;
     }
 
-    .navitem .dot {
-      grid-column: 2;
-      width: 8px;
-      height: 8px;
-    }
-
-    .navitem .arrow {
-      grid-column: 2;
-      color: var(--muted);
-      font-size: 14px;
+    .navitem .bullet {
+      grid-column: 1;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
       justify-self: center;
-      font-weight: 700;
     }
 
     .navitem .nav-label {
-      grid-column: 3;
+      grid-column: 2;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -292,129 +292,31 @@ AUTHORS: contributors
     }
 
     .navitem .mark {
-      grid-column: 4;
-      font-size: 13px;
-    }
-
-    #details {
-      border-top: 1px solid var(--border);
-      padding: 10px 14px;
+      grid-column: 3;
       font-size: 12px;
-      display: none;
-      background: var(--panel2);
     }
 
-    #details .d-title {
+    .tb-status {
       font-weight: 600;
-      font-size: 13px;
-    }
-
-    #details .d-meta {
-      color: var(--muted);
-      word-break: break-all;
-    }
-
-    #lintpanel {
-      border-top: 1px solid var(--border);
-      max-height: 34%;
-      display: flex;
-      flex-direction: column;
-    }
-
-    #linthead {
-      padding: 8px 14px;
       font-size: 12px;
-      font-weight: 600;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: .4px;
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      flex-wrap: wrap;
+      white-space: nowrap;
     }
 
-    #linthead .cnt {
-      font-weight: 600;
-      font-size: 13px;
-    }
-
-    #run-lint {
-      margin-left: auto;
-      cursor: pointer;
-      background: #232838;
-      color: var(--text);
-      border: 1px solid #313749;
-      border-radius: 6px;
-      padding: 3px 10px;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: none;
-      letter-spacing: 0;
-    }
-
-    #run-lint:hover:not(:disabled) {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    #run-lint:disabled {
-      opacity: 0.5;
-      cursor: wait;
-    }
-
-    .cnt.err {
+    .tb-status .cnt.err {
       color: var(--error);
     }
 
-    .cnt.warn {
+    .tb-status .cnt.warn {
       color: var(--warning);
     }
 
-    .cnt.ok {
+    .tb-status .cnt.ok {
       color: #a3d977;
     }
 
-    #lintlist {
-      overflow-y: auto;
-      padding: 0 6px 10px;
-    }
-
-    .lintitem {
-      display: flex;
-      gap: 7px;
-      align-items: baseline;
-      cursor: pointer;
-      padding: 4px 8px;
-      border-radius: 6px;
-      font-size: 12px;
-    }
-
-    .lintitem:hover {
-      background: var(--panel2);
-    }
-
-    .lintitem .sev {
-      flex: none;
-      font-weight: 700;
-      font-size: 11px;
-    }
-
-    .lintitem .sev.error {
-      color: var(--error);
-    }
-
-    .lintitem .sev.warning {
-      color: var(--warning);
-    }
-
-    .lintitem .msg {
+    .tb-status .cnt.idle {
       color: var(--muted);
-    }
-
-    .lintitem b {
-      color: var(--text);
-      font-weight: 600;
+      font-weight: 500;
     }
 
     #reader {
@@ -583,8 +485,21 @@ AUTHORS: contributors
       cursor: help;
     }
 
-    canvas {
+    canvas#c {
+      position: fixed;
+      z-index: 1;
+      top: var(--topbar-h);
+      left: var(--sidebar-w);
+      right: 0;
+      bottom: 0;
       display: block;
+      background: var(--bg);
+      /* Avoid browser upscaling blur; JS sets the real backing-store size. */
+      image-rendering: auto;
+    }
+
+    body.reader-open canvas#c {
+      right: var(--reader-w);
     }
 
     #tip {
@@ -617,6 +532,80 @@ AUTHORS: contributors
     #tip .t-lint.warning {
       color: var(--warning);
     }
+
+    /* Floating graph controls */
+    #declutter {
+      position: fixed;
+      z-index: 8;
+      right: 16px;
+      bottom: 16px;
+      width: 220px;
+      background: rgba(32, 32, 32, 0.92);
+      border: 1px solid #3a3a3a;
+      border-radius: 10px;
+      padding: 10px 12px 12px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 8px 28px rgba(0, 0, 0, .45);
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    body.reader-open #declutter {
+      right: calc(var(--reader-w) + 16px);
+    }
+
+    #declutter h2 {
+      margin: 0 0 8px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    #declutter label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 0;
+      cursor: pointer;
+      user-select: none;
+      color: var(--text);
+    }
+
+    #declutter label:hover {
+      color: #fff;
+    }
+
+    #declutter input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 14px;
+      height: 14px;
+    }
+
+    #declutter .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 4px 0;
+    }
+
+    #declutter select {
+      background: var(--panel2);
+      color: var(--text);
+      border: 1px solid #3a3a3a;
+      border-radius: 6px;
+      padding: 3px 6px;
+      font-size: 12px;
+    }
+
+    #declutter .hint {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
   </style>
 </head>
 
@@ -626,28 +615,35 @@ AUTHORS: contributors
     <div id="legend"></div>
     <div id="load">
       <span id="status">loading…</span>
-      <button id="run-compile" type="button"
-        title="Regenerate graph.json (when served via kernel/okf.py serve)">Run Compile</button>
-      <label for="filepick">Open graph.json / lint.json…</label>
-      <input id="filepick" type="file" accept=".json" multiple>
+      <span id="lintcounts" class="tb-status" title="Lint status"><span class="cnt idle">lint —</span></span>
+      <button id="run-lint" class="tb-btn" type="button"
+        title="Run vault lint (full scan when served via kernel/okf.py serve)">Run Lint</button>
+      <span id="compilecounts" class="tb-status" title="Compile status"><span class="cnt idle">compile —</span></span>
+      <button id="run-compile" class="tb-btn" type="button"
+        title="Rebuild vault index + re-embed graph (when served via kernel/okf.py serve)">Run Compile</button>
     </div>
   </div>
   <div id="side">
     <div id="searchbox"><input id="search" type="search" placeholder="Search concepts…"></div>
     <div id="navlist"></div>
-    <div id="details"></div>
-    <div id="lintpanel">
-      <div id="linthead">
-        <span>Lint</span>
-        <span id="lintcounts" class="cnt">not loaded</span>
-        <button id="run-lint" type="button"
-          title="Run lint on the loaded graph (full vault scan when served via kernel/okf.py serve)">Run
-          Lint</button>
-      </div>
-      <div id="lintlist"></div>
-    </div>
   </div>
   <canvas id="c"></canvas>
+  <div id="declutter">
+    <h2>Declutter</h2>
+    <div class="row">
+      <span>Labels</span>
+      <select id="opt-labels" title="When to show node titles">
+        <option value="hover" selected>On hover</option>
+        <option value="selection">Selection</option>
+        <option value="always">Always</option>
+        <option value="off">Off</option>
+      </select>
+    </div>
+    <label><input type="checkbox" id="opt-orphans" checked> Hide orphans</label>
+    <label><input type="checkbox" id="opt-local"> Local graph</label>
+    <label><input type="checkbox" id="opt-arrows"> Show arrows</label>
+    <p class="hint">Local graph shows only the selected note and its neighbors.</p>
+  </div>
   <div id="tip"></div>
   <div id="reader">
     <div id="r-head">
@@ -659,655 +655,12 @@ AUTHORS: contributors
   </div>
   <!-- Data embedded by kernel/okf.py compile and kernel/okf.py lint so
      aegis-brain auto-loads even when opened as file:// (where fetch is blocked). -->
-  <script id="graph-data" type="application/json">{
-  "nodes": [
-    {
-      "id": "kernel/profiles/_schema",
-      "type": "Profile",
-      "title": "Profile schema",
-      "description": "One-sentence description of the persona's objective \u2014 template for optional kernel/profiles.",
-      "tags": [
-        "profile",
-        "schema",
-        "template"
-      ],
-      "content": "# Profile schema\n\nTemplate for optional capability profiles under `kernel/profiles/`. Copy this file; replace placeholders. Profiles are **not** a runtime Module/Vendor gate \u2014 domain knowledge loads via OKF lookup.\n\n## 1. Profile objective\n\nDefine the scope, boundaries, and primary goal of this persona. What are they authorized to do?\n\n## 2. Dynamic capabilities (RBAC)\n\n### 2.1 Authorized intents\n\n* Example: `CREATE`, `REVIEW`, `OPERATE`\n* Add intents this role may run\n\n### 2.2 Execution modes\n\n* One or more of: `advisory` | `generate` | `enforce`\n* Note any mode that is strictly PROHIBITED for this role\n\n### 2.3 Required vault / standards (lookup)\n\n* Example paths: `vault/concepts/github-actions.md`, `vault/systems/gha-reusable-actions-workflows.md`\n* Example standard: `standards/gha-spvs-yaml.md`\n* Documented for future Profile use \u2014 kernel does not enforce missing paths today\n\n### 2.4 Enforced standards\n\n* Example: `standards/simplicity-first.md`, `standards/okf-prompt-injection.md`\n* Governance rules that strictly apply to this role's output\n\n## Related\n\n- Control plane: [AGENTS.md](/AGENTS.md)\n- Maintenance: [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md)\n- Prompt rules: [OKF Prompt Injection](/standards/okf-prompt-injection.md)\n- Extending: [Extending Aegis](/vault/concepts/extending-aegis.md)"
-    },
-    {
-      "id": "standards/gha-commit-subjects",
-      "type": "Concept",
-      "title": "GHA Commit Subjects",
-      "description": "Ticket-prefixed conventional commit subjects required for hooks and SemVer bumps.",
-      "tags": [
-        "standard",
-        "github-actions",
-        "commits",
-        "semver"
-      ],
-      "content": "# GHA Commit Subjects\n\nHouse rules for subjects in `gha-reusable-actions-workflows`. Enforced by `policies/scripts/commit_message_lib.sh` (global `commit-msg` hook) and Release Manager SemVer.\n\n## MUST\n\n1. Subject **MUST** start with a ticket: `sctask<number>`, `inc<number>`, or `DCDT-<number>` (case-insensitive). Optional `:` after ticket.\n2. Subject **MUST** use a keyword: `feat`, `fix`, `chore`, `docs`, `refactor`, `perf`, `test`, `style`.\n3. Subject **MUST** match one of the four supported ticket+keyword formats documented in the repo README.\n4. Empty subjects **MUST** fail validation.\n5. A `release` **MUST** include at least one `feat`, `fix`, or `chore` since the last component tag (or release fails).\n\n## SHOULD\n\n1. Dependabot commits **SHOULD** use prefix `DCDT-0000 chore`.\n\n## Exemptions\n\n- Merge commits (`Merge ...`) **MUST** be exempt from validation.\n\n## SemVer mapping\n\n| Keyword | Bump |\n| :--- | :--- |\n| `feat` | Minor |\n| `fix`, `chore` | Patch |\n| `docs`, `refactor`, `perf`, `test`, `style` | None |\n\n## Prompt Card\n\n```text\nCommit subject MUST:\n- ticket prefix: sctaskN | incN | DCDT-N (optional :)\n- keyword: feat|fix|chore|docs|refactor|perf|test|style\n- empty subject fails; Merge commits exempt\n- Dependabot SHOULD: DCDT-0000 chore\nSemVer: feat=minor; fix|chore=patch; docs|refactor|perf|test|style=none\nRelease needs \u22651 feat|fix|chore since last tag\n```\n\n## Related\n\n- Concept: [SemVer from commits](/vault/concepts/semver-from-commits.md)\n- System: [gha-reusable-actions-workflows](/vault/systems/gha-reusable-actions-workflows.md)\n- Standard: [Simplicity First](/standards/simplicity-first.md), [OKF Prompt Injection](/standards/okf-prompt-injection.md)"
-    },
-    {
-      "id": "standards/gha-component-layout",
-      "type": "Concept",
-      "title": "GHA Component Layout",
-      "description": "Required directory contract for composite actions and reusable workflows in the monorepo.",
-      "tags": [
-        "standard",
-        "github-actions",
-        "layout",
-        "monorepo"
-      ],
-      "content": "# GHA Component Layout\n\n## MUST\n\n1. Composite actions **MUST** live at `actions/{category}/{name}/`.\n2. Each action directory **MUST** contain `action.yml` (or `action.yaml`) and `readme.md`.\n3. Reusable workflows **MUST** live at `workflows/{category}/{name}/`.\n4. Each workflow directory **MUST** contain exactly one `workflow.yml` (or `.yaml`) and `readme.md`.\n5. Release Manager `component_path` **MUST** start with `actions/` or `workflows/`.\n6. Categories in use today: `common`, `security` (actions); `common` (workflows).\n\n## FORBIDDEN\n\n1. Inventing alternate trees outside `actions/` or `workflows/` for publishable components.\n2. Multiple workflow YAML files in one workflow component directory.\n\n## Prompt Card\n\n```text\nLayout MUST:\n- actions/{category}/{name}/ \u2192 action.yml|yaml + readme.md\n- workflows/{category}/{name}/ \u2192 exactly one workflow.yml|yaml + readme.md\n- component_path starts with actions/ or workflows/\n- categories today: actions common|security; workflows common\nFORBIDDEN: trees outside actions|workflows; multi workflow YAML per dir\n```\n\n## Related\n\n- System: [gha-reusable-actions-workflows](/vault/systems/gha-reusable-actions-workflows.md)\n- Concept: [GitHub Actions](/vault/concepts/github-actions.md)\n- Playbook: [Author composite action](/vault/playbooks/author-gha-composite-action.md)\n- Standard: [Simplicity First](/standards/simplicity-first.md), [OKF Prompt Injection](/standards/okf-prompt-injection.md)"
-    },
-    {
-      "id": "standards/gha-spvs-yaml",
-      "type": "Concept",
-      "title": "GHA SPVS YAML",
-      "description": "OWASP SPVS Conftest policy catalog for workflow and composite action YAML (MUST pass, no soft-fail).",
-      "tags": [
-        "standard",
-        "github-actions",
-        "spvs",
-        "conftest",
-        "security"
-      ],
-      "content": "# GHA SPVS YAML\n\nPolicies live under `policies/conftest/github_actions/`. Scan with Conftest namespaces `-n workflow` or `-n composite`. Findings **MUST** fail the scan.\n\n## Permissions (MUST)\n\n| ID | Rule |\n| :--- | :--- |\n| CKV2_SPVS_1 | Every job **MUST** declare `permissions:` |\n| CKV2_SPVS_8 | OIDC cloud login jobs **MUST** have `id-token: write` |\n| CKV2_SPVS_9 | Workflow-level permissions **MUST** be declared; **MUST NOT** grant write on contents/packages/id-token/security-events/deployments at workflow root |\n| CKV2_SPVS_10 | **MUST NOT** use `write-all` |\n| CKV2_SPVS_11 | `contents: write` jobs **MUST** set `environment:` |\n| CKV2_SPVS_15 | **MUST NOT** use `pull_request_target` |\n| CKV2_SPVS_12 | **MUST NOT** use bare `runs-on: self-hosted` |\n| CKV2_GHA_1 | Top-level permissions **MUST NOT** be `write-all` |\n\n## Supply chain and shell (MUST)\n\n| ID | Rule |\n| :--- | :--- |\n| CKV2_SPVS_2 | Bash `run:` **MUST** include `set -euo pipefail` |\n| CKV2_SPVS_3 | **MUST NOT** enable xtrace |\n| CKV2_SPVS_4 | Python invocations **MUST** use `-u` or `PYTHONUNBUFFERED=1` |\n| CKV2_SPVS_5 | Third-party `uses:` **MUST** pin to 40-char SHA, `./`, `docker://`, or approved internal `/actions/` tags |\n| CKV2_SPVS_5B | Local `uses:` **MUST NOT** start with `../` |\n| CKV2_SPVS_6 | `${{ inputs.* }}` **MUST NOT** appear in `run:` strings \u2014 map via `env:` |\n| CKV2_SPVS_13 | **MUST NOT** use curl\\|bash style installers |\n| CKV2_SPVS_7 | **MUST NOT** set static cloud credential env vars |\n| CKV_GHA_1\u20134 | No unsecure commands; no user-controlled context in `run:`; no suspicious curl/nc patterns |\n\n## Policy skips (MUST)\n\nWhen `SPVS_SKIP_POLICY` is set, `SPVS_SKIP_REASON` **MUST** also be set (non-empty) at the same scope. `CKV2_SPVS_5` and `CKV2_SPVS_5B` are paired skips.\n\n## Prompt Card\n\n```text\nSPVS MUST (workflow/composite):\n- every job: permissions: (workflows)\n- bash run: set -euo pipefail; no set -x\n- no ${{ inputs.* }} in run \u2014 map via env\n- uses: 40-char SHA | ./ | docker:// | /actions/ tag; no ../\n- no write-all; no pull_request_target; no bare self-hosted\n- no curl|bash; no AWS_ACCESS_KEY_ID/SECRET/SESSION static env\n- contents:write jobs need environment:\n```\n\n## Related\n\n- Concept: [SPVS lifecycle](/vault/concepts/spvs-lifecycle.md)\n- Standard: [OKF Prompt Injection](/standards/okf-prompt-injection.md)\n- System: [gha-reusable-actions-workflows](/vault/systems/gha-reusable-actions-workflows.md)\n- Playbook: [Run local policy tests](/vault/playbooks/run-gha-local-policy-tests.md)"
-    },
-    {
-      "id": "standards/metadata-headers",
-      "type": "Concept",
-      "title": "Metadata Headers",
-      "description": "Required metadata blocks on every new file, function, and class across all languages.",
-      "tags": [
-        "standard",
-        "code-quality",
-        "documentation",
-        "conventions"
-      ],
-      "content": "Every new file, function, and class MUST carry a metadata block. This makes code\nself-describing for both humans and agents.\n\n# File header\n\nFields: `file_name`, `description`, `version`, `authors` (snake_case).\n\n```python\n# file_name: okf.py\n# description: Single-file Aegis OKF kernel (lookup, compile, lint, ...).\n# version: 0.1.0\n# authors: contributors\n```\n\n# Function / class header\n\nFields: `intent`, `input`, `output`, `role`, `side_effects` (snake_case).\n\n```python\ndef slugify(text: str) -> str:\n    \"\"\"\n    intent: Turn a free-text query into a safe filename slug.\n    input: text \u2014 arbitrary user query string.\n    output: lowercase kebab-case slug.\n    role: pure helper.\n    side_effects: none.\n    \"\"\"\n```\n\n## Prompt Card\n\n```text\nMetadata MUST on new files: file_name, description, version, authors.\nOn new functions/classes: intent, input, output, role, side_effects.\nSnake_case field names; match existing kernel header style.\n```\n\n# Related\n\n- [Simplicity First](/standards/simplicity-first.md)"
-    },
-    {
-      "id": "standards/okf-prompt-injection",
-      "type": "Concept",
-      "title": "OKF Prompt Injection",
-      "description": "Binding rule \u2014 anytime Aegis runs, inject a dynamic Prompt Pack from live lookup; vault-first catalogs with live refresh when stale; grader reads only for explain/fix \u2014 not a static path ban-list.",
-      "tags": [
-        "standard",
-        "okf",
-        "prompting",
-        "tokens",
-        "aegis",
-        "retrieval",
-        "cache"
-      ],
-      "content": "# OKF Prompt Injection (Rule #2)\n\n**Rule #2.** Curated OKF stays in the vault. Generation and Q&A context get a **dynamic Prompt Pack**: slim `## Prompt Card` text from **this turn\u2019s** `okf.py lookup` / `okf.py card` \u2014 not a full-brain dump and not a static \u201cnever open these paths\u201d encyclopedia in AGENTS.md.\n\n**Scope:** Anytime Aegis is used (questions, review, authoring) \u2014 not only Path A artifact generation.\n\nDomain graders differ by stack. **What is in-bounds for a turn is defined by the live lookup hit-set** (and, for benches, by task placeholders such as `GATE_ANSWER_KEY_GLOBS`).\n\n## Retrieval ladder (global)\n\n| Priority | Lane | How | Use for | Must not use for |\n| :---: | :--- | :--- | :--- | :--- |\n| 1 | **OKF knowledge cache** | `okf.py lookup --card` (+ \u22641 follow-up `lookup`/`card`) | Standards, playbooks, concepts, catalogs, pins/versions in the vault | Random vault Grep; paste `graph.json` / full docs |\n| 2 | **Pointers from cards** | Read only paths the **current cards** name | One deep dive the pack pointed to | Opening every related file |\n| 3 | **Task corpus** | Glob \u2192 Grep \u2192 Read (or Explore subagent) | Product/code/config being changed or inspected | Discovering org compliance that should be on cards |\n| 4 | **Grader / answer key** | See [Grader access](#grader-access-daily-work) | Explain failure (what/why/where); fix from gate output | Authoring-time peek to invent compliance |\n\nLane 1 **MUST** run before vault Grep or authoring. Corpus Grep (lane 3) is allowed after lane 1; it is not a substitute for lane 1.\n\n## Catalog / pin freshness (vault + live)\n\nPins, version catalogs, and similar reference data use **both** sources, ordered by freshness need:\n\n1. **Vault first (default):** human-maintained Prompt Cards; keep warm with `okf.py compile` (`index.json` / `prompt_cards.json`; process also mtime-caches them).\n2. **Live fetch when stale or missing:** network/`gh`/upstream only if the card is absent, marked stale, or the user requires verification against current upstream.\n3. **Write-back (SHOULD):** durable discoveries belong back in the vault via the maintain playbook \u2014 do not rediscover every run.\n\nAgents **MUST NOT** default to live rediscovery when a current card already supplies the catalog.\n\n## Grader access (daily work)\n\n| Mode | Policy / Rego / CI rule sources |\n| :--- | :--- |\n| **Authoring / writing** | Cards (+ failure text if remediating). **MUST NOT** mine the grader to invent compliance. |\n| **Asked what failed / why / where** | **MAY** open the relevant grader source to explain and locate the rule. Prefer starting from failure output, then open the cited file/rule. |\n| **A/B bench OKF arm** | Follow the bench prompt: forbidden globs are **task-specific** (`GATE_ANSWER_KEY_GLOBS`), not this standard\u2019s static list. |\n\n## MUST\n\n1. Anytime Aegis is used, run `okf.py lookup --card` (or `lookup` then `card`) with **task-specific** keywords before vault Grep or generation.\n2. Assemble a **Prompt Pack** from returned `## Prompt Card` sections only.\n3. Each card **MUST** target **\u2264150 tokens** (~600 characters). Prefer shorter.\n4. Total Prompt Pack for one turn **SHOULD** stay **\u2264400 tokens** unless the user expands scope.\n5. Encyclopedic bodies **MUST** stay in the vault \u2014 **MUST NOT** be copied wholesale into the generation prompt.\n6. Binding rules **MUST** expose a `## Prompt Card` so lookup can surface them dynamically.\n7. Missing pin/version/constraint in the pack \u2192 **one** follow-up `lookup`/`card`, then act (or live-refresh per freshness rules above).\n\n## SHOULD\n\n1. `okf.py card <path>\u2026` when paths are already known from lookup.\n2. Prefer **one-shot validation pass** (e.g. Conftest) when the Prompt Pack already encodes binding rules \u2014 avoid generate \u2192 fail \u2192 remediate loops when the first pack is sufficient.\n3. Keep domain catalogs/pins **on cards** so vault-first stays viable. Maintain a **pin cache** (tag \u2192 40-char SHA) for common `uses:`; attach it when remediating pin findings (e.g. CKV2_S\n\n\u2026"
-    },
-    {
-      "id": "standards/simplicity-first",
-      "type": "Concept",
-      "title": "Simplicity First (Rule #1)",
-      "description": "The Laziness Ladder \u2014 always choose the simplest, shortest, minimal solution that works. Overrides complexity in design, code, and vault structure.",
-      "tags": [
-        "standard",
-        "simplicity",
-        "laziness-ladder",
-        "principles"
-      ],
-      "content": "**Rule #1.** Apply the Laziness Ladder as the primary lens for every decision in\nthis vault and in code: the simplest, shortest, most minimal solution that works.\n\n# Laziness Ladder\n\nWhen multiple approaches solve the problem, pick the lowest rung that still works:\n\n| Rung | Approach | Example |\n|------|----------|---------|\n| 1 | Do nothing new | Reuse an existing concept, playbook, or reference |\n| 2 | Edit one file | Fix a link, add one paragraph, patch one script |\n| 3 | Add one small file | One new concept \u2014 not a new directory tree |\n| 4 | Add tooling | Only when manual steps repeat and hurt |\n| 5 | Add abstraction | Last resort \u2014 never start here |\n\n# In the vault\n\n- One concept per file; cross-link instead of duplicating prose.\n- Prefer `index.md` progressive disclosure over bulk-reading the tree.\n- Scripts are stdlib-only unless a dependency is unavoidable.\n- New types, directories, or tooling require justification against this rule.\n\n# In code\n\n- Smallest diff that fixes the root cause \u2014 no drive-by refactors.\n- No helpers for one-liners; no frameworks where a script suffices.\n- Match existing conventions before inventing new ones.\n\n## Prompt Card\n\n```text\nRule #1 Laziness Ladder: simplest shortest minimal solution that works.\nPrefer reuse \u2192 one-file edit \u2192 one small file \u2192 tooling \u2192 abstraction (last).\nSmallest diff; stdlib scripts; no new dirs/types without justification.\n```\n\n# Related\n\n- All other house standards: [Standards index](index.md)\n- Metadata discipline: [Metadata Headers](metadata-headers.md)\n- Prompt discipline: [OKF Prompt Injection](okf-prompt-injection.md)"
-    },
-    {
-      "id": "vault/concepts/component-tagging",
-      "type": "Concept",
-      "title": "Component Tagging",
-      "description": "safe_name derivation and versioned vs stable tag conventions for GHA components.",
-      "tags": [
-        "github-actions",
-        "tagging",
-        "release",
-        "concepts"
-      ],
-      "content": "# Component Tagging\n\n| Item | Rule |\n| :--- | :--- |\n| `safe_name` | Basename of `component_path` (Release Manager rejects duplicate basenames across categories) |\n| Versioned tag | `{safe_name}-{X.Y.Z}` e.g. `janitor-bot-1.2.3` |\n| Stable tag | `{safe_name}-v1` e.g. `janitor-bot-v1` |\n| Promote | Delete remote stable tag then recreate at target SHA (no force-push) |\n| Rollback previous | Sorted versioned tags; previous index of target `{safe_name}-{version}` |\n| Workflow sync | On release, copy `workflows/.../workflow.yml` to `.github/workflows/{name}.yml` then tag |\n\nConsumers typically reference `@v1` (stable) or a versioned tag / commit SHA.\n\n## Prompt Card\n\n```text\nTags: versioned {safe_name}-{X.Y.Z}; stable {safe_name}-v1.\nsafe_name = basename(component_path); duplicate basenames rejected.\nPromote = delete+recreate stable tag at target SHA (never force-push).\nWorkflow release also syncs .github/workflows/{name}.yml before tagging.\n```\n\n## Related\n\n- Concept: [Release Manager modes](/vault/concepts/release-manager-modes.md), [SemVer from commits](/vault/concepts/semver-from-commits.md)\n- System: [gha-reusable-actions-workflows](/vault/systems/gha-reusable-actions-workflows.md)"
-    },
-    {
-      "id": "vault/concepts/extending-aegis",
-      "type": "Concept",
-      "title": "Extending Aegis",
-      "description": "How to grow this empty framework with your own standards and vault knowledge.",
-      "tags": [
-        "aegis-system",
-        "getting-started",
-        "framework"
-      ],
-      "content": "# Extending Aegis\n\nThis package is an **empty control plane**: `AGENTS.md` + `_okf_knowledge/`. Zip it, drop the folder into an IDE agents directory, then add your knowledge.\n\n## Add durable knowledge\n\n1. Drop raw material in [`_inbox/`](/_inbox/).\n2. Follow [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md).\n3. From the package directory:\n\n```bash\npython3 _okf_knowledge/kernel/okf.py compile\npython3 _okf_knowledge/kernel/okf.py lint\n```\n\n## Where things go\n\n| Content | Directory (under `_okf_knowledge/`) | `type` |\n| :--- | :--- | :--- |\n| House rule | `standards/` | `Concept` + tag `standard` |\n| Evergreen fact / pattern | `vault/concepts/` | `Concept` |\n| Procedure | `vault/playbooks/` | `Playbook` |\n| Running system | `vault/systems/` | `System` |\n| Post-mortem | `vault/incidents/` | `Incident` |\n| Cached upstream docs | `vault/references/` | `Reference` |\n\n## Frontmatter (required)\n\n```yaml\n---\ntype: Concept\ntitle: Human-readable name\ndescription: One-line summary for indexes and okf_lookup\ntags: [kebab-case, topic]\ntimestamp: 2026-07-13T00:00:00Z\nstatus: active\n---\n```\n\n## Prompt Card\n\n```text\nNew knowledge MUST: pick type/dir from the table (standards/, vault/*),\nadd required frontmatter (type,title,description,tags,timestamp,status),\nthen run okf.py compile + okf.py lint from the package dir.\nFollow vault/playbooks/maintain-aegis-system.md end-to-end.\n```\n\n## Related\n\n- Control plane: [AGENTS.md](/AGENTS.md)\n- Maintenance: [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md)\n- Law: [Simplicity First](/standards/simplicity-first.md)\n- Profile template: [Profile schema](/kernel/profiles/_schema.md)\n- Architecture ADR (package root, outside vault): see `ADR.md` next to `README.md`"
-    },
-    {
-      "id": "vault/concepts/gha-yaml-anchors",
-      "type": "Concept",
-      "title": "GHA YAML Anchors",
-      "description": "Reuse env, steps, or jobs inside one GitHub Actions workflow with YAML anchors (&) and aliases (*) \u2014 no merge keys.",
-      "tags": [
-        "github-actions",
-        "yaml",
-        "anchors",
-        "workflow",
-        "reuse"
-      ],
-      "content": "# GHA YAML Anchors\n\nGitHub Actions supports YAML **anchors** (`&`) and **aliases** (`*`) to copy configuration within a **single** workflow file. Enabled for all repositories (Sep 2025).\n\n## Syntax\n\n| Mark | Role |\n| :--- | :--- |\n| `&name` | Define an anchor on first use |\n| `*name` | Insert an exact copy of that node |\n\n```yaml\njobs:\n  build:\n    env: &shared_env\n      NODE_ENV: production\n      CI: true\n    steps: &checkout_and_setup\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with:\n          node-version: '20'\n      - run: npm ci\n\n  test:\n    env: *shared_env\n    runs-on: ubuntu-latest\n    steps: *checkout_and_setup\n```\n\nReuse an entire job:\n\n```yaml\njobs:\n  unit: &test_job\n    runs-on: ubuntu-latest\n    timeout-minutes: 30\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm test\n\n  integration: *test_job\n```\n\n## Constraints (MUST know)\n\n| Rule | Detail |\n| :--- | :--- |\n| Same file only | Anchors do **not** cross workflow files |\n| Exact copy only | Alias is a full duplicate of the anchored node |\n| No merge keys | `<<:` is **not** supported \u2014 no base + override |\n\n```yaml\n# FORBIDDEN on GitHub Actions \u2014 merge keys do not work\njob2:\n  <<: *base_job\n  env:\n    EXTRA: true\n```\n\n## When to use what\n\n| Need | Use |\n| :--- | :--- |\n| Same env / steps / job repeated in one file | YAML anchors |\n| Parameterized or cross-repo shared logic | Reusable workflow (`workflow_call`) or composite action |\n| Base job + small per-job diffs | Keep duplication, or extract shared steps into a composite action |\n\nPrefer the simplest rung: if duplication is tiny, skip anchors ([Simplicity First](/standards/simplicity-first.md)).\n\n## Prompt Card\n\n```text\nYAML anchors (&) / aliases (*) reuse nodes within ONE workflow file only.\nAlias = exact copy; merge keys (<<:) FORBIDDEN on GitHub Actions.\nCross-file or parameterized reuse -> reusable workflow / composite action.\nTiny duplication? Skip anchors (Simplicity First).\n```\n\n## Related\n\n- Concept: [GitHub Actions](/vault/concepts/github-actions.md)\n- System: [gha-reusable-actions-workflows](/vault/systems/gha-reusable-actions-workflows.md)\n- Standard: [GHA component layout](/standards/gha-component-layout.md)\n\n# Citations\n\n1. [Reusing workflow configurations \u2014 YAML anchors and aliases](https://docs.github.com/en/actions/reference/workflows-and-actions/reusing-workflow-configurations#yaml-anchors-and-aliases)\n2. [Changelog: Actions YAML anchors (2025-09-18)](https://github.blog/changelog/2025-09-18-actions-yaml-anchors-and-non-public-workflow-templates/)"
-    },
-    {
-      "id": "vault/concepts/github-actions",
-      "type": "Concept",
-      "title": "GitHub Actions Domain",
-      "description": "Domain routing for composite actions, reusable workflows, Release Manager, and SPVS Conftest in gha-reusable-actions-workflows.",
-      "tags": [
-        "github-actions",
-        "spvs",
-        "domain"
-      ],
-      "content": "# GitHub Actions Domain\n\n**Triggers:** \"github action\", \"reusable workflow\", \"release manager\", \"SPVS\", \"action.yml\", \"workflow_call\", \"promote tag\", \"conftest gha\", \"yaml anchor\", \"workflow alias\"\n\n**Minimum evidence:** component path under `actions/` or `workflows/` (or YAML in `_inbox/`) plus intent (author, review, release, promote, rollback, policy). Halt BLOCKED if unmet.\n\nRoute via Related \u2014 do not restate layout, SPVS rules, SemVer, or release semantics here.\n\n## Prompt Card\n\n```text\nGHA domain: route to layout + gha-spvs-yaml + release-manager-modes cards.\nComponents under actions/{cat}/{name}/ or workflows/{cat}/{name}/ only.\nInject slim cards \u2014 never full SPVS/layout docs.\n```\n\n## Related\n\n- System: [gha-reusable-actions-workflows](/vault/systems/gha-reusable-actions-workflows.md)\n- Standards: [GHA component layout](/standards/gha-component-layout.md), [GHA SPVS YAML](/standards/gha-spvs-yaml.md), [OKF Prompt Injection](/standards/okf-prompt-injection.md)\n- Concepts: [SPVS Lifecycle](/vault/concepts/spvs-lifecycle.md), [Release Manager modes](/vault/concepts/release-manager-modes.md), [SemVer from commits](/vault/concepts/semver-from-commits.md), [GHA YAML Anchors](/vault/concepts/gha-yaml-anchors.md)\n- Playbooks: [Author composite action](/vault/playbooks/author-gha-composite-action.md), [Release component](/vault/playbooks/release-gha-component.md)"
-    },
-    {
-      "id": "vault/concepts/release-manager-modes",
-      "type": "Concept",
-      "title": "Release Manager Modes",
-      "description": "release, promote, and rollback semantics for the gha-reusable-actions-workflows Release Manager.",
-      "tags": [
-        "github-actions",
-        "release-manager",
-        "concepts"
-      ],
-      "content": "# Release Manager Modes\n\nOrchestrator: `.github/workflows/release-manager.yml` (`workflow_dispatch`).\n\n## Inputs\n\n| Input | Required | Notes |\n| :--- | :--- | :--- |\n| `component_path` | Yes | e.g. `actions/common/janitor-bot` |\n| `mode` | Yes | `release` \\| `promote` \\| `rollback` |\n| `version` | No | Release: auto-derived if empty. Promote/rollback: defaults to latest versioned tag if empty. |\n\n## Stages\n\n1. **Validate** \u2014 path/type, SemVer derivation (release), tag checks\n2. **Security** \u2014 Conftest, Actionlint, Bandit, Shellcheck (**release only**)\n3. **Execute** \u2014 tag, sync workflow file, promote/rollback stable tag\n\nEnvironments: `sandbox` (release), `production` (promote/rollback).\n\n## Mode behavior\n\n| Mode | Security | Result |\n| :--- | :--- | :--- |\n| `release` | Full | Create `{safe_name}-{X.Y.Z}`; sync workflow to `.github/workflows/{name}.yml` when applicable |\n| `promote` | Skipped | Point `{safe_name}-v1` at chosen versioned tag (delete+recreate, no force-push) |\n| `rollback` | Skipped | Move `v1` to previous versioned tag; restore prior workflow file if needed |\n\n## Prompt Card\n\n```text\nRelease Manager (workflow_dispatch): inputs component_path, mode, version(optional).\nrelease = versioned tag + FULL security stage (Conftest/Actionlint/Bandit/Shellcheck).\npromote = move {safe_name}-v1 to chosen tag (security skipped, env production).\nrollback = v1 to previous versioned tag; restore synced workflow file if needed.\n```\n\n## Related\n\n- Concept: [SemVer from commits](/vault/concepts/semver-from-commits.md), [Component tagging](/vault/concepts/component-tagging.md)\n- Playbook: [Release component](/vault/playbooks/release-gha-component.md)\n- System: [gha-reusable-actions-workflows](/vault/systems/gha-reusable-actions-workflows.md)"
-    },
-    {
-      "id": "vault/concepts/semver-from-commits",
-      "type": "Concept",
-      "title": "SemVer from Commits",
-      "description": "How ticket conventional commits map to SemVer bumps for component tags.",
-      "tags": [
-        "github-actions",
-        "semver",
-        "commits",
-        "concepts"
-      ],
-      "content": "# SemVer from Commits\n\nImplemented by `actions/common/semver` using `policies/scripts/commit_message_lib.sh`.\n\n## Rules\n\n1. Lookup latest tag `{safe_name}-[0-9]*`; version is the suffix.\n2. No prior tag: treat current as `0.0.0` then next is **`1.0.0`**.\n3. Scan commits since last tag; classify by keyword.\n4. Any `feat` -> minor bump; else `fix`/`chore` -> patch; else docs/refactor/perf/test/style -> no bump.\n5. Release fails if no bump-capable commits since last tag.\n6. Explicit `version` input on Release Manager bypasses auto-calculation.\n\n## Prompt Card\n\n```text\nSemVer from commits since last {safe_name}-* tag:\nfeat -> minor; fix/chore -> patch; docs/refactor/perf/test/style -> no bump.\nNo prior tag -> first release is 1.0.0. No bump-capable commits -> release FAILS.\nExplicit version input bypasses auto-calculation.\n```\n\n## Related\n\n- Standard: [GHA commit subjects](/standards/gha-commit-subjects.md)\n- Concept: [Release Manager modes](/vault/concepts/release-manager-modes.md), [Component tagging](/vault/concepts/component-tagging.md)\n- System: [gha-reusable-actions-workflows](/vault/systems/gha-reusable-actions-workflows.md)"
-    },
-    {
-      "id": "vault/concepts/spvs-lifecycle",
-      "type": "Concept",
-      "title": "SPVS Lifecycle",
-      "description": "OWASP SPVS Plan/Integrate/Release/Operate stages mapped onto this monorepo \u2014 plus Dependency-Check runner constraints.",
-      "tags": [
-        "github-actions",
-        "spvs",
-        "lifecycle",
-        "owasp",
-        "concepts"
-      ],
-      "content": "# SPVS Lifecycle\n\n| Stage | This repository |\n| :--- | :--- |\n| Plan / Develop | Commit-msg hook; ticket conventional commits; SemVer derivation |\n| Integrate | Pre-commit Conftest, Actionlint, Bandit, Shellcheck (change-scoped) |\n| Release | Release Manager security job; versioned tags; workflow sync |\n| Operate | Promote / rollback; stable `v1` tags; branch protection / App bypass |\n\nBranch protection, signed commits, CODEOWNERS are GitHub settings \u2014 not workflow YAML.\n\n## Dependency-Check\n\nWhen scanning with OWASP Dependency-Check: require Podman/ARC-compatible runners; no Docker-only assumptions. YAML policy itself stays in [GHA SPVS YAML](/standards/gha-spvs-yaml.md).\n\n## Prompt Card\n\n```text\nSPVS stages: Plan=commit-msg+SemVer; Integrate=pre-commit Conftest/Actionlint/Bandit/Shellcheck;\nRelease=RM security+tags; Operate=promote/rollback v1.\nBranch protection/CODEOWNERS = GitHub settings, not YAML.\nDependency-Check: Podman/ARC runners only \u2014 no Docker-only assumptions.\n```\n\n## Related\n\n- Standard: [GHA SPVS YAML](/standards/gha-spvs-yaml.md)\n- Concept: [GitHub Actions Domain](/vault/concepts/github-actions.md)\n- System: [gha-reusable-actions-workflows](/vault/systems/gha-reusable-actions-workflows.md)"
-    },
-    {
-      "id": "vault/playbooks/author-gha-composite-action",
-      "type": "Playbook",
-      "title": "Author GHA Composite Action",
-      "description": "Scaffold and validate a new composite action under actions/{category}/{name}/.",
-      "tags": [
-        "github-actions",
-        "playbook",
-        "authoring"
-      ],
-      "content": "# Trigger\n\nYou need a new composite GitHub Action in the monorepo.\n\n# Preconditions\n\n- Layout standard understood: [GHA component layout](/standards/gha-component-layout.md).\n- Local SPVS tooling available (or use Release Manager later).\n\n# Steps\n\n1. Create `actions/{category}/{name}/` with `action.yml` and `readme.md`.\n2. When an agent authors the action, assemble a **Prompt Pack** with `python3 _okf_knowledge/kernel/okf.py card` on layout + SPVS (+ pins) \u2014 see [OKF Prompt Injection](/standards/okf-prompt-injection.md). **MUST NOT** paste full standards.\n3. Follow SPVS shell/env patterns: `set -euo pipefail`, map inputs via `env`, pin third-party `uses:` to SHA.\n4. Keep `readme.md` short (inputs/outputs + one usage example).\n5. Run Conftest composite scan:\n\n```bash\nconftest test --parser yaml -n composite \\\n  -p policies/conftest/github_actions/composite \\\n  -p policies/conftest/github_actions/lib \\\n  actions/{category}/{name}/action.yml\n```\n\n6. If Conftest fails on `CKV2_SPVS_5`, remediate with a **pin cache** (tag\u2192SHA) rather than asking the agent to discover SHAs from scratch.\n7. Run Bandit/Shellcheck on helpers if present.\n8. Open PR with a ticket-prefixed conventional subject.\n\n# Verification\n\n- [ ] Directory matches layout standard\n- [ ] Conftest composite scan passes\n- [ ] `readme.md` documents inputs/outputs\n- [ ] Agent prompt used a minimal card (not full SPVS dump)\n\n## Prompt Card\n\n```text\nNew composite action: actions/{category}/{name}/ with action.yml + short readme.md.\nShell: set -euo pipefail; map inputs via env (no ${{ inputs.* }} in run);\npin third-party uses: to 40-char SHA (use pin cache on CKV2_SPVS_5).\nGate: conftest test --parser yaml -n composite -p policies/conftest/github_actions/{composite,lib}.\nPR subject: ticket-prefixed conventional commit.\n```\n\n# Related\n\n- Standard: [OKF Prompt Injection](/standards/okf-prompt-injection.md)\n- Standard: [GHA SPVS YAML](/standards/gha-spvs-yaml.md), [GHA component layout](/standards/gha-component-layout.md)\n- Concept: [GitHub Actions](/vault/concepts/github-actions.md)\n- System: [gha-reusable-actions-workflows](/vault/systems/gha-reusable-actions-workflows.md)"
-    },
-    {
-      "id": "vault/playbooks/bootstrap-spvs-dev-environment",
-      "type": "Playbook",
-      "title": "Bootstrap SPVS Dev Environment",
-      "description": "Install local hooks and scanners for gha-reusable-actions-workflows development.",
-      "tags": [
-        "github-actions",
-        "spvs",
-        "playbook",
-        "bootstrap"
-      ],
-      "content": "# Trigger\n\nYou need local commit-msg, pre-commit, Actionlint, Conftest, Bandit, and Shellcheck for this monorepo.\n\n# Preconditions\n\n- Clone at `/home/ghost/workspace-latest/gha-reusable-actions-workflows` (or equivalent).\n- Network access to install pinned tools.\n\n# Steps\n\n1. `cd` to the monorepo root.\n2. Run `bash policies/scripts/install_hooks.sh`.\n3. Confirm `git config --global core.hooksPath` points at `~/.git-templates/hooks`.\n4. Install repo pre-commit: `pre-commit install` (if not done by the installer).\n5. Smoke: `pre-commit run --all-files` on a clean tree (or a small intentional change).\n\n# Verification\n\n- [ ] `commit-msg` rejects a subject without a ticket prefix\n- [ ] `bash policies/tests/run_tests.sh` exits 0\n- [ ] Actionlint/Conftest binaries resolve on PATH\n\n## Prompt Card\n\n```text\nBootstrap: bash policies/scripts/install_hooks.sh from monorepo root;\npre-commit install; smoke with pre-commit run --all-files.\nVerify: commit-msg rejects non-ticket subjects; policies/tests/run_tests.sh exits 0.\n```\n\n# Related\n\n- System: [gha-reusable-actions-workflows](/vault/systems/gha-reusable-actions-workflows.md)\n- Standard: [GHA commit subjects](/standards/gha-commit-subjects.md)"
-    },
-    {
-      "id": "vault/playbooks/maintain-aegis-system",
-      "type": "Playbook",
-      "title": "Maintain aegis-system",
-      "description": "How to add or update concepts, playbooks, references, scripts, and skills in the aegis-system OKF vault \u2014 with post-change verification.",
-      "tags": [
-        "aegis-system",
-        "ingest",
-        "maintenance",
-        "okf",
-        "procedure"
-      ],
-      "content": "# Trigger\n\nYou need to add or change durable knowledge in aegis-system: a concept, house standard,\nplaybook, reference, vault script, agent bridge, or Cursor skill.\n\n# Preconditions\n\n- [AGENTS.md](/AGENTS.md) \u00a71.2 binds all brain mutations to this playbook \u2014 follow it end-to-end.\n- Read [AGENTS.md](/AGENTS.md) \u00a71.3 for the OKF frontmatter schema before creating files.\n- Raw source material (if any) is in [`_inbox/`](/_inbox/) and has not been edited.\n- You know which `type` the content is (see decision table below).\n\n# What to create \u2014 decision table\n\n| You are documenting\u2026 | `type` | Directory | Also update |\n|----------------------|--------|-----------|-------------|\n| Evergreen knowledge, pattern, tool overview | `Concept` | `vault/` (by domain) | `vault/index.md` |\n| House rule (MUST/SHOULD) | `Concept` + tag `standard` | `standards/` | [standards/index.md](/standards/index.md) |\n| Executable agent procedure | `Playbook` | `vault/playbooks/` | [playbooks/index.md](/vault/playbooks/index.md) |\n| Cached upstream docs | `Reference` | `vault/references/` | Run `kernel/okf.py optimize` |\n| Running system in workspace | `System` | `vault/systems/` | [systems/index.md](/vault/systems/index.md) |\n| Post-mortem | `Incident` | `vault/incidents/` | Link to affected systems/playbooks |\n| Domain routing / tool overview | `Concept` | `vault/concepts/` | [vault/index.md](/vault/index.md) |\n| Vault tooling (lint, compile, scrape) | Python script | `kernel/` | This playbook \u00a7 Scripts |\n| Control-plane schema / persona | Markdown | `AGENTS.md` (package root, next to `_okf_knowledge/`) | [_okf_knowledge/index.md](/index.md) |\n\n# Add or update a concept\n\n## 1. Choose path and filename\n\n- One concept per file; kebab-case filename matching the topic.\n- House standards go in `standards/` with `tags: [standard, \u2026]`.\n- Domain concepts go in `vault/`.\n\n## 2. Frontmatter (required)\n\n```yaml\n---\ntype: Concept\ntitle: Human-readable name\ndescription: One-line summary for indexes and okf_lookup.\ntags: [kebab-case, topic]\ntimestamp: 2026-07-13T00:00:00Z\nstatus: active\n---\n```\n\n## 3. Body\n\n- Prefer headings, tables, lists, and fenced code over long prose.\n- Standards: normative **MUST** / **SHOULD** / **FORBIDDEN** language.\n- Binding standards **MUST** include a non-empty `## Prompt Card` section (\u2264150 tokens / ~600 chars) \u2014 enforced by `okf.py lint` (`DBG-308` / `DBG-309`). See [OKF Prompt Injection](/standards/okf-prompt-injection.md).\n- Other agent-facing concepts **SHOULD** include a `## Prompt Card` for slim injection.\n- External claims: `# Citations` with numbered `[1] [title](url)` entries.\n- Link to related concepts with bundle-absolute paths.\n\n## 4. Cross-links (both directions)\n\n- New concept MUST link to at least one existing related concept.\n- Update those existing files to link back.\n- Update every affected `index.md` on the path from root to the file.\n\n# Add or update a playbook\n\n## Required sections\n\n```markdown\n# Trigger\n# Preconditions\n# Steps\n# Verification\n```\n\n- Add a one-line entry to [playbooks/index.md](/vault/playbooks/index.md).\n\n# Add or update a script\n\nThe kernel is a single script, `kernel/okf.py`, with one subcommand per operation; it is **not** an OKF concept.\n\n| Subcommand | Role |\n|--------|------|\n| `okf.py compile` | Regenerate `graph.json`, `index.json`, `prompt_cards.json`; embed graph in `aegis-brain.html` |\n| `okf.py lint` | Conformance + broken links + orphans + **standards Prompt Card gate** \u2192 `lint.json` |\n| `okf.py card` | Extract `## Prompt Card` sections for slim agent injection |\n| `okf.py lookup` | Search via `index.json` (fallback: live vault); list hits or budgeted `--card` |\n| `okf.py enrich` | LLM gap-fill for retrieval fields (description, tags, `## Prompt Card`); dry-run by default, `--write` to apply |\n| `okf.py scrape` | JIT upstream fetch \u2192 `vault/` |\n| `okf.py optimize` | Normalize references, rebuild vault indexes, run compiler |\n| `okf.py serve` | Local server + `POST /api/lint` / `POST /api/comp\n\n\u2026"
-    },
-    {
-      "id": "vault/playbooks/release-gha-component",
-      "type": "Playbook",
-      "title": "Release GHA Component",
-      "description": "Run Release Manager mode release/promote/rollback for a monorepo component.",
-      "tags": [
-        "github-actions",
-        "playbook",
-        "release"
-      ],
-      "content": "# Trigger\n\nYou need to release, promote, or roll back a composite action or reusable workflow.\n\n# Preconditions\n\n- Component path valid under `actions/` or `workflows/`.\n- Secrets `RELEASE_APP_ID` and `RELEASE_APP_PRIVATE_KEY` configured.\n- Understand [Release Manager modes](/vault/concepts/release-manager-modes.md).\n\n# Steps\n\n1. Ensure commits since last tag include `feat`/`fix`/`chore` if auto-bumping ([SemVer from commits](/vault/concepts/semver-from-commits.md)).\n2. Open Actions -> **Release Manager** (`workflow_dispatch`).\n3. Set `component_path` (e.g. `actions/common/janitor-bot`).\n4. Set `mode`:\n   - `release` \u2014 sandbox versioned tag + security stage\n   - `promote` \u2014 move `{safe_name}-v1` to chosen version\n   - `rollback` \u2014 previous versioned tag (+ restore workflow file if needed)\n5. Optionally set `version` to pin SemVer / target.\n6. Wait for Validate -> Security (release only) -> Execute.\n\n# Verification\n\n- [ ] Versioned or stable tag exists remotely as expected ([Component tagging](/vault/concepts/component-tagging.md))\n- [ ] For workflow releases, `.github/workflows/{name}.yml` matches source\n- [ ] Consumers can reference `@v1` after promote\n\n## Prompt Card\n\n```text\nRelease: Actions -> Release Manager (workflow_dispatch); set component_path + mode\n(release|promote|rollback), optional version. Auto-bump needs feat/fix/chore commits\nsince last tag. Verify remote tag ({safe_name}-{X.Y.Z} or -v1) and synced workflow file.\n```\n\n# Related\n\n- System: [gha-reusable-actions-workflows](/vault/systems/gha-reusable-actions-workflows.md)\n- Concept: [Release Manager modes](/vault/concepts/release-manager-modes.md)\n- Standard: [GHA commit subjects](/standards/gha-commit-subjects.md)"
-    },
-    {
-      "id": "vault/playbooks/run-gha-local-policy-tests",
-      "type": "Playbook",
-      "title": "Run GHA Local Policy Tests",
-      "description": "Execute Conftest verify/scan and policy unit tests for the monorepo.",
-      "tags": [
-        "github-actions",
-        "playbook",
-        "conftest",
-        "testing"
-      ],
-      "content": "# Trigger\n\nYou changed Rego policies, action/workflow YAML, or need a full local SPVS gate.\n\n# Preconditions\n\n- Conftest installed (see [Bootstrap SPVS Dev Environment](/vault/playbooks/bootstrap-spvs-dev-environment.md)).\n- Working tree at monorepo root.\n\n# Steps\n\n1. Full suite: `bash policies/tests/run_tests.sh`\n2. Single workflow:\n\n```bash\nconftest test --parser yaml -n workflow \\\n  -p policies/conftest/github_actions/workflow \\\n  -p policies/conftest/github_actions/lib \\\n  path/to/workflow.yml\n```\n\n3. Single composite action:\n\n```bash\nconftest test --parser yaml -n composite \\\n  -p policies/conftest/github_actions/composite \\\n  -p policies/conftest/github_actions/lib \\\n  path/to/action.yml\n```\n\n4. If `policies/conftest/` changed, run `pre-commit run --all-files` (full rescan path).\n\n# Verification\n\n- [ ] `run_tests.sh` exits 0\n- [ ] No open SPVS findings without paired `SPVS_SKIP_POLICY` + `SPVS_SKIP_REASON`\n\n## Prompt Card\n\n```text\nFull gate: bash policies/tests/run_tests.sh (exit 0 required).\nSingle file: conftest test --parser yaml -n workflow|composite\n  -p policies/conftest/github_actions/{workflow|composite} -p .../lib <file>.\nRego changed? pre-commit run --all-files. Skips need SPVS_SKIP_POLICY + SPVS_SKIP_REASON.\n```\n\n# Related\n\n- Standard: [GHA SPVS YAML](/standards/gha-spvs-yaml.md)\n- System: [gha-reusable-actions-workflows](/vault/systems/gha-reusable-actions-workflows.md)"
-    },
-    {
-      "id": "vault/references/gha-reusable-readme",
-      "type": "Reference",
-      "title": "gha-reusable-actions-workflows README",
-      "description": "Cached pointer to the monorepo README \u2014 architecture, SPVS catalog, release lifecycle.",
-      "tags": [
-        "github-actions",
-        "readme",
-        "reference"
-      ],
-      "content": "# gha-reusable-actions-workflows README\n\nLocal source of truth (clone):\n\n`/home/ghost/workspace-latest/gha-reusable-actions-workflows/README.md`\n\nCovers: Release Manager lifecycle, commit format, repository structure, full SPVS Conftest catalog, scan commands, prerequisites.\n\n## Gaps in this clone\n\n- `docs/` handbook chapters linked from README are **missing**\n- `okf_bundle/` is **missing**\n\nRe-fetch from remote before citing those paths as verified.\n\n## Prompt Card\n\n```text\nSource of truth: gha-reusable-actions-workflows/README.md (local clone).\nCovers Release Manager lifecycle, commit format, SPVS catalog, scan commands.\nClone gaps: docs/ chapters and okf_bundle/ missing \u2014 re-fetch before citing.\n```\n\n## Related\n\n- System: [gha-reusable-actions-workflows](/vault/systems/gha-reusable-actions-workflows.md)\n- Standard: [GHA SPVS YAML](/standards/gha-spvs-yaml.md)\n\n# Citations\n\n1. Workspace file: `/home/ghost/workspace-latest/gha-reusable-actions-workflows/README.md` (local clone; not a vault-relative link)"
-    },
-    {
-      "id": "vault/systems/gha-reusable-actions-workflows",
-      "type": "System",
-      "title": "gha-reusable-actions-workflows",
-      "description": "Monorepo for reusable GitHub Actions, reusable workflows, SPVS Conftest policies, and Release Manager lifecycle.",
-      "tags": [
-        "github-actions",
-        "spvs",
-        "release-manager",
-        "monorepo",
-        "system"
-      ],
-      "content": "# gha-reusable-actions-workflows\n\nWorkspace path: `/home/ghost/workspace-latest/gha-reusable-actions-workflows`\n\nMonorepo that publishes composite GitHub Actions and reusable workflows under an OWASP SPVS-aligned release plane (Validate -> Security -> Execute).\n\n## Directory map\n\n| Path | Role |\n| :--- | :--- |\n| `actions/{category}/{name}/` | Composite actions (`action.yml` + `readme.md` required) |\n| `workflows/{category}/{name}/` | Reusable workflows (one `workflow.yml` + `readme.md`) |\n| `policies/conftest/github_actions/` | Conftest Rego (namespaces `workflow` / `composite`) |\n| `policies/scripts/` | Commit-msg lib, hook installer, Conftest runners |\n| `.github/workflows/` | Release Manager + synced published workflows |\n| `.pre-commit-config.yaml` | Local Shellcheck, Bandit, Actionlint, SPVS Conftest |\n\n## Components (current clone)\n\n| Kind | Path |\n| :--- | :--- |\n| Action | `actions/common/semver` |\n| Action | `actions/common/drift-auditor` |\n| Action | `actions/common/git-path-filter` |\n| Action | `actions/common/issues-bot` |\n| Action | `actions/common/janitor-bot` |\n| Action | `actions/common/prbot` |\n| Action | `actions/security/owasp-dependency-check` |\n| Workflow | `workflows/common/dummy-workflow` |\n| Orchestrator | `.github/workflows/release-manager.yml` |\n\n## Release plane\n\nModes: `release` (sandbox versioned tag), `promote` (stable `{name}-v1`), `rollback` (previous versioned tag).\n\nTag patterns: `{safe_name}-{X.Y.Z}` and `{safe_name}-v1`.\n\nSecurity Stage 2 (release only): Conftest SPVS, Actionlint (workflows), Bandit (`*.py`), Shellcheck (`*.sh`).\n\n## Prerequisites\n\n- GitHub App secrets: `RELEASE_APP_ID`, `RELEASE_APP_PRIVATE_KEY` (`contents: write`, `workflows: write`)\n- Branch protection bypass for the App when syncing workflows to `main`\n\n## Prompt Card\n\n```text\nMonorepo: actions/{cat}/{name}/ (action.yml+readme.md); workflows/{cat}/{name}/\n(workflow.yml+readme.md); Rego in policies/conftest/github_actions/.\nRelease plane: release -> promote -> rollback; tags {safe_name}-{X.Y.Z} / -v1.\nNeeds GitHub App secrets RELEASE_APP_ID / RELEASE_APP_PRIVATE_KEY.\n```\n\n## Related\n\n- Concept: [GitHub Actions](/vault/concepts/github-actions.md)\n- Standards: [GHA commit subjects](/standards/gha-commit-subjects.md), [GHA SPVS YAML](/standards/gha-spvs-yaml.md), [GHA component layout](/standards/gha-component-layout.md), [OKF Prompt Injection](/standards/okf-prompt-injection.md)\n- Concepts: [Release Manager modes](/vault/concepts/release-manager-modes.md), [SemVer from commits](/vault/concepts/semver-from-commits.md), [SPVS lifecycle](/vault/concepts/spvs-lifecycle.md), [GHA YAML Anchors](/vault/concepts/gha-yaml-anchors.md)\n- Playbooks: [Release component](/vault/playbooks/release-gha-component.md), [Bootstrap SPVS env](/vault/playbooks/bootstrap-spvs-dev-environment.md)\n- Reference: [Repo README](/vault/references/gha-reusable-readme.md)"
-    }
-  ],
-  "edges": [
-    {
-      "source": "kernel/profiles/_schema",
-      "target": "vault/playbooks/maintain-aegis-system"
-    },
-    {
-      "source": "kernel/profiles/_schema",
-      "target": "standards/okf-prompt-injection"
-    },
-    {
-      "source": "kernel/profiles/_schema",
-      "target": "vault/concepts/extending-aegis"
-    },
-    {
-      "source": "standards/gha-commit-subjects",
-      "target": "vault/concepts/semver-from-commits"
-    },
-    {
-      "source": "standards/gha-commit-subjects",
-      "target": "vault/systems/gha-reusable-actions-workflows"
-    },
-    {
-      "source": "standards/gha-commit-subjects",
-      "target": "standards/simplicity-first"
-    },
-    {
-      "source": "standards/gha-commit-subjects",
-      "target": "standards/okf-prompt-injection"
-    },
-    {
-      "source": "standards/gha-component-layout",
-      "target": "vault/systems/gha-reusable-actions-workflows"
-    },
-    {
-      "source": "standards/gha-component-layout",
-      "target": "vault/concepts/github-actions"
-    },
-    {
-      "source": "standards/gha-component-layout",
-      "target": "vault/playbooks/author-gha-composite-action"
-    },
-    {
-      "source": "standards/gha-component-layout",
-      "target": "standards/simplicity-first"
-    },
-    {
-      "source": "standards/gha-component-layout",
-      "target": "standards/okf-prompt-injection"
-    },
-    {
-      "source": "standards/gha-spvs-yaml",
-      "target": "vault/concepts/spvs-lifecycle"
-    },
-    {
-      "source": "standards/gha-spvs-yaml",
-      "target": "standards/okf-prompt-injection"
-    },
-    {
-      "source": "standards/gha-spvs-yaml",
-      "target": "vault/systems/gha-reusable-actions-workflows"
-    },
-    {
-      "source": "standards/gha-spvs-yaml",
-      "target": "vault/playbooks/run-gha-local-policy-tests"
-    },
-    {
-      "source": "standards/metadata-headers",
-      "target": "standards/simplicity-first"
-    },
-    {
-      "source": "standards/okf-prompt-injection",
-      "target": "standards/simplicity-first"
-    },
-    {
-      "source": "standards/okf-prompt-injection",
-      "target": "vault/playbooks/maintain-aegis-system"
-    },
-    {
-      "source": "standards/okf-prompt-injection",
-      "target": "vault/concepts/extending-aegis"
-    },
-    {
-      "source": "standards/simplicity-first",
-      "target": "standards/metadata-headers"
-    },
-    {
-      "source": "standards/simplicity-first",
-      "target": "standards/okf-prompt-injection"
-    },
-    {
-      "source": "vault/concepts/component-tagging",
-      "target": "vault/concepts/release-manager-modes"
-    },
-    {
-      "source": "vault/concepts/component-tagging",
-      "target": "vault/concepts/semver-from-commits"
-    },
-    {
-      "source": "vault/concepts/component-tagging",
-      "target": "vault/systems/gha-reusable-actions-workflows"
-    },
-    {
-      "source": "vault/concepts/extending-aegis",
-      "target": "vault/playbooks/maintain-aegis-system"
-    },
-    {
-      "source": "vault/concepts/extending-aegis",
-      "target": "vault/playbooks/maintain-aegis-system"
-    },
-    {
-      "source": "vault/concepts/extending-aegis",
-      "target": "standards/simplicity-first"
-    },
-    {
-      "source": "vault/concepts/extending-aegis",
-      "target": "kernel/profiles/_schema"
-    },
-    {
-      "source": "vault/concepts/gha-yaml-anchors",
-      "target": "standards/simplicity-first"
-    },
-    {
-      "source": "vault/concepts/gha-yaml-anchors",
-      "target": "vault/concepts/github-actions"
-    },
-    {
-      "source": "vault/concepts/gha-yaml-anchors",
-      "target": "vault/systems/gha-reusable-actions-workflows"
-    },
-    {
-      "source": "vault/concepts/gha-yaml-anchors",
-      "target": "standards/gha-component-layout"
-    },
-    {
-      "source": "vault/concepts/github-actions",
-      "target": "vault/systems/gha-reusable-actions-workflows"
-    },
-    {
-      "source": "vault/concepts/github-actions",
-      "target": "standards/gha-component-layout"
-    },
-    {
-      "source": "vault/concepts/github-actions",
-      "target": "standards/gha-spvs-yaml"
-    },
-    {
-      "source": "vault/concepts/github-actions",
-      "target": "standards/okf-prompt-injection"
-    },
-    {
-      "source": "vault/concepts/github-actions",
-      "target": "vault/concepts/spvs-lifecycle"
-    },
-    {
-      "source": "vault/concepts/github-actions",
-      "target": "vault/concepts/release-manager-modes"
-    },
-    {
-      "source": "vault/concepts/github-actions",
-      "target": "vault/concepts/semver-from-commits"
-    },
-    {
-      "source": "vault/concepts/github-actions",
-      "target": "vault/concepts/gha-yaml-anchors"
-    },
-    {
-      "source": "vault/concepts/github-actions",
-      "target": "vault/playbooks/author-gha-composite-action"
-    },
-    {
-      "source": "vault/concepts/github-actions",
-      "target": "vault/playbooks/release-gha-component"
-    },
-    {
-      "source": "vault/concepts/release-manager-modes",
-      "target": "vault/concepts/semver-from-commits"
-    },
-    {
-      "source": "vault/concepts/release-manager-modes",
-      "target": "vault/concepts/component-tagging"
-    },
-    {
-      "source": "vault/concepts/release-manager-modes",
-      "target": "vault/playbooks/release-gha-component"
-    },
-    {
-      "source": "vault/concepts/release-manager-modes",
-      "target": "vault/systems/gha-reusable-actions-workflows"
-    },
-    {
-      "source": "vault/concepts/semver-from-commits",
-      "target": "standards/gha-commit-subjects"
-    },
-    {
-      "source": "vault/concepts/semver-from-commits",
-      "target": "vault/concepts/release-manager-modes"
-    },
-    {
-      "source": "vault/concepts/semver-from-commits",
-      "target": "vault/concepts/component-tagging"
-    },
-    {
-      "source": "vault/concepts/semver-from-commits",
-      "target": "vault/systems/gha-reusable-actions-workflows"
-    },
-    {
-      "source": "vault/concepts/spvs-lifecycle",
-      "target": "standards/gha-spvs-yaml"
-    },
-    {
-      "source": "vault/concepts/spvs-lifecycle",
-      "target": "standards/gha-spvs-yaml"
-    },
-    {
-      "source": "vault/concepts/spvs-lifecycle",
-      "target": "vault/concepts/github-actions"
-    },
-    {
-      "source": "vault/concepts/spvs-lifecycle",
-      "target": "vault/systems/gha-reusable-actions-workflows"
-    },
-    {
-      "source": "vault/playbooks/author-gha-composite-action",
-      "target": "standards/gha-component-layout"
-    },
-    {
-      "source": "vault/playbooks/author-gha-composite-action",
-      "target": "standards/okf-prompt-injection"
-    },
-    {
-      "source": "vault/playbooks/author-gha-composite-action",
-      "target": "standards/okf-prompt-injection"
-    },
-    {
-      "source": "vault/playbooks/author-gha-composite-action",
-      "target": "standards/gha-spvs-yaml"
-    },
-    {
-      "source": "vault/playbooks/author-gha-composite-action",
-      "target": "standards/gha-component-layout"
-    },
-    {
-      "source": "vault/playbooks/author-gha-composite-action",
-      "target": "vault/concepts/github-actions"
-    },
-    {
-      "source": "vault/playbooks/author-gha-composite-action",
-      "target": "vault/systems/gha-reusable-actions-workflows"
-    },
-    {
-      "source": "vault/playbooks/bootstrap-spvs-dev-environment",
-      "target": "vault/systems/gha-reusable-actions-workflows"
-    },
-    {
-      "source": "vault/playbooks/bootstrap-spvs-dev-environment",
-      "target": "standards/gha-commit-subjects"
-    },
-    {
-      "source": "vault/playbooks/maintain-aegis-system",
-      "target": "standards/okf-prompt-injection"
-    },
-    {
-      "source": "vault/playbooks/maintain-aegis-system",
-      "target": "standards/simplicity-first"
-    },
-    {
-      "source": "vault/playbooks/maintain-aegis-system",
-      "target": "vault/concepts/extending-aegis"
-    },
-    {
-      "source": "vault/playbooks/maintain-aegis-system",
-      "target": "kernel/profiles/_schema"
-    },
-    {
-      "source": "vault/playbooks/release-gha-component",
-      "target": "vault/concepts/release-manager-modes"
-    },
-    {
-      "source": "vault/playbooks/release-gha-component",
-      "target": "vault/concepts/semver-from-commits"
-    },
-    {
-      "source": "vault/playbooks/release-gha-component",
-      "target": "vault/concepts/component-tagging"
-    },
-    {
-      "source": "vault/playbooks/release-gha-component",
-      "target": "vault/systems/gha-reusable-actions-workflows"
-    },
-    {
-      "source": "vault/playbooks/release-gha-component",
-      "target": "vault/concepts/release-manager-modes"
-    },
-    {
-      "source": "vault/playbooks/release-gha-component",
-      "target": "standards/gha-commit-subjects"
-    },
-    {
-      "source": "vault/playbooks/run-gha-local-policy-tests",
-      "target": "vault/playbooks/bootstrap-spvs-dev-environment"
-    },
-    {
-      "source": "vault/playbooks/run-gha-local-policy-tests",
-      "target": "standards/gha-spvs-yaml"
-    },
-    {
-      "source": "vault/playbooks/run-gha-local-policy-tests",
-      "target": "vault/systems/gha-reusable-actions-workflows"
-    },
-    {
-      "source": "vault/references/gha-reusable-readme",
-      "target": "vault/systems/gha-reusable-actions-workflows"
-    },
-    {
-      "source": "vault/references/gha-reusable-readme",
-      "target": "standards/gha-spvs-yaml"
-    },
-    {
-      "source": "vault/systems/gha-reusable-actions-workflows",
-      "target": "vault/concepts/github-actions"
-    },
-    {
-      "source": "vault/systems/gha-reusable-actions-workflows",
-      "target": "standards/gha-commit-subjects"
-    },
-    {
-      "source": "vault/systems/gha-reusable-actions-workflows",
-      "target": "standards/gha-spvs-yaml"
-    },
-    {
-      "source": "vault/systems/gha-reusable-actions-workflows",
-      "target": "standards/gha-component-layout"
-    },
-    {
-      "source": "vault/systems/gha-reusable-actions-workflows",
-      "target": "standards/okf-prompt-injection"
-    },
-    {
-      "source": "vault/systems/gha-reusable-actions-workflows",
-      "target": "vault/concepts/release-manager-modes"
-    },
-    {
-      "source": "vault/systems/gha-reusable-actions-workflows",
-      "target": "vault/concepts/semver-from-commits"
-    },
-    {
-      "source": "vault/systems/gha-reusable-actions-workflows",
-      "target": "vault/concepts/spvs-lifecycle"
-    },
-    {
-      "source": "vault/systems/gha-reusable-actions-workflows",
-      "target": "vault/concepts/gha-yaml-anchors"
-    },
-    {
-      "source": "vault/systems/gha-reusable-actions-workflows",
-      "target": "vault/playbooks/release-gha-component"
-    },
-    {
-      "source": "vault/systems/gha-reusable-actions-workflows",
-      "target": "vault/playbooks/bootstrap-spvs-dev-environment"
-    },
-    {
-      "source": "vault/systems/gha-reusable-actions-workflows",
-      "target": "vault/references/gha-reusable-readme"
-    }
-  ]
-}</script>
+  <script id="graph-data" type="application/json">{"nodes": [{"id": "kernel/profiles/_schema", "type": "Profile", "title": "Profile schema", "description": "Template for optional kernel/profiles \u2014 objective, intents, modes, required vault/standards lookup paths. Not a runtime Module/Vendor gate.", "tags": ["profile", "schema", "template", "persona", "rbac"], "content": "# Profile schema\n\nTemplate for optional capability profiles under `kernel/profiles/`. Copy this file; replace placeholders. Profiles are **not** a runtime Module/Vendor gate \u2014 domain knowledge loads via OKF lookup.\n\n## 1. Profile objective\n\nDefine the scope, boundaries, and primary goal of this persona. What are they authorized to do?\n\n## 2. Dynamic capabilities (RBAC)\n\n### 2.1 Authorized intents\n\n* Example: `CREATE`, `REVIEW`, `OPERATE`\n* Add intents this role may run\n\n### 2.2 Execution modes\n\n* One or more of: `advisory` | `generate` | `enforce`\n* Note any mode that is strictly PROHIBITED for this role\n\n### 2.3 Required vault / standards (lookup)\n\n* Example paths: `vault/concepts/extending-aegis.md`, `vault/playbooks/maintain-aegis-system.md`\n* Example standard: `standards/simplicity-first.md`, `standards/okf-prompt-injection.md`\n* Documented for future Profile use \u2014 kernel does not enforce missing paths today\n\n### 2.4 Enforced standards\n\n* Example: `standards/simplicity-first.md`, `standards/okf-prompt-injection.md`\n* Governance rules that strictly apply to this role's output\n\n## Prompt Card\n\n```text\nOptional Profile under kernel/profiles/: copy this template; set objective,\nauthorized intents, modes (advisory|generate|enforce), required vault/standards\npaths, enforced standards. Not a Module/Vendor runtime gate \u2014 load domain via OKF lookup.\n```\n\n## Related\n\n- Control plane: [AGENTS.md](/AGENTS.md)\n- Maintenance: [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md)\n- Prompt rules: [OKF Prompt Injection](/standards/okf-prompt-injection.md)\n- Extending: [Extending Aegis](/vault/concepts/extending-aegis.md)"}, {"id": "standards/metadata-headers", "type": "Concept", "title": "Metadata Headers", "description": "Required metadata blocks on every new file, function, and class across all languages.", "tags": ["standard", "code-quality", "documentation", "conventions"], "content": "Every new file, function, and class MUST carry a metadata block. This makes code\nself-describing for both humans and agents.\n\n# File header\n\nFields: `file_name`, `description`, `version`, `authors` (snake_case).\n\n```python\n# file_name: okf.py\n# description: Single-file Aegis OKF kernel (lookup, compile, lint, ...).\n# version: 0.1.0\n# authors: contributors\n```\n\n# Function / class header\n\nFields: `intent`, `input`, `output`, `role`, `side_effects` (snake_case).\n\n```python\ndef slugify(text: str) -> str:\n    \"\"\"\n    intent: Turn a free-text query into a safe filename slug.\n    input: text \u2014 arbitrary user query string.\n    output: lowercase kebab-case slug.\n    role: pure helper.\n    side_effects: none.\n    \"\"\"\n```\n\n## Prompt Card\n\n```text\nMetadata MUST on new files: file_name, description, version, authors.\nOn new functions/classes: intent, input, output, role, side_effects.\nSnake_case field names; match existing kernel header style.\n```\n\n# Related\n\n- [Simplicity First](/standards/simplicity-first.md)"}, {"id": "standards/okf-house-schema", "type": "Concept", "title": "OKF House Schema", "description": "Binding document schema for every durable brain concept \u2014 known types, required frontmatter, timestamp canon, Prompt Card exceptions, and the OKF v0.2 Code dialect.", "tags": ["standard", "okf", "schema", "frontmatter", "document-types"], "content": "# OKF House Schema\n\nEvery durable markdown concept under `_okf_knowledge/` **MUST** carry YAML frontmatter. `okf.py lint` enforces this schema \u2014 agents **MUST NOT** validate it manually; assume lookup returns validated knowledge.\n\n## Known `type` values\n\n| `type` | Zone | Directory (under `_okf_knowledge/`) |\n| --- | --- | --- |\n| `Concept` | 3 or 4 | `standards/` (tag `standard`) or `vault/` |\n| `Playbook` | 4 | `vault/playbooks/` |\n| `System` | 4 | `vault/systems/` |\n| `Incident` | 4 | `vault/incidents/` |\n| `Reference` | 4 | `vault/references/` |\n| `Profile` | 2 | `kernel/profiles/` (optional / schema; not a runtime gate today) |\n| `Code` | 5 | `code/` (OKF v0.2 dialect; machine-produced, regenerate-only) |\n\n## Required frontmatter fields\n\n```yaml\n---\ntype: Concept          # one of Known types above\ntitle: Human-readable name\ndescription: One-line summary for indexes and okf_lookup\ntags: [kebab-case, topic]\ntimestamp: 2026-07-13T00:00:00Z\nstatus: active         # active | deprecated | draft\nowns: [yaml, metadata] # Standards only: explicit domain ownership (REQUIRED when scopes may overlap)\npriority: 100          # Standards only: 1-100 (highest wins conflicts; REQUIRED when scopes may overlap)\n---\n```\n\n## Field rules\n\n* `type` is **REQUIRED** (lint error if missing).\n* `title` and `description` are house-required (lint warning if missing).\n* `timestamp` is the kernel's canonical date field (`okf.py enrich`/`optimize` stamp it; recency ranking reads it). It **MUST** be updated (ISO-8601) on every modification \u2014 cache invalidation, deterministic tie-breaking, and history tracking depend on it. **MUST NOT** use `last_modified` or other aliases; the kernel will not recognize them.\n* Standards (`standards/` path or tag `standard`) **MUST** include a non-empty `## Prompt Card` section (lint `DBG-308`; target \u2264600 chars, `DBG-309`).\n* Optional Prompt Card exceptions: `prompt_card_max_chars` (per-doc clamp; default 600, hard ceiling 2000) and `pack_force_when: [keywords\u2026]` (force-include in the Prompt Pack when the query matches \u2014 bypasses pack max_cards/budget; forced cards capped at 4).\n\n## `type: Code` \u2014 OKF v0.2 dialect (Zone 5)\n\nAdditionally **REQUIRED** (lint error `DBG-310` if missing):\n\n* `schema_version: 0.2` (mismatch warns `DBG-311`)\n* `language` \u2014 e.g. `terraform` | `cloudformation` | `bicep` | `shell` | `python` | `go` | `yaml-k8s` | `yaml-ansible` | `yaml`\n* `kind` \u2014 e.g. `resource` | `module` | `function` | `class` | `manifest` | `play`\n* `source` \u2014 `relpath:line` back to the described artifact\n\nOptional typed-relationship lists \u2014 `depends_on`, `references`, `calls`, `called_by` \u2014 map onto the graph edge vocabulary; entries that resolve to concept ids become graph/adjacency edges, others remain metadata. Code concepts are exempt from orphan checks (`DBG-306`) and are regenerate-only (never hand-edited or ingested).\n\n## Placement & verification\n\nPlacement, index updates, cross-links, and post-change verification live only in the maintain playbook: [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md).\n\n## Prompt Card\n\n```text\nOKF house schema (lint-enforced \u2014 never validate manually):\ntypes Concept|Playbook|System|Incident|Reference|Profile|Code.\nRequired: type,title,description,tags,timestamp(ISO-8601, canonical \u2014\nNOT last_modified),status. Standards: +owns,+priority,+## Prompt Card\n(\u2264600 chars); optional prompt_card_max_chars / pack_force_when.\nCode (v0.2, zone code/): +schema_version 0.2,language,kind,source;\noptional depends_on/references/calls/called_by \u2192 graph edges;\nregenerate-only. Placement/verify: maintain-aegis-system playbook.\n```\n\n## Related\n\n- Playbook: [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md)\n- Standard: [OKF Prompt Injection](/standards/okf-prompt-injection.md)\n- Standard: [Metadata headers](/standards/metadata-headers.md)\n- Control plane: [AGENTS.md](/AGENTS.md) \u00a71.3 (stub pointer)"}, {"id": "standards/okf-prompt-injection", "type": "Concept", "title": "OKF Prompt Injection", "description": "Binding rule \u2014 anytime Aegis runs, inject a dynamic Prompt Pack from live lookup; vault-first catalogs with live refresh when stale; grader reads only for explain/fix \u2014 not a static path ban-list.", "tags": ["standard", "okf", "prompting", "tokens", "aegis", "retrieval", "cache"], "content": "# OKF Prompt Injection (Rule #2)\n\n**Rule #2.** Curated OKF stays in the vault. Generation and Q&A context get a **dynamic Prompt Pack**: slim `## Prompt Card` text from **this turn\u2019s** `okf.py lookup` / `okf.py card` \u2014 not a full-brain dump and not a static \u201cnever open these paths\u201d encyclopedia in AGENTS.md.\n\n**Scope:** Anytime Aegis is used (questions, review, authoring) \u2014 not only Path A artifact generation.\n\nDomain graders differ by stack. **What is in-bounds for a turn is defined by the live lookup hit-set** (and, for benches, by task placeholders such as `GATE_ANSWER_KEY_GLOBS`).\n\n## Retrieval ladder (global)\n\n| Priority | Lane | How | Use for | Must not use for |\n| :---: | :--- | :--- | :--- | :--- |\n| 1 | **OKF knowledge cache** | `okf.py lookup --card` (+ \u22641 follow-up `lookup`/`card`) | Standards, playbooks, concepts, catalogs, pins/versions in the vault | Random vault Grep; paste compiled artifacts / full docs |\n| 2 | **Pointers from cards** | Read only paths the **current cards** name | One deep dive the pack pointed to | Opening every related file |\n| 3 | **Task corpus** | Glob \u2192 Grep \u2192 Read (or Explore subagent) | Product/code/config being changed or inspected | Discovering org compliance that should be on cards |\n| 4 | **Grader / answer key** | See [Grader access](#grader-access-daily-work) | Explain failure (what/why/where); fix from gate output | Authoring-time peek to invent compliance |\n\nLane 1 **MUST** run before vault Grep or authoring. Corpus Grep (lane 3) is allowed after lane 1; it is not a substitute for lane 1.\n\n## Catalog / pin freshness (vault + live)\n\nPins, version catalogs, and similar reference data use **both** sources, ordered by freshness need:\n\n1. **Vault first (default):** human-maintained Prompt Cards; keep warm with `okf.py compile` (`index.json` / `prompt_cards.json`; process also mtime-caches them).\n2. **Live fetch when stale or missing:** network/`gh`/upstream only if the card is absent, marked stale, or the user requires verification against current upstream.\n3. **Write-back (SHOULD):** durable discoveries belong back in the vault via the maintain playbook \u2014 do not rediscover every run.\n\nAgents **MUST NOT** default to live rediscovery when a current card already supplies the catalog.\n\n## Grader access (daily work)\n\n| Mode | Policy / Rego / CI rule sources |\n| :--- | :--- |\n| **Authoring / writing** | Cards (+ failure text if remediating). **MUST NOT** mine the grader to invent compliance. |\n| **Asked what failed / why / where** | **MAY** open the relevant grader source to explain and locate the rule. Prefer starting from failure output, then open the cited file/rule. |\n| **A/B bench OKF arm** | Follow the bench prompt: forbidden globs are **task-specific** (`GATE_ANSWER_KEY_GLOBS`), not this standard\u2019s static list. |\n\n## MUST\n\n1. Anytime Aegis is used, run `okf.py lookup --card` (or `lookup` then `card` / `pack`) with **task-specific** keywords before vault Grep or generation.\n2. Assemble a **Prompt Pack** from returned `## Prompt Card` sections only.\n3. Each card **MUST** target **\u2264150 tokens** (~600 characters) by default. Prefer shorter.\n4. Hard pack rule: **\u22648 Prompt Cards**. Target budget **\u22481200 tokens** (guidance \u2014 tokenizers differ; kernel default matches). Prefer fewer/shorter when the hit-set allows.\n5. Encyclopedic bodies **MUST** stay in the vault \u2014 **MUST NOT** be copied wholesale into the generation prompt.\n6. Binding rules **MUST** expose a `## Prompt Card` so lookup can surface them dynamically.\n7. Missing pin/version/constraint in the pack \u2192 **one** follow-up `lookup`/`card`, then act (or live-refresh per freshness rules above).\n\n## Prompt Card exceptions (frontmatter)\n\nDense catalogs MAY declare exceptions \u2014 default \u2264600 remains the norm:\n\n| Field | Effect |\n| :--- | :--- |\n| `prompt_card_max_chars: N` | Raises the DBG-309 lint / enrich clamp for that doc only (hard ceiling **2000**). |\n| `pack_force_when: [keywords\u2026]` | When the query shares any keyword, the card is fo\n\n\u2026"}, {"id": "standards/simplicity-first", "type": "Concept", "title": "Simplicity First (Rule #1)", "description": "The Laziness Ladder \u2014 always choose the simplest, shortest, minimal solution that works. Overrides complexity in design, code, and vault structure.", "tags": ["standard", "simplicity", "laziness-ladder", "principles"], "content": "**Rule #1.** Apply the Laziness Ladder as the primary lens for every decision in\nthis vault and in code: the simplest, shortest, most minimal solution that works.\n\n# Laziness Ladder\n\nWhen multiple approaches solve the problem, pick the lowest rung that still works:\n\n| Rung | Approach | Example |\n|------|----------|---------|\n| 1 | Do nothing new | Reuse an existing concept, playbook, or reference |\n| 2 | Edit one file | Fix a link, add one paragraph, patch one script |\n| 3 | Add one small file | One new concept \u2014 not a new directory tree |\n| 4 | Add tooling | Only when manual steps repeat and hurt |\n| 5 | Add abstraction | Last resort \u2014 never start here |\n\n# In the vault\n\n- One concept per file; cross-link instead of duplicating prose.\n- Prefer `index.md` progressive disclosure over bulk-reading the tree.\n- Scripts are stdlib-only unless a dependency is unavoidable.\n- New types, directories, or tooling require justification against this rule.\n\n# In code\n\n- Smallest diff that fixes the root cause \u2014 no drive-by refactors.\n- No helpers for one-liners; no frameworks where a script suffices.\n- Match existing conventions before inventing new ones.\n\n## Prompt Card\n\n```text\nRule #1 Laziness Ladder: simplest shortest minimal solution that works.\nPrefer reuse \u2192 one-file edit \u2192 one small file \u2192 tooling \u2192 abstraction (last).\nSmallest diff; stdlib scripts; no new dirs/types without justification.\n```\n\n# Related\n\n- All other house standards: [Standards index](index.md)\n- Metadata discipline: [Metadata Headers](metadata-headers.md)\n- Prompt discipline: [OKF Prompt Injection](okf-prompt-injection.md)"}, {"id": "vault/concepts/extending-aegis", "type": "Concept", "title": "Extending Aegis", "description": "How to grow this empty framework with your own standards and vault knowledge.", "tags": ["aegis-system", "getting-started", "framework"], "content": "# Extending Aegis\n\nThis package is an **empty control plane**: `AGENTS.md` + `_okf_knowledge/`. Zip it, drop the folder into an IDE agents directory, then add your knowledge.\n\n## Add durable knowledge\n\n1. Drop raw material in [`_inbox/`](/_inbox/).\n2. Follow [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md).\n3. From the package directory:\n\n```bash\npython3 _okf_knowledge/kernel/okf.py compile\npython3 _okf_knowledge/kernel/okf.py lint\n```\n\n## Where things go\n\n| Content | Directory (under `_okf_knowledge/`) | `type` |\n| :--- | :--- | :--- |\n| House rule | `standards/` | `Concept` + tag `standard` |\n| Evergreen fact / pattern | `vault/concepts/` | `Concept` |\n| Procedure | `vault/playbooks/` | `Playbook` |\n| Running system | `vault/systems/` | `System` |\n| Post-mortem | `vault/incidents/` | `Incident` |\n| Cached upstream docs | `vault/references/` | `Reference` |\n\n## Frontmatter (required)\n\n```yaml\n---\ntype: Concept\ntitle: Human-readable name\ndescription: One-line summary for indexes and okf_lookup\ntags: [kebab-case, topic]\ntimestamp: 2026-07-13T00:00:00Z\nstatus: active\n---\n```\n\n## Prompt Card\n\n```text\nNew knowledge MUST: pick type/dir from the table (standards/, vault/*),\nadd required frontmatter (type,title,description,tags,timestamp,status),\nthen run okf.py compile + okf.py lint from the package dir.\nFollow vault/playbooks/maintain-aegis-system.md end-to-end.\n```\n\n## Related\n\n- Control plane: [AGENTS.md](/AGENTS.md)\n- Maintenance: [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md)\n- Law: [Simplicity First](/standards/simplicity-first.md)\n- Profile template: [Profile schema](/kernel/profiles/_schema.md)"}, {"id": "vault/playbooks/maintain-aegis-system", "type": "Playbook", "title": "Maintain aegis-system", "description": "MAINTAIN/INGEST playbook \u2014 add or update vault knowledge, self-learning write-back (Rung 1 inbox capture \u2192 Rung 2 full ingest), cross-links, compile+lint verification.", "tags": ["aegis-system", "ingest", "maintenance", "okf", "procedure", "write-back", "inbox", "self-learn", "maintain"], "content": "# Trigger\n\nYou need to add or change durable knowledge in aegis-system: a concept, house standard,\nplaybook, reference, vault script, or Cursor skill \u2014 either because a user\nasked (MAINTAIN/INGEST) or because a self-learn write-back trigger fired\n([AGENTS.md](/AGENTS.md) \u00a71.6 \u2014 full trigger/ladder detail in\n\u00a7 Self-learning write-back below).\n\n# Preconditions\n\n- [AGENTS.md](/AGENTS.md) \u00a71.2 binds all brain mutations to this playbook \u2014 follow it end-to-end.\n- Read [OKF House Schema](/standards/okf-house-schema.md) for the frontmatter schema before creating files (AGENTS.md \u00a71.3 points there).\n- Raw source material (if any) is in [`_inbox/`](/_inbox/) and has not been edited.\n- You know which `type` the content is (see decision table below).\n\n# What to create \u2014 decision table\n\n| You are documenting\u2026 | `type` | Directory | Also update |\n|----------------------|--------|-----------|-------------|\n| Evergreen knowledge, pattern, tool overview | `Concept` | `vault/` (by domain) | `vault/index.md` |\n| House rule (MUST/SHOULD) | `Concept` + tag `standard` | `standards/` | [standards/index.md](/standards/index.md) |\n| Executable agent procedure | `Playbook` | `vault/playbooks/` | [playbooks/index.md](/vault/playbooks/index.md) |\n| Cached upstream docs | `Reference` | `vault/references/` | Run `kernel/okf.py optimize` |\n| Running system in workspace | `System` | `vault/systems/` | [systems/index.md](/vault/systems/index.md) |\n| Post-mortem | `Incident` | `vault/incidents/` | Link to affected systems/playbooks |\n| Domain routing / tool overview | `Concept` | `vault/concepts/` | [vault/index.md](/vault/index.md) |\n| Vault tooling (lint, compile, scrape) | Python script | `kernel/` | This playbook \u00a7 Scripts |\n| Control-plane schema / persona | Markdown | `AGENTS.md` (package root, next to `_okf_knowledge/`) | [_okf_knowledge/index.md](/index.md) |\n\n# Add or update a concept\n\n## 1. Choose path and filename\n\n- One concept per file; kebab-case filename matching the topic.\n- House standards go in `standards/` with `tags: [standard, \u2026]`.\n- Domain concepts go in `vault/`.\n\n## 2. Frontmatter (required)\n\n```yaml\n---\ntype: Concept\ntitle: Human-readable name\ndescription: One-line summary for indexes and okf_lookup.\ntags: [kebab-case, topic]\ntimestamp: 2026-07-13T00:00:00Z\nstatus: active\n# Optional exceptions (dense catalogs only \u2014 see okf-prompt-injection):\n# prompt_card_max_chars: 1200          # DBG-309 / enrich clamp override (hard max 2000)\n# pack_force_when: [catalog, pin, version]  # force-include in Prompt Pack when query matches\n---\n```\n\n## 3. Body\n\n- Prefer headings, tables, lists, and fenced code over long prose.\n- Standards: normative **MUST** / **SHOULD** / **FORBIDDEN** language.\n- Binding standards **MUST** include a non-empty `## Prompt Card` section (default \u2264150 tokens / ~600 chars) \u2014 enforced by `okf.py lint` (`DBG-308` / `DBG-309`). Override with `prompt_card_max_chars` only when a denser card is justified. See [OKF Prompt Injection](/standards/okf-prompt-injection.md).\n- Catalogs that must survive pack eviction **SHOULD** set `pack_force_when: [keywords\u2026]`.\n- Other agent-facing concepts **SHOULD** include a `## Prompt Card` for slim injection.\n- External claims: `# Citations` with numbered `[1] [title](url)` entries.\n- Link to related concepts with bundle-absolute paths.\n\n## 4. Cross-links (both directions)\n\n- New concept MUST link to at least one existing related concept.\n- Update those existing files to link back.\n- Update every affected `index.md` on the path from root to the file.\n\n# Add or update a playbook\n\n## Required sections\n\n```markdown\n# Trigger\n# Preconditions\n# Steps\n# Verification\n```\n\n- Add a one-line entry to [playbooks/index.md](/vault/playbooks/index.md).\n\n# Add or update a script\n\nThe kernel is a single script, `kernel/okf.py`, with one subcommand per operation; it is **not** an OKF concept.\n\n| Subcommand | Role |\n|--------|------|\n| `okf.py compile` | Regenerate `index.json` + `prompt_cards.json`; embed visuali\n\n\u2026"}], "edges": [{"source": "kernel/profiles/_schema", "target": "vault/playbooks/maintain-aegis-system"}, {"source": "kernel/profiles/_schema", "target": "standards/okf-prompt-injection"}, {"source": "kernel/profiles/_schema", "target": "vault/concepts/extending-aegis"}, {"source": "standards/metadata-headers", "target": "standards/simplicity-first"}, {"source": "standards/okf-house-schema", "target": "vault/playbooks/maintain-aegis-system"}, {"source": "standards/okf-house-schema", "target": "vault/playbooks/maintain-aegis-system"}, {"source": "standards/okf-house-schema", "target": "standards/okf-prompt-injection"}, {"source": "standards/okf-house-schema", "target": "standards/metadata-headers"}, {"source": "standards/okf-prompt-injection", "target": "standards/simplicity-first"}, {"source": "standards/okf-prompt-injection", "target": "vault/playbooks/maintain-aegis-system"}, {"source": "standards/okf-prompt-injection", "target": "vault/concepts/extending-aegis"}, {"source": "standards/simplicity-first", "target": "standards/metadata-headers"}, {"source": "standards/simplicity-first", "target": "standards/okf-prompt-injection"}, {"source": "vault/concepts/extending-aegis", "target": "vault/playbooks/maintain-aegis-system"}, {"source": "vault/concepts/extending-aegis", "target": "vault/playbooks/maintain-aegis-system"}, {"source": "vault/concepts/extending-aegis", "target": "standards/simplicity-first"}, {"source": "vault/concepts/extending-aegis", "target": "kernel/profiles/_schema"}, {"source": "vault/playbooks/maintain-aegis-system", "target": "standards/okf-house-schema"}, {"source": "vault/playbooks/maintain-aegis-system", "target": "standards/okf-prompt-injection"}, {"source": "vault/playbooks/maintain-aegis-system", "target": "standards/okf-prompt-injection"}, {"source": "vault/playbooks/maintain-aegis-system", "target": "standards/okf-house-schema"}, {"source": "vault/playbooks/maintain-aegis-system", "target": "standards/okf-house-schema"}, {"source": "vault/playbooks/maintain-aegis-system", "target": "standards/okf-house-schema"}, {"source": "vault/playbooks/maintain-aegis-system", "target": "standards/simplicity-first"}, {"source": "vault/playbooks/maintain-aegis-system", "target": "vault/concepts/extending-aegis"}, {"source": "vault/playbooks/maintain-aegis-system", "target": "kernel/profiles/_schema"}]}</script>
   <script id="lint-data" type="application/json">{
-  "generated": "2026-07-16T21:59:06Z",
+  "generated": "2026-07-17T21:25:06Z",
   "vault": "_okf_knowledge",
   "summary": {
-    "concepts": 21,
+    "concepts": 7,
     "errors": 0,
     "warnings": 0
   },
@@ -1315,33 +668,86 @@ AUTHORS: contributors
 }</script>
   <script>
     "use strict";
-    /* Palette assigned to `type` values in order of first appearance. */
-    const PALETTE = ["#6aa2ff", "#ffb454", "#4fd6be", "#f26d78", "#c792ea", "#a3d977", "#f0c674", "#7fb4c9"];
+    /* Palette assigned to `type` in order of first appearance. */
+    const PALETTE = ["#7f6df2", "#e0a35c", "#4ecdc4", "#e06c75", "#c678dd", "#98c379", "#e5c07b", "#61afef"];
     const KNOWN_TYPES = new Set(["Concept", "Playbook", "System", "Reference", "Incident"]);
     const MD_LINK_RE = /\[[^\]]*\]\(([^)\s]+)\)/g;
     const SIDEBAR_W = 300, TOPBAR_H = 46, READER_W = 440;
     const canvas = document.getElementById("c");
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
     const tip = document.getElementById("tip");
     const statusEl = document.getElementById("status");
+    let dpr = 1;
+
+    const opts = {
+      labels: "hover",   // off | hover | selection | always
+      hideOrphans: true,
+      localGraph: false,
+      arrows: false,
+    };
 
     let nodes = [], edges = [], typeColors = new Map();
-    let lint = null;                 // parsed lint.json
+    let lint = null;                 // embedded lint report
     let lintByConcept = new Map();   // concept id -> "error" | "warning"
     let hiddenTypes = new Set();     // toggled off via legend
     let selected = null;
+    let hoverNode = null;
     let view = { x: 0, y: 0, k: 1 };
     let tween = null;                // {tx, ty, tk} camera target
     let dragNode = null, panning = false, moved = false, last = { x: 0, y: 0 };
     let alpha = 0;                   // simulation temperature
 
-    function resize() {
-      canvas.width = innerWidth * devicePixelRatio;
-      canvas.height = innerHeight * devicePixelRatio;
-      canvas.style.width = innerWidth + "px";
-      canvas.style.height = innerHeight + "px";
+    function bindDeclutter() {
+      const labels = document.getElementById("opt-labels");
+      const orphans = document.getElementById("opt-orphans");
+      const local = document.getElementById("opt-local");
+      const arrows = document.getElementById("opt-arrows");
+      labels.value = opts.labels;
+      orphans.checked = opts.hideOrphans;
+      local.checked = opts.localGraph;
+      arrows.checked = opts.arrows;
+      const bump = () => { alpha = Math.max(alpha, 0.35); };
+      labels.addEventListener("change", () => { opts.labels = labels.value; });
+      orphans.addEventListener("change", () => { opts.hideOrphans = orphans.checked; bump(); });
+      local.addEventListener("change", () => { opts.localGraph = local.checked; bump(); });
+      arrows.addEventListener("change", () => { opts.arrows = arrows.checked; });
     }
-    addEventListener("resize", resize); resize();
+    bindDeclutter();
+    canvas.addEventListener("mouseleave", () => { hoverNode = null; tip.style.display = "none"; });
+
+    function graphSize() {
+      const readerW = readerOpen() ? READER_W : 0;
+      return {
+        w: Math.max(1, innerWidth - SIDEBAR_W - readerW),
+        h: Math.max(1, innerHeight - TOPBAR_H),
+      };
+    }
+
+    function resize() {
+      document.body.classList.toggle("reader-open", readerOpen());
+      const { w, h } = graphSize();
+      dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
+      const bw = Math.round(w * dpr);
+      const bh = Math.round(h * dpr);
+      if (canvas.width !== bw || canvas.height !== bh) {
+        canvas.width = bw;
+        canvas.height = bh;
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.imageSmoothingEnabled = true;
+      if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
+    }
+    addEventListener("resize", resize);
+
+    function pointer(e) {
+      const r = canvas.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    }
+
+    function centerView() {
+      const { w, h } = graphSize();
+      view = { x: w / 2, y: h / 2, k: 1 };
+    }
 
     function colorFor(type) {
       if (!typeColors.has(type)) typeColors.set(type, PALETTE[typeColors.size % PALETTE.length]);
@@ -1370,10 +776,26 @@ AUTHORS: contributors
       edges.forEach(e => { e.s.deg++; e.t.deg++; });
       hiddenTypes.clear();
       selected = null;
-      view = { x: SIDEBAR_W + (innerWidth - SIDEBAR_W) / 2, y: TOPBAR_H + (innerHeight - TOPBAR_H) / 2, k: 1 };
+      resize();
+      centerView();
       alpha = 1;
       statusEl.textContent = `${nodes.length} concepts, ${edges.length} links`;
-      renderLegend(); renderNavigator(); renderDetails(); renderReader(); applyLint();
+      renderCompileStatus("ok");
+      renderLegend(); renderNavigator(); renderReader(); applyLint();
+    }
+
+    function renderCompileStatus(state, detail) {
+      const el = document.getElementById("compilecounts");
+      if (state === "ok") {
+        el.innerHTML = `<span class="cnt ok">compiled ✓</span>`;
+        el.title = detail || `${nodes.length} concepts, ${edges.length} links`;
+      } else if (state === "err") {
+        el.innerHTML = `<span class="cnt err">compile failed</span>`;
+        el.title = detail || "Compile failed";
+      } else {
+        el.innerHTML = `<span class="cnt idle">compile —</span>`;
+        el.title = detail || "Compile status";
+      }
     }
 
     function setLint(data) {
@@ -1396,19 +818,10 @@ AUTHORS: contributors
       catch (err) { statusEl.textContent = `could not parse ${label}: ${err.message}`; return; }
       if (Array.isArray(data.nodes)) setGraph(data);
       else if (Array.isArray(data.findings)) setLint(data);
-      else statusEl.textContent = `${label}: not a graph.json or lint.json`;
+      else statusEl.textContent = `${label}: not a graph or lint payload`;
     }
 
-    document.getElementById("filepick").addEventListener("change", e => {
-      for (const f of e.target.files) f.text().then(t => loadText(t, f.name));
-    });
-    addEventListener("dragover", e => e.preventDefault());
-    addEventListener("drop", e => {
-      e.preventDefault();
-      for (const f of e.dataTransfer.files) f.text().then(t => loadText(t, f.name));
-    });
-    /* Prefer data embedded by the vault scripts; fall back to fetch (served mode),
-       then to the file picker / drag-and-drop. */
+    /* Load payloads embedded by okf.py compile / lint. */
     function loadEmbedded(id, label) {
       const el = document.getElementById(id);
       const text = el ? el.textContent.trim() : "";
@@ -1417,17 +830,10 @@ AUTHORS: contributors
       return true;
     }
     if (!loadEmbedded("graph-data", "embedded graph")) {
-      fetch("graph.json")
-        .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
-        .then(t => loadText(t, "graph.json"))
-        .catch(() => { statusEl.textContent = "no embedded data (run kernel/okf.py compile) — or use the button / drop files here"; });
+      statusEl.textContent = "no embedded graph (run: python3 kernel/okf.py compile)";
+      renderCompileStatus("idle", "No embedded graph — run Compile");
     }
-    if (!loadEmbedded("lint-data", "embedded lint")) {
-      fetch("lint.json")
-        .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
-        .then(t => loadText(t, "lint.json"))
-        .catch(() => { /* lint.json is optional — run kernel/okf.py lint to create it */ });
-    }
+    loadEmbedded("lint-data", "embedded lint");
 
     /* ---------- legend (click to filter) ---------- */
 
@@ -1441,7 +847,7 @@ AUTHORS: contributors
         el.title = "Click to show/hide this type";
         el.addEventListener("click", () => {
           hiddenTypes.has(type) ? hiddenTypes.delete(type) : hiddenTypes.add(type);
-          if (selected && hiddenTypes.has(selected.type)) { selected = null; renderDetails(); renderReader(); }
+          if (selected && hiddenTypes.has(selected.type)) { selected = null; renderReader(); }
           renderLegend(); renderNavigator();
         });
         legend.appendChild(el);
@@ -1459,98 +865,130 @@ AUTHORS: contributors
       return "Other";
     }
 
+    function pathDirs(id) {
+      const parts = id.replace(/^knowledge\//, "").split("/").filter(Boolean);
+      return parts.slice(0, -1); // directories only (drop filename stem)
+    }
+
+    function emptyDirNode(name) {
+      return { name, children: new Map(), nodes: [] };
+    }
+
+    function countTree(node) {
+      let n = node.nodes.length;
+      for (const child of node.children.values()) n += countTree(child);
+      return n;
+    }
+
+    function appendNavItem(parent, n, depth) {
+      const item = document.createElement("div");
+      item.className = "navitem" + (selected === n ? " selected" : "");
+      item.style.setProperty("--depth", String(depth));
+      const mark = n.lint === "error" ? `<span class="mark" style="color:var(--error)">●</span>`
+        : n.lint === "warning" ? `<span class="mark" style="color:var(--warning)">●</span>` : "";
+      item.innerHTML = `<span class="bullet" style="background:${n.color}"></span>` +
+        `<span class="nav-label">${n.title || n.id.split("/").pop()}</span>${mark}`;
+      item.title = n.id + ".md";
+      item.addEventListener("click", () => selectNode(n, true));
+      parent.appendChild(item);
+    }
+
+    function hasSubEntities(dirNode) {
+      return dirNode.children.size > 0 || dirNode.nodes.length > 0;
+    }
+
+    function renderDirTree(parentEl, dirNode, depth) {
+      const childNames = [...dirNode.children.keys()].sort((a, b) => a.localeCompare(b));
+      for (const name of childNames) {
+        const child = dirNode.children.get(name);
+        const folderDet = document.createElement("details");
+        folderDet.className = "navgroup folder-group";
+        if (hasSubEntities(child)) folderDet.classList.add("has-children");
+        folderDet.open = true;
+        const folderSum = document.createElement("summary");
+        folderSum.style.setProperty("--depth", String(depth));
+        const total = countTree(child);
+        folderSum.innerHTML =
+          `<span class="nav-label">${name} (${total})</span>`;
+        folderDet.appendChild(folderSum);
+        renderDirTree(folderDet, child, depth + 1);
+        parentEl.appendChild(folderDet);
+      }
+      const members = [...dirNode.nodes].sort(
+        (a, b) => (a.title || a.id).localeCompare(b.title || b.id)
+      );
+      for (const n of members) appendNavItem(parentEl, n, depth);
+    }
+
     function renderNavigator() {
       const list = document.getElementById("navlist");
       const q = document.getElementById("search").value.trim().toLowerCase();
       list.innerHTML = "";
 
-      const groups = new Map();
-      const zoneOrder = ["Zone 1: Untriaged", "Zone 2: Execution", "Zone 3: Governance", "Zone 4: Knowledge", "Other"];
-      zoneOrder.forEach(z => groups.set(z, new Map()));
+      const zoneOrder = [
+        "Zone 1: Untriaged",
+        "Zone 2: Execution",
+        "Zone 3: Governance",
+        "Zone 4: Knowledge",
+        "Other",
+      ];
+      const groups = new Map(zoneOrder.map(z => [z, emptyDirNode(z)]));
 
       for (const n of nodes) {
         if (hiddenTypes.has(n.type)) continue;
         if (q && !(n.title + " " + n.id).toLowerCase().includes(q)) continue;
 
-        const zone = getZone(n.id);
-        const zoneMap = groups.get(zone);
-
-        // Group by directory within zone
-        let parts = n.id.split("/");
-        let folder = parts.length > 2 ? parts.slice(0, -1).join("/") : "root";
-        if (!zoneMap.has(folder)) zoneMap.set(folder, []);
-        zoneMap.get(folder).push(n);
+        const zoneRoot = groups.get(getZone(n.id));
+        const dirs = pathDirs(n.id);
+        let cur = zoneRoot;
+        for (const d of dirs) {
+          if (!cur.children.has(d)) cur.children.set(d, emptyDirNode(d));
+          cur = cur.children.get(d);
+        }
+        cur.nodes.push(n);
       }
 
+      let any = false;
       for (const zoneName of zoneOrder) {
-        const zoneMap = groups.get(zoneName);
-        if (!zoneMap.size) continue;
+        const zoneRoot = groups.get(zoneName);
+        if (!zoneRoot.children.size && !zoneRoot.nodes.length) continue;
+        any = true;
 
         const zoneDet = document.createElement("details");
-        zoneDet.className = "navgroup zone-group"; zoneDet.open = true;
+        zoneDet.className = "navgroup zone-group";
+        if (hasSubEntities(zoneRoot)) zoneDet.classList.add("has-children");
+        zoneDet.open = true;
         const zoneSum = document.createElement("summary");
-        zoneSum.innerHTML = `<span class="nav-label" style="color:var(--accent)">${zoneName}</span>`;
+        zoneSum.style.setProperty("--depth", "0");
+        zoneSum.innerHTML =
+          `<span class="nav-label" style="color:var(--accent)">${zoneName}</span>`;
         zoneDet.appendChild(zoneSum);
-
-        for (const [folder, members] of [...zoneMap].sort()) {
-          members.sort((a, b) => (a.title || a.id).localeCompare(b.title || b.id));
-
-          const folderDet = document.createElement("details");
-          folderDet.className = "navgroup folder-group"; folderDet.open = true;
-          folderDet.style.marginLeft = "8px";
-      const folderSum = document.createElement("summary");
-      folderSum.innerHTML = `<span class="nav-label" style="opacity:0.8;font-size:12px;grid-column:2/4">${folder.replace(/^knowledge\//, "")} (${members.length})</span>`;
-      folderDet.appendChild(folderSum);
-
-          for (const n of members) {
-            const item = document.createElement("div");
-            item.className = "navitem" + (selected === n ? " selected" : "");
-            const mark = n.lint === "error" ? `<span class="mark" style="color:var(--error)">●</span>`
-              : n.lint === "warning" ? `<span class="mark" style="color:var(--warning)">●</span>` : "";
-            item.innerHTML = `<span class="arrow" style="color:${n.color}">›</span>` +
-              `<span class="nav-label">${n.title || n.id.split("/").pop()}</span>${mark}`;
-            item.title = n.id + ".md";
-            item.addEventListener("click", () => selectNode(n, true));
-            folderDet.appendChild(item);
-          }
-          zoneDet.appendChild(folderDet);
-        }
+        renderDirTree(zoneDet, zoneRoot, 1);
         list.appendChild(zoneDet);
       }
 
-      if (!groups.size) {
-        list.innerHTML = `<div style="padding:10px 14px;color:var(--muted);font-size:12px">no matching concepts</div>`;
+      if (!any) {
+        list.innerHTML =
+          `<div style="padding:10px 14px;color:var(--muted);font-size:12px">no matching concepts</div>`;
       }
     }
     document.getElementById("search").addEventListener("input", renderNavigator);
 
-    /* ---------- selection & details ---------- */
+    /* ---------- selection ---------- */
 
     function selectNode(n, focus) {
       selected = n;
-      renderNavigator(); renderDetails(); renderReader();
+      renderNavigator(); renderReader();
+      resize();
       if (focus && n) {
-        const readerW = readerOpen() ? READER_W : 0;
+        const { w, h } = graphSize();
+        const k = Math.max(view.k, 1.15);
         tween = {
-          tx: SIDEBAR_W + (innerWidth - SIDEBAR_W - readerW) / 2 - n.x * Math.max(view.k, 1),
-          ty: TOPBAR_H + (innerHeight - TOPBAR_H) / 2 - n.y * Math.max(view.k, 1),
-          tk: Math.max(view.k, 1),
+          tx: w / 2 - n.x * k,
+          ty: h / 2 - n.y * k,
+          tk: k,
         };
       }
-    }
-
-    function renderDetails() {
-      const el = document.getElementById("details");
-      if (!selected) { el.style.display = "none"; return; }
-      const n = selected;
-      const findings = lint ? lint.findings.filter(f => f.concept === n.id) : [];
-      el.style.display = "block";
-      el.innerHTML =
-        `<div class="d-title"><span class="dot" style="display:inline-block;background:${n.color}"></span> ${n.title || n.id}</div>` +
-        `<div class="d-meta">${n.type} &middot; ${n.id}.md &middot; ${n.deg} link(s)</div>` +
-        findings.map(f =>
-          `<div style="color:var(--${f.severity === "error" ? "error" : "warning"})">[${f.code}] ${f.message}</div>`
-        ).join("");
     }
 
     /* ---------- reading pane (markdown content) ---------- */
@@ -1700,7 +1138,11 @@ AUTHORS: contributors
 
     function renderReader() {
       const el = document.getElementById("reader");
-      if (!readerOpen()) { el.style.display = "none"; return; }
+      if (!readerOpen()) {
+        el.style.display = "none";
+        resize();
+        return;
+      }
       const n = selected;
       document.getElementById("r-title").innerHTML =
         `<span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${n.color};margin-right:6px"></span>` +
@@ -1714,11 +1156,12 @@ AUTHORS: contributors
         n.content ? mdToHtml(n.content, n.id) : `<p style="color:var(--muted)">empty body</p>`;
       document.getElementById("r-body").scrollTop = 0;
       el.style.display = "flex";
+      resize();
     }
 
     function closeReader() {
       selected = null;
-      renderNavigator(); renderDetails(); renderReader();
+      renderNavigator(); renderReader();
     }
     document.getElementById("r-close").addEventListener("click", closeReader);
     addEventListener("keydown", e => { if (e.key === "Escape" && readerOpen()) closeReader(); });
@@ -1787,17 +1230,23 @@ AUTHORS: contributors
       const btn = document.getElementById("run-compile");
       btn.disabled = true;
       btn.textContent = "Compiling…";
+      renderCompileStatus("idle", "Compiling…");
       try {
         const resp = await fetch("/api/compile", { method: "POST" });
         if (resp.ok) {
           const data = await resp.json();
           setGraph(data);
           statusEl.textContent = `${nodes.length} concepts — graph compiled successfully`;
+          renderCompileStatus("ok", `vault compile · ${nodes.length} concepts, ${edges.length} links`);
         } else {
-          statusEl.textContent = "compile failed (is the server running with kernel/okf.py serve?)";
+          const msg = "compile failed (is the server running with kernel/okf.py serve?)";
+          statusEl.textContent = msg;
+          renderCompileStatus("err", msg);
         }
       } catch (err) {
-        statusEl.textContent = `compile error: ${err.message}`;
+        const msg = `compile error: ${err.message}`;
+        statusEl.textContent = msg;
+        renderCompileStatus("err", msg);
       } finally {
         btn.disabled = false;
         btn.textContent = "Run Compile";
@@ -1836,60 +1285,98 @@ AUTHORS: contributors
 
     function renderLint() {
       const counts = document.getElementById("lintcounts");
-      const list = document.getElementById("lintlist");
-      if (!lint) { counts.textContent = "not loaded"; list.innerHTML = ""; return; }
+      if (!lint) {
+        counts.innerHTML = `<span class="cnt idle">lint —</span>`;
+        counts.title = "Lint status";
+        return;
+      }
       const e = lint.summary.errors, w = lint.summary.warnings;
       counts.innerHTML = (e || w)
-        ? `<span class="cnt err">${e} error(s)</span> &nbsp;<span class="cnt warn">${w} warning(s)</span>`
-        : `<span class="cnt ok">clean ✓</span>`;
-      counts.title = lint.source === "vault"
-        ? `vault scan · ${lint.generated}`
-        : `browser scan · ${lint.generated} (use kernel/okf.py serve for full vault lint)`;
-      list.innerHTML = "";
-      for (const f of lint.findings) {
-        const item = document.createElement("div");
-        item.className = "lintitem";
-        item.innerHTML = `<span class="sev ${f.severity}">${f.severity === "error" ? "ERR" : "WARN"}</span>` +
-          `<span><b>${f.concept}</b> <span class="msg">[${f.code}] ${f.message}</span></span>`;
-        item.addEventListener("click", () => {
-          const n = nodes.find(n => n.id === f.concept);
-          if (n) selectNode(n, true);
-        });
-        list.appendChild(item);
-      }
-      if (!lint.findings.length) {
-        list.innerHTML = `<div style="padding:2px 14px 8px;color:var(--muted);font-size:12px">vault is conformant and healthy</div>`;
-      }
+        ? `<span class="cnt err">${e} err</span> · <span class="cnt warn">${w} warn</span>`
+        : `<span class="cnt ok">lint clean ✓</span>`;
+      const src = lint.source === "vault" ? "vault scan" : "browser scan";
+      const sample = (lint.findings || []).slice(0, 8).map(f =>
+        `${f.severity === "error" ? "ERR" : "WARN"} ${f.concept}: [${f.code}] ${f.message}`
+      ).join("\n");
+      counts.title = sample
+        ? `${src} · ${lint.generated}\n${sample}${(lint.findings.length > 8) ? "\n…" : ""}`
+        : `${src} · ${lint.generated} · vault is conformant and healthy`;
     }
 
     /* ---------- force simulation & drawing ---------- */
 
-    function visible(n) { return !hiddenTypes.has(n.type); }
+    function neighborsOf(n) {
+      const set = new Set();
+      if (!n) return set;
+      for (const e of edges) {
+        if (e.s === n) set.add(e.t);
+        if (e.t === n) set.add(e.s);
+      }
+      return set;
+    }
+
+    function visible(n) {
+      if (hiddenTypes.has(n.type)) return false;
+      if (opts.hideOrphans && n.deg === 0) return false;
+      if (opts.localGraph && selected) {
+        if (n === selected) return true;
+        return neighborsOf(selected).has(n);
+      }
+      return true;
+    }
+
+    function shouldShowLabel(n, neighbors) {
+      if (opts.labels === "off") return false;
+      if (opts.labels === "always") return true;
+      if (opts.labels === "hover") return n === hoverNode || n === selected;
+      if (opts.labels === "selection") return n === selected || neighbors.has(n);
+      return false;
+    }
+
+    function drawArrow(sx, sy, tx, ty, color) {
+      const dx = tx - sx, dy = ty - sy;
+      const d = Math.hypot(dx, dy) || 1;
+      const ux = dx / d, uy = dy / d;
+      const tipX = tx - ux * 10 / view.k, tipY = ty - uy * 10 / view.k;
+      const ax = -uy, ay = ux;
+      const s = 4.5 / view.k;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(tx - ux * 4 / view.k, ty - uy * 4 / view.k);
+      ctx.lineTo(tipX + ax * s, tipY + ay * s);
+      ctx.lineTo(tipX - ax * s, tipY - ay * s);
+      ctx.closePath();
+      ctx.fill();
+    }
 
     function step() {
       if (alpha > 0.005) {
         for (const e of edges) {
+          if (!visible(e.s) || !visible(e.t)) continue;
           const dx = e.t.x - e.s.x, dy = e.t.y - e.s.y;
           const d = Math.hypot(dx, dy) || 1;
-          const f = (d - 120) * 0.02 * alpha;
+          const f = (d - 140) * 0.018 * alpha;
           e.s.vx += dx / d * f; e.s.vy += dy / d * f;
           e.t.vx -= dx / d * f; e.t.vy -= dy / d * f;
         }
         for (let i = 0; i < nodes.length; i++) {
+          if (!visible(nodes[i])) continue;
           for (let j = i + 1; j < nodes.length; j++) {
+            if (!visible(nodes[j])) continue;
             const a = nodes[i], b = nodes[j];
             const dx = b.x - a.x, dy = b.y - a.y;
             const d2 = dx * dx + dy * dy || 1;
-            const f = Math.min(2000 / d2, 4) * alpha;
+            const f = Math.min(2800 / d2, 5) * alpha;
             const d = Math.sqrt(d2);
             a.vx -= dx / d * f; a.vy -= dy / d * f;
             b.vx += dx / d * f; b.vy += dy / d * f;
           }
         }
         for (const n of nodes) {
-          n.vx -= n.x * 0.002 * alpha; n.vy -= n.y * 0.002 * alpha;
+          if (!visible(n)) continue;
+          n.vx -= n.x * 0.0015 * alpha; n.vy -= n.y * 0.0015 * alpha;
           if (n !== dragNode) { n.x += n.vx; n.y += n.vy; }
-          n.vx *= 0.85; n.vy *= 0.85;
+          n.vx *= 0.86; n.vy *= 0.86;
         }
         alpha *= 0.995;
       }
@@ -1904,51 +1391,81 @@ AUTHORS: contributors
     }
 
     function draw() {
-      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
-      ctx.clearRect(0, 0, innerWidth, innerHeight);
+      const { w, h } = graphSize();
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = "#181818";
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.save();
       ctx.translate(view.x, view.y);
       ctx.scale(view.k, view.k);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
 
-      const neighbors = new Set();
-      if (selected) {
-        for (const e of edges) {
-          if (e.s === selected) neighbors.add(e.t);
-          if (e.t === selected) neighbors.add(e.s);
-        }
-      }
+      const neighbors = neighborsOf(selected);
+      const focus = selected || hoverNode;
+      const focusNeighbors = neighborsOf(focus);
 
-      ctx.lineWidth = 1 / view.k;
+      /* --- edges --- */
       for (const e of edges) {
-        const dim = !visible(e.s) || !visible(e.t);
-        const hot = selected && (e.s === selected || e.t === selected);
-        ctx.strokeStyle = dim ? "rgba(140,150,180,0.05)"
-          : hot ? "rgba(106,162,255,0.7)" : "rgba(140,150,180,0.25)";
-        ctx.beginPath(); ctx.moveTo(e.s.x, e.s.y); ctx.lineTo(e.t.x, e.t.y); ctx.stroke();
-      }
-      for (const n of nodes) {
-        const dim = !visible(n);
-        const r = 5 + Math.min(n.deg, 10) * 1.2;
-        ctx.globalAlpha = dim ? 0.12 : 1;
-        ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = n.color; ctx.fill();
-        if (!dim && n.lint) {
-          ctx.strokeStyle = n.lint === "error" ? "#f26d78" : "#f0c674";
-          ctx.lineWidth = 2.5 / view.k;
-          ctx.beginPath(); ctx.arc(n.x, n.y, r + 3 / view.k, 0, Math.PI * 2); ctx.stroke();
-        }
-        if (n === selected) {
-          ctx.strokeStyle = "#ffffff";
-          ctx.lineWidth = 2 / view.k;
-          ctx.beginPath(); ctx.arc(n.x, n.y, r + 6 / view.k, 0, Math.PI * 2); ctx.stroke();
-        }
-        if (!dim && view.k > 0.6) {
-          ctx.fillStyle = (n === selected || neighbors.has(n))
-            ? "rgba(255,255,255,0.95)" : "rgba(215,218,226,0.85)";
-          ctx.font = `${11 / view.k}px system-ui`;
-          ctx.fillText(n.title || n.id, n.x + r + 4 / view.k, n.y + 4 / view.k);
+        if (!visible(e.s) || !visible(e.t)) continue;
+        const hot = focus && (e.s === focus || e.t === focus);
+        const faded = focus && !hot;
+        ctx.globalAlpha = faded ? 0.08 : 1;
+        ctx.strokeStyle = hot ? "rgba(127,109,242,0.75)" : "rgba(160,160,160,0.22)";
+        ctx.lineWidth = (hot ? 1.6 : 1) / view.k;
+        ctx.beginPath();
+        ctx.moveTo(e.s.x, e.s.y);
+        ctx.lineTo(e.t.x, e.t.y);
+        ctx.stroke();
+        if (opts.arrows && !faded) {
+          drawArrow(e.s.x, e.s.y, e.t.x, e.t.y, hot ? "rgba(127,109,242,0.85)" : "rgba(160,160,160,0.35)");
         }
         ctx.globalAlpha = 1;
       }
+
+      /* --- nodes --- */
+      for (const n of nodes) {
+        if (!visible(n)) continue;
+        const r = 5.5 + Math.min(n.deg, 12) * 1.1;
+        const isFocus = n === focus;
+        const isNear = focus && (n === focus || focusNeighbors.has(n));
+        const faded = focus && !isNear;
+        ctx.globalAlpha = faded ? 0.12 : 1;
+
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = n.color;
+        ctx.fill();
+
+        if (n.lint && !faded) {
+          ctx.strokeStyle = n.lint === "error" ? "#f26d78" : "#f0c674";
+          ctx.lineWidth = 2 / view.k;
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, r + 3 / view.k, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        if (n === selected) {
+          ctx.strokeStyle = "rgba(255,255,255,0.9)";
+          ctx.lineWidth = 1.75 / view.k;
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, r + 5 / view.k, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        if (shouldShowLabel(n, neighbors) && view.k > 0.35) {
+          const label = n.title || n.id;
+          const fs = Math.max(11, Math.round(12 / Math.sqrt(Math.max(view.k, 0.5))));
+          ctx.font = `500 ${fs / view.k}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = "rgba(0,0,0,0.55)";
+          ctx.fillText(label, n.x + r + 6 / view.k + 0.7 / view.k, n.y + 0.7 / view.k);
+          ctx.fillStyle = isFocus || isNear ? "rgba(255,255,255,0.95)" : "rgba(220,220,220,0.82)";
+          ctx.fillText(label, n.x + r + 6 / view.k, n.y);
+        }
+        ctx.globalAlpha = 1;
+      }
+      ctx.restore();
     }
 
     /* ---------- pointer interaction ---------- */
@@ -1957,11 +1474,12 @@ AUTHORS: contributors
     function nodeAt(px, py) {
       const p = toWorld(px, py);
       return nodes.find(n => visible(n) &&
-        Math.hypot(n.x - p.x, n.y - p.y) < (6 + Math.min(n.deg, 10) * 1.2) + 4 / view.k);
+        Math.hypot(n.x - p.x, n.y - p.y) < (8 + Math.min(n.deg, 10) * 1.35) + 5 / view.k);
     }
 
     canvas.addEventListener("mousedown", e => {
-      const n = nodeAt(e.clientX, e.clientY);
+      const p = pointer(e);
+      const n = nodeAt(p.x, p.y);
       if (n) { dragNode = n; alpha = Math.max(alpha, 0.3); }
       else panning = true;
       moved = false; tween = null;
@@ -1972,7 +1490,9 @@ AUTHORS: contributors
       if (dragNode) { dragNode.x += dx / view.k; dragNode.y += dy / view.k; moved = moved || dx || dy; }
       else if (panning) { view.x += dx; view.y += dy; moved = moved || dx || dy; }
       else {
-        const n = nodeAt(e.clientX, e.clientY);
+        const p = pointer(e);
+        const n = nodeAt(p.x, p.y);
+        hoverNode = n || null;
         if (n) {
           const lintLine = n.lint
             ? `<div class="t-lint ${n.lint}">${n.lint === "error" ? "has lint errors" : "has lint warnings"}</div>` : "";
@@ -1988,18 +1508,23 @@ AUTHORS: contributors
     });
     addEventListener("mouseup", e => {
       if (dragNode && !moved) selectNode(dragNode, false);
-      else if (panning && !moved && e.target === canvas) { selected = null; renderNavigator(); renderDetails(); renderReader(); }
+      else if (panning && !moved && e.target === canvas) {
+        selected = null; resize();
+        renderNavigator(); renderReader();
+      }
       dragNode = null; panning = false;
     });
     canvas.addEventListener("wheel", e => {
       e.preventDefault(); tween = null;
+      const p = pointer(e);
       const factor = e.deltaY < 0 ? 1.1 : 0.9;
-      const p = toWorld(e.clientX, e.clientY);
+      const world = toWorld(p.x, p.y);
       view.k = Math.min(4, Math.max(0.2, view.k * factor));
-      view.x = e.clientX - p.x * view.k;
-      view.y = e.clientY - p.y * view.k;
+      view.x = p.x - world.x * view.k;
+      view.y = p.y - world.y * view.k;
     }, { passive: false });
 
+    resize();
     step();
   </script>
 </body>

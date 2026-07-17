@@ -20,7 +20,7 @@ Together they zip into an IDE agents/skills directory and travel with the team. 
 | An AST / tree-sitter **code indexer** | Tools like okf-generator map *code symbols*. Aegis stores **operational and policy knowledge**. |
 | A vector RAG store | Default lookup is **deterministic** over frontmatter (title, tags, path, type) — not embeddings. |
 | A replacement for project source | Application repos stay untouched; the brain is a **sibling knowledge package**. |
-| A dump of the whole vault into the LLM | Agents **lookup → Prompt Card**, never paste `graph.json` or entire standards by default. |
+| A dump of the whole vault into the LLM | Agents **lookup → Prompt Card**, never paste compiled artifacts (`index.json`, graph embeds) or entire standards by default. |
 
 ## Design goal (one sentence)
 
@@ -51,7 +51,7 @@ Capability check (required modules/vendors/standards present?)
 Context expansion (typed graph traversal + lookup)
         │
         ▼
-Assemble Prompt Pack (≤ 8 cards, ~1200 tokens advisory)
+Assemble Prompt Pack (≤ 8 cards hard; target ≈1200 tokens)
         │
         ▼
 Path A Generation  |  Path B Validation  |  Path C Execution

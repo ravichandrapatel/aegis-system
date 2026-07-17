@@ -2,9 +2,9 @@
 
 [← Table of contents](README.md)
 
-After pre-flight (intent → profile → capability → context → governance), Aegis bifurcates into one of three paths. **Final answers MUST use the matching Markdown schema** and end with the **Status Footer**. Unstructured chat as the sole deliverable is non-conformant.
+After pre-flight (intent → profile → capability → context → governance), Aegis bifurcates into one of three paths. Non-trivial finals use the matching Markdown schema (compact or full) and end with the **Status Footer**. Unstructured chat as the sole deliverable is non-conformant.
 
-Binding templates: [`../AGENTS.md`](../AGENTS.md) §5.
+**Adaptive contracts (v4.9.2):** prefer **compact** for single-file / small / low-blast-radius work; use **full** when the **Mutation Gate** would fire, for Path C mutations (DEPLOY/UPGRADE/ROLLBACK/MAINTAIN/INGEST), user-requested full reports, or destructive risk. Gate and templates: [`../AGENTS.md`](../AGENTS.md) §5.
 
 ## Path A — Generation (CREATE, MODIFY, MIGRATE)
 
@@ -12,7 +12,7 @@ Binding templates: [`../AGENTS.md`](../AGENTS.md) §5.
 
 1. Requirement collection  
 2. Architecture planning (`simplicity-first`)  
-3. **Approval gate** — HALT; wait for explicit user approval  
+3. **Mutation gate** (risk-based) — HALT for high-risk mutations only; wait for explicit user approval  
 4. Artifact registry / ownership planning  
 5. Contract generation (inputs/outputs/metadata)  
 6. Artifact generation against budgeted Prompt Pack  
@@ -29,7 +29,7 @@ Key fields to always fill:
 | Profile Loaded | Which `kernel/profiles/*` applied |
 | Graph Traversal Path | e.g. EKS → IRSA → IAM → OIDC |
 | Context Budget Executed | `X/8` cards; note evictions |
-| Approval Gate Status | PENDING \| APPROVED |
+| Mutation Gate Status | PENDING \| APPROVED \| N/A |
 | Artifact Registry | Files + owning module paths |
 | Lint/Schema Results | Pass/fail/warnings |
 
