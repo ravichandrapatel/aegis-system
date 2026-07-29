@@ -1,0 +1,688 @@
+{
+  "version": 2,
+  "entries": [
+    {
+      "id": "standards/metadata-headers",
+      "path": "standards/metadata-headers.md",
+      "title": "Metadata Headers",
+      "description": "Required metadata blocks on new kernel Python modules and house scripts.",
+      "tags": [
+        "standard",
+        "code-quality",
+        "documentation",
+        "conventions",
+        "python"
+      ],
+      "type": "Concept",
+      "id_norm": "standards metadata headers",
+      "title_norm": "metadata headers",
+      "desc_norm": "required metadata blocks on new kernel python modules and house scripts.",
+      "tags_norm": "standard code-quality documentation conventions python",
+      "type_norm": "concept",
+      "tokens": [
+        "and",
+        "blocks",
+        "code",
+        "concept",
+        "conventions",
+        "documentation",
+        "headers",
+        "house",
+        "kernel",
+        "metadata",
+        "modules",
+        "new",
+        "on",
+        "python",
+        "quality",
+        "required",
+        "scripts",
+        "standard",
+        "standards"
+      ],
+      "pack_force_when": []
+    },
+    {
+      "id": "standards/okf-house-schema",
+      "path": "standards/okf-house-schema.md",
+      "title": "OKF House Schema",
+      "description": "Required frontmatter and Prompt Card rules for durable Aegis OKF documents.",
+      "tags": [
+        "standard",
+        "okf",
+        "schema",
+        "frontmatter"
+      ],
+      "type": "Concept",
+      "id_norm": "standards okf house schema",
+      "title_norm": "okf house schema",
+      "desc_norm": "required frontmatter and prompt card rules for durable aegis okf documents.",
+      "tags_norm": "standard okf schema frontmatter",
+      "type_norm": "concept",
+      "tokens": [
+        "aegis",
+        "and",
+        "card",
+        "concept",
+        "documents",
+        "durable",
+        "for",
+        "frontmatter",
+        "house",
+        "okf",
+        "prompt",
+        "required",
+        "rules",
+        "schema",
+        "standard",
+        "standards"
+      ],
+      "pack_force_when": []
+    },
+    {
+      "id": "standards/okf-prompt-injection",
+      "path": "standards/okf-prompt-injection.md",
+      "title": "OKF Prompt Injection",
+      "description": "Rule #1 pack/lookup \u2014 inject slim Prompt Cards; retrieval ladder OKF \u2192 corpus \u2192 live \u2192 write-back.",
+      "tags": [
+        "standard",
+        "okf",
+        "prompting",
+        "tokens",
+        "aegis",
+        "retrieval"
+      ],
+      "type": "Concept",
+      "id_norm": "standards okf prompt injection",
+      "title_norm": "okf prompt injection",
+      "desc_norm": "rule #1 pack/lookup \u2014 inject slim prompt cards; retrieval ladder okf \u2192 corpus \u2192 live \u2192 write-back.",
+      "tags_norm": "standard okf prompting tokens aegis retrieval",
+      "type_norm": "concept",
+      "tokens": [
+        "aegis",
+        "back",
+        "cards",
+        "concept",
+        "corpus",
+        "inject",
+        "injection",
+        "ladder",
+        "live",
+        "lookup",
+        "okf",
+        "pack",
+        "prompt",
+        "prompting",
+        "retrieval",
+        "rule",
+        "slim",
+        "standard",
+        "standards",
+        "tokens",
+        "write"
+      ],
+      "pack_force_when": []
+    },
+    {
+      "id": "standards/simplicity-first",
+      "path": "standards/simplicity-first.md",
+      "title": "Simplicity First (Laziness Ladder)",
+      "description": "Prefer the simplest, shortest, minimal solution that works \u2014 reuse before new files before tooling.",
+      "tags": [
+        "standard",
+        "simplicity",
+        "laziness-ladder",
+        "principles"
+      ],
+      "type": "Concept",
+      "id_norm": "standards simplicity first",
+      "title_norm": "simplicity first (laziness ladder)",
+      "desc_norm": "prefer the simplest, shortest, minimal solution that works \u2014 reuse before new files before tooling.",
+      "tags_norm": "standard simplicity laziness-ladder principles",
+      "type_norm": "concept",
+      "tokens": [
+        "before",
+        "concept",
+        "files",
+        "first",
+        "ladder",
+        "laziness",
+        "minimal",
+        "new",
+        "prefer",
+        "principles",
+        "reuse",
+        "shortest",
+        "simplest",
+        "simplicity",
+        "solution",
+        "standard",
+        "standards",
+        "that",
+        "the",
+        "tooling",
+        "works"
+      ],
+      "pack_force_when": []
+    },
+    {
+      "id": "vault/concepts/aegis-capability-discovery",
+      "path": "vault/concepts/aegis-capability-discovery.md",
+      "title": "Aegis Capability Discovery",
+      "description": "Probe Brain/FS/Python/Git/Shell before enabling pack/compile/lint; BLOCKED when Brain missing for non-trivial mutate.",
+      "tags": [
+        "aegis-system",
+        "capability",
+        "discovery",
+        "portable"
+      ],
+      "type": "Concept",
+      "id_norm": "vault concepts aegis capability discovery",
+      "title_norm": "aegis capability discovery",
+      "desc_norm": "probe brain/fs/python/git/shell before enabling pack/compile/lint; blocked when brain missing for non-trivial mutate.",
+      "tags_norm": "aegis-system capability discovery portable",
+      "type_norm": "concept",
+      "tokens": [
+        "aegis",
+        "before",
+        "blocked",
+        "brain",
+        "capabilities",
+        "capability",
+        "compile",
+        "concept",
+        "concepts",
+        "discovery",
+        "enabling",
+        "for",
+        "fs",
+        "git",
+        "lint",
+        "missing",
+        "mutate",
+        "non",
+        "okf",
+        "pack",
+        "portable",
+        "probe",
+        "py",
+        "python",
+        "shell",
+        "system",
+        "trivial",
+        "vault",
+        "when"
+      ],
+      "pack_force_when": [
+        "capabilities",
+        "capability-discovery",
+        "okf.py capabilities"
+      ]
+    },
+    {
+      "id": "vault/concepts/extending-aegis",
+      "path": "vault/concepts/extending-aegis.md",
+      "title": "Extending Aegis",
+      "description": "How to replicate this package and grow domain knowledge without rewriting the kernel.",
+      "tags": [
+        "aegis-system",
+        "getting-started",
+        "portable",
+        "deploy"
+      ],
+      "type": "Concept",
+      "id_norm": "vault concepts extending aegis",
+      "title_norm": "extending aegis",
+      "desc_norm": "how to replicate this package and grow domain knowledge without rewriting the kernel.",
+      "tags_norm": "aegis-system getting-started portable deploy",
+      "type_norm": "concept",
+      "tokens": [
+        "aegis",
+        "and",
+        "concept",
+        "concepts",
+        "copy",
+        "deploy",
+        "domain",
+        "extend",
+        "extending",
+        "getting",
+        "grow",
+        "how",
+        "kernel",
+        "knowledge",
+        "package",
+        "paste",
+        "portable",
+        "replicate",
+        "rewriting",
+        "started",
+        "system",
+        "the",
+        "this",
+        "to",
+        "vault",
+        "without"
+      ],
+      "pack_force_when": [
+        "extend",
+        "replicate",
+        "deploy",
+        "copy-paste",
+        "portable"
+      ]
+    },
+    {
+      "id": "vault/playbooks/maintain-aegis-system",
+      "path": "vault/playbooks/maintain-aegis-system.md",
+      "title": "Maintain aegis-system",
+      "description": "Add or update durable OKF knowledge \u2014 frontmatter, links, compile, lint.",
+      "tags": [
+        "aegis-system",
+        "ingest",
+        "maintenance",
+        "okf",
+        "procedure"
+      ],
+      "type": "Playbook",
+      "id_norm": "vault playbooks maintain aegis system",
+      "title_norm": "maintain aegis-system",
+      "desc_norm": "add or update durable okf knowledge \u2014 frontmatter, links, compile, lint.",
+      "tags_norm": "aegis-system ingest maintenance okf procedure",
+      "type_norm": "playbook",
+      "tokens": [
+        "add",
+        "aegis",
+        "compile",
+        "durable",
+        "frontmatter",
+        "ingest",
+        "knowledge",
+        "links",
+        "lint",
+        "maintain",
+        "maintenance",
+        "okf",
+        "or",
+        "playbook",
+        "playbooks",
+        "procedure",
+        "system",
+        "update",
+        "vault"
+      ],
+      "pack_force_when": []
+    }
+  ],
+  "inverted": {
+    "and": [
+      "standards/metadata-headers",
+      "standards/okf-house-schema",
+      "vault/concepts/extending-aegis"
+    ],
+    "blocks": [
+      "standards/metadata-headers"
+    ],
+    "code": [
+      "standards/metadata-headers"
+    ],
+    "concept": [
+      "standards/metadata-headers",
+      "standards/okf-house-schema",
+      "standards/okf-prompt-injection",
+      "standards/simplicity-first",
+      "vault/concepts/aegis-capability-discovery",
+      "vault/concepts/extending-aegis"
+    ],
+    "conventions": [
+      "standards/metadata-headers"
+    ],
+    "documentation": [
+      "standards/metadata-headers"
+    ],
+    "headers": [
+      "standards/metadata-headers"
+    ],
+    "house": [
+      "standards/metadata-headers",
+      "standards/okf-house-schema"
+    ],
+    "kernel": [
+      "standards/metadata-headers",
+      "vault/concepts/extending-aegis"
+    ],
+    "metadata": [
+      "standards/metadata-headers"
+    ],
+    "modules": [
+      "standards/metadata-headers"
+    ],
+    "new": [
+      "standards/metadata-headers",
+      "standards/simplicity-first"
+    ],
+    "on": [
+      "standards/metadata-headers"
+    ],
+    "python": [
+      "standards/metadata-headers",
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "quality": [
+      "standards/metadata-headers"
+    ],
+    "required": [
+      "standards/metadata-headers",
+      "standards/okf-house-schema"
+    ],
+    "scripts": [
+      "standards/metadata-headers"
+    ],
+    "standard": [
+      "standards/metadata-headers",
+      "standards/okf-house-schema",
+      "standards/okf-prompt-injection",
+      "standards/simplicity-first"
+    ],
+    "standards": [
+      "standards/metadata-headers",
+      "standards/okf-house-schema",
+      "standards/okf-prompt-injection",
+      "standards/simplicity-first"
+    ],
+    "aegis": [
+      "standards/okf-house-schema",
+      "standards/okf-prompt-injection",
+      "vault/concepts/aegis-capability-discovery",
+      "vault/concepts/extending-aegis",
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "card": [
+      "standards/okf-house-schema"
+    ],
+    "documents": [
+      "standards/okf-house-schema"
+    ],
+    "durable": [
+      "standards/okf-house-schema",
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "for": [
+      "standards/okf-house-schema",
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "frontmatter": [
+      "standards/okf-house-schema",
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "okf": [
+      "standards/okf-house-schema",
+      "standards/okf-prompt-injection",
+      "vault/concepts/aegis-capability-discovery",
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "prompt": [
+      "standards/okf-house-schema",
+      "standards/okf-prompt-injection"
+    ],
+    "rules": [
+      "standards/okf-house-schema"
+    ],
+    "schema": [
+      "standards/okf-house-schema"
+    ],
+    "back": [
+      "standards/okf-prompt-injection"
+    ],
+    "cards": [
+      "standards/okf-prompt-injection"
+    ],
+    "corpus": [
+      "standards/okf-prompt-injection"
+    ],
+    "inject": [
+      "standards/okf-prompt-injection"
+    ],
+    "injection": [
+      "standards/okf-prompt-injection"
+    ],
+    "ladder": [
+      "standards/okf-prompt-injection",
+      "standards/simplicity-first"
+    ],
+    "live": [
+      "standards/okf-prompt-injection"
+    ],
+    "lookup": [
+      "standards/okf-prompt-injection"
+    ],
+    "pack": [
+      "standards/okf-prompt-injection",
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "prompting": [
+      "standards/okf-prompt-injection"
+    ],
+    "retrieval": [
+      "standards/okf-prompt-injection"
+    ],
+    "rule": [
+      "standards/okf-prompt-injection"
+    ],
+    "slim": [
+      "standards/okf-prompt-injection"
+    ],
+    "tokens": [
+      "standards/okf-prompt-injection"
+    ],
+    "write": [
+      "standards/okf-prompt-injection"
+    ],
+    "before": [
+      "standards/simplicity-first",
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "files": [
+      "standards/simplicity-first"
+    ],
+    "first": [
+      "standards/simplicity-first"
+    ],
+    "laziness": [
+      "standards/simplicity-first"
+    ],
+    "minimal": [
+      "standards/simplicity-first"
+    ],
+    "prefer": [
+      "standards/simplicity-first"
+    ],
+    "principles": [
+      "standards/simplicity-first"
+    ],
+    "reuse": [
+      "standards/simplicity-first"
+    ],
+    "shortest": [
+      "standards/simplicity-first"
+    ],
+    "simplest": [
+      "standards/simplicity-first"
+    ],
+    "simplicity": [
+      "standards/simplicity-first"
+    ],
+    "solution": [
+      "standards/simplicity-first"
+    ],
+    "that": [
+      "standards/simplicity-first"
+    ],
+    "the": [
+      "standards/simplicity-first",
+      "vault/concepts/extending-aegis"
+    ],
+    "tooling": [
+      "standards/simplicity-first"
+    ],
+    "works": [
+      "standards/simplicity-first"
+    ],
+    "blocked": [
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "brain": [
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "capabilities": [
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "capability": [
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "compile": [
+      "vault/concepts/aegis-capability-discovery",
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "concepts": [
+      "vault/concepts/aegis-capability-discovery",
+      "vault/concepts/extending-aegis"
+    ],
+    "discovery": [
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "enabling": [
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "fs": [
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "git": [
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "lint": [
+      "vault/concepts/aegis-capability-discovery",
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "missing": [
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "mutate": [
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "non": [
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "portable": [
+      "vault/concepts/aegis-capability-discovery",
+      "vault/concepts/extending-aegis"
+    ],
+    "probe": [
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "py": [
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "shell": [
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "system": [
+      "vault/concepts/aegis-capability-discovery",
+      "vault/concepts/extending-aegis",
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "trivial": [
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "vault": [
+      "vault/concepts/aegis-capability-discovery",
+      "vault/concepts/extending-aegis",
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "when": [
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "copy": [
+      "vault/concepts/extending-aegis"
+    ],
+    "deploy": [
+      "vault/concepts/extending-aegis"
+    ],
+    "domain": [
+      "vault/concepts/extending-aegis"
+    ],
+    "extend": [
+      "vault/concepts/extending-aegis"
+    ],
+    "extending": [
+      "vault/concepts/extending-aegis"
+    ],
+    "getting": [
+      "vault/concepts/extending-aegis"
+    ],
+    "grow": [
+      "vault/concepts/extending-aegis"
+    ],
+    "how": [
+      "vault/concepts/extending-aegis"
+    ],
+    "knowledge": [
+      "vault/concepts/extending-aegis",
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "package": [
+      "vault/concepts/extending-aegis"
+    ],
+    "paste": [
+      "vault/concepts/extending-aegis"
+    ],
+    "replicate": [
+      "vault/concepts/extending-aegis"
+    ],
+    "rewriting": [
+      "vault/concepts/extending-aegis"
+    ],
+    "started": [
+      "vault/concepts/extending-aegis"
+    ],
+    "this": [
+      "vault/concepts/extending-aegis"
+    ],
+    "to": [
+      "vault/concepts/extending-aegis"
+    ],
+    "without": [
+      "vault/concepts/extending-aegis"
+    ],
+    "add": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "ingest": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "links": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "maintain": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "maintenance": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "or": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "playbook": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "playbooks": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "procedure": [
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "update": [
+      "vault/playbooks/maintain-aegis-system"
+    ]
+  }
+}

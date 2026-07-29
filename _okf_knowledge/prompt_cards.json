@@ -1,0 +1,9 @@
+{
+  "standards/metadata-headers": "```text\nKernel/house Python: file headers (file_name, description, version, authors).\nNew functions: intent, input, output, role, side_effects. Domain files: follow local standards.\n```",
+  "standards/okf-house-schema": "```text\nDurable OKF docs MUST have YAML frontmatter with type,title,description,tags,timestamp,status.\nStandards MUST tag standard and ship ## Prompt Card (\u2264~600 chars). Lint enforces type + cards.\n```",
+  "standards/okf-prompt-injection": "```text\nRule #1: okf.py pack (or lookup --card) before authoring; inject ## Prompt Card text only.\nLadder: OKF \u2192 card paths \u2192 repo corpus \u2192 live upstream \u2192 write-back _inbox.\nNo graph/full-doc paste; no grader mining to invent compliance.\n```",
+  "standards/simplicity-first": "```text\nLaziness Ladder: reuse \u2192 one-file edit \u2192 one small file \u2192 tooling \u2192 abstraction last.\nSmallest diff; stdlib kernel; justify new dirs/types.\n```",
+  "vault/concepts/aegis-capability-discovery": "```text\nNon-trivial: okf.py capabilities [--json] before pack. Enable only reported features.\nBrain missing \u2192 BLOCKED for CREATE/MODIFY. No tool assumptions.\n```",
+  "vault/concepts/extending-aegis": "```text\nReplicate: AGENTS.md + _okf_knowledge/ + Cursor (.cursor) and Copilot (.github/skills, prompts, agents, instructions).\nAgent: aegis-okf. Skills/prompts: aegis-discover, okf-pack, grill-me, mutation-gate, okf-writeback, okf-maintain, aegis-review.\nFrom package root: compile + lint. Adapt domain cards; keep kernel + DNA.\n```",
+  "vault/playbooks/maintain-aegis-system": "```text\nBrain mutate: correct type/dir; frontmatter; cross-links; index.md; log.md.\nStandards MUST ## Prompt Card. From package root: okf.py compile then lint (0 errors).\nClose-out: Rung 1 _inbox; Rung 2 only if this checklist finishes.\n```"
+}

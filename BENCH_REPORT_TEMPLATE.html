@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>A/B Benchmark — OKF vs no-OKF — {{TASK_SHORT_NAME}}</title>
+<!--
+  Aegis A/B bench report template (standalone, inline CSS, no JS).
+  Fill every double-brace KEY via render_bench_report.py or string substitution.
+  Do not invent a new layout — copy this file and substitute only.
+
+  Scoring contract (bake into every report):
+  - SCORED: true wall (sum of draft+rem runs), parent runs to PASS, tokens, cost,
+    effectiveness, efficiency (1/true_wall), quality / architecture / runtime.
+  - INFORMATIONAL ONLY (winner must be "—"): draft wall, tool-call turns,
+    tok/s or chars/s throughput. Never crown a winner on draft-only wall.
+  - When remediation ran: show draft + rem stack on dashboard; true = sum.
+-->
+<style>
+:root {
+  --bg:#0d1117; --panel:#161b22; --border:#30363d; --text:#e6edf3; --muted:#8b949e;
+  --okf:#3fb950; --base:#58a6ff; --warn:#d29922; --bad:#f85149; --card:#21262d;
+  --info:#8b949e;
+}
+* { box-sizing:border-box; }
+body { margin:0; font-family: ui-sans-serif, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: radial-gradient(1200px 600px at 10% -10%, #1a2332 0%, var(--bg) 55%), var(--bg);
+  color:var(--text); line-height:1.5; }
+.wrap { max-width:1180px; margin:0 auto; padding:28px 18px 64px; }
+header.hero { border:1px solid var(--border); background:linear-gradient(135deg,#161b22,#1a2740 60%,#132018);
+  border-radius:16px; padding:28px 26px; margin-bottom:22px; }
+header.hero h1 { margin:0 0 8px; font-size:1.55rem; letter-spacing:-0.02em; }
+header.hero .sub { color:var(--muted); font-size:0.95rem; }
+.badge-row { display:flex; flex-wrap:wrap; gap:8px; margin-top:14px; }
+.badge { font-size:0.75rem; padding:4px 10px; border-radius:999px; border:1px solid var(--border); background:var(--panel); color:var(--muted); }
+.badge.okf { color:var(--okf); border-color:#238636; }
+.badge.base { color:var(--base); border-color:#1f6feb; }
+.banner { border-radius:14px; padding:18px 20px; margin-bottom:22px;
+  background:linear-gradient(90deg,#123822,#16304d); border:1px solid #2ea043; }
+.banner h2 { margin:0 0 6px; font-size:1.2rem; }
+.banner p { margin:0; color:#d0d7de; }
+.note-banner { border-radius:14px; padding:14px 18px; margin-bottom:18px; background:#2a2111; border:1px solid var(--warn); color:#e3b341; font-size:0.9rem; }
+.note-banner.hidden { display:none; }
+.scoring {
+  border-radius:14px; padding:16px 18px; margin-bottom:18px;
+  background:#161b22; border:1px solid var(--border);
+}
+.scoring h2 { margin:0 0 10px; font-size:1rem; }
+.scoring .grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.scoring .box { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:12px; }
+.scoring .box h3 { margin:0 0 8px; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.04em; }
+.scoring .box.scored h3 { color:var(--okf); }
+.scoring .box.info h3 { color:var(--warn); }
+.scoring ul { margin:0 0 0 16px; padding:0; font-size:0.85rem; color:var(--muted); }
+.scoring li { margin:3px 0; }
+.scoring .foot { margin:10px 0 0; font-size:0.8rem; color:var(--muted); }
+section { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:20px; margin-bottom:18px; }
+section h2 { margin:0 0 12px; font-size:1.1rem; }
+section .sec-note { color:var(--muted); font-size:0.85rem; margin:-4px 0 12px; }
+.kpi-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:12px; }
+.kpi { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px; }
+.kpi.info { border-style:dashed; opacity:0.92; }
+.kpi h3 { margin:0 0 8px; font-size:0.78rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:0.04em; }
+.kpi .tag { display:inline-block; font-size:0.65rem; padding:1px 6px; border-radius:999px; margin-left:6px;
+  border:1px solid var(--border); vertical-align:middle; font-weight:600; letter-spacing:0.03em; }
+.kpi .tag.scored { color:var(--okf); border-color:#238636; }
+.kpi .tag.info { color:var(--warn); border-color:#9e6a03; }
+.kpi .vals { display:flex; flex-direction:column; gap:2px; font-variant-numeric:tabular-nums; font-size:0.95rem; }
+.kpi .okf { color:var(--okf); }
+.kpi .base { color:var(--base); }
+.kpi .meta { display:flex; justify-content:space-between; margin-top:8px; font-size:0.78rem; color:var(--muted); }
+.kpi .win { color:var(--warn); font-weight:600; }
+.bars { display:grid; gap:14px; }
+.bar-legend { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:12px; font-size:0.78rem; color:var(--muted); }
+.bar-legend span::before {
+  content:""; display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:6px; vertical-align:middle;
+}
+.bar-legend .l-okf::before { background:#3fb950; }
+.bar-legend .l-base::before { background:#58a6ff; }
+.bar-legend .l-rem::before { background:#d29922; }
+.bar-row { display:grid; grid-template-columns:160px 1fr; gap:10px; align-items:center; }
+.bar-row .label { color:var(--muted); font-size:0.85rem; }
+.track { background:#0d1117; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.fill { height:22px; display:flex; align-items:center; padding-left:8px; font-size:0.75rem; color:#fff; white-space:nowrap; }
+.fill.okf { background:linear-gradient(90deg,#238636,#3fb950); }
+.fill.base { background:linear-gradient(90deg,#1f6feb,#58a6ff); }
+.fill.rem { background:linear-gradient(90deg,#9e6a03,#d29922); }
+table { width:100%; border-collapse:collapse; font-size:0.88rem; }
+th, td { border-bottom:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top; }
+th { color:var(--muted); font-weight:600; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; }
+tr.total td { font-weight:700; color:#fff; }
+tr.info td { color:#c9d1d9; }
+tr.info td:first-child { color:var(--muted); font-style:italic; }
+td.w { color:var(--warn); font-weight:600; }
+td.ok { color:var(--okf); }
+td.bad { color:var(--bad); }
+.cols { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+@media (max-width:800px) {
+  .cols { grid-template-columns:1fr; }
+  .scoring .grid { grid-template-columns:1fr; }
+  .bar-row { grid-template-columns:1fr; }
+}
+.flow {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  background:#0d1117; border:1px solid var(--border); border-radius:10px;
+  padding:14px; overflow:auto; white-space:pre; font-size:0.78rem; color:#c9d1d9;
+}
+.verdict { border:1px solid #3fb950; background:#122018; border-radius:14px; padding:18px 20px; }
+.verdict h2 { margin-top:0; }
+.verdict p { margin:4px 0; }
+footer.note { color:var(--muted); font-size:0.8rem; margin-top:8px; }
+code { background:#0d1117; padding:1px 5px; border-radius:4px; border:1px solid var(--border); font-size:0.85em; }
+ul { margin:8px 0 0 18px; padding:0; }
+li { margin:4px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="hero">
+  <h1>A/B Benchmark — OKF vs no-OKF</h1>
+  <div class="sub">{{TASK_ONE_LINER}}</div>
+  <div class="badge-row">
+    <span class="badge">Task: {{TASK_SHORT_NAME}}</span>
+    <span class="badge">Model: {{MODEL}}</span>
+    <span class="badge">Date: {{DATE}}</span>
+    <span class="badge okf">{{OKF_BADGE}}</span>
+    <span class="badge base">{{BASE_BADGE}}</span>
+    <span class="badge">Pricing: ${{IN_PRICE_PER_M}}/M in · ${{OUT_PRICE_PER_M}}/M out</span>
+  </div>
+</header>
+
+<div class="scoring">
+  <h2>Scoring contract (true cost-to-PASS)</h2>
+  <div class="grid">
+    <div class="box scored">
+      <h3>Scored (use for winner)</h3>
+      <ul>
+        <li><strong>True wall</strong> = sum of draft + all remediation run walls</li>
+        <li><strong>Parent runs to PASS</strong> (1 vs 2+ when gate fix loops run)</li>
+        <li>Tokens, estimated cost, effectiveness, efficiency (<code>1 / true_wall</code>)</li>
+        <li>Quality index, architecture (/60), runtime correctness %</li>
+      </ul>
+    </div>
+    <div class="box info">
+      <h3>Informational only (winner = —)</h3>
+      <ul>
+        <li><strong>Draft wall</strong> — never score alone if gate FAIL</li>
+        <li><strong>Tool-call turns</strong> — fewer turns ≠ fewer parent runs</li>
+        <li><strong>Throughput (tok/s, chars/s)</strong> — higher ≠ better (rem dumps inflate)</li>
+      </ul>
+    </div>
+  </div>
+  <p class="foot">When a gate fix loop ran, dashboard bars must stack <span style="color:var(--base)">draft</span> + <span style="color:var(--warn)">remediation</span>. Delta % on scored lower-is-better metrics = savings vs baseline (positive favors OKF).</p>
+</div>
+
+<div class="note-banner {{METHODOLOGY_NOTE_CLASS}}">
+  {{METHODOLOGY_NOTE}}
+</div>
+
+<section>
+  <h2>1. Executive Summary</h2>
+  {{EXECUTIVE_SUMMARY_HTML}}
+</section>
+
+<div class="banner">
+  <h2>2. Winner Banner — {{WINNER_BANNER_TITLE}}</h2>
+  <p>{{WINNER_BANNER_BODY}}</p>
+</div>
+
+<section>
+  <h2>3. KPI Cards</h2>
+  <p class="sec-note">Prefer scored KPIs: True Wall, Parent Runs, Tokens, Cost, Efficiency, Quality, Architecture, Runtime. Mark tool turns / throughput as info (dashed card, winner —).</p>
+  <div class="kpi-grid">
+{{KPI_CARDS_HTML}}
+  </div>
+</section>
+
+<section>
+  <h2>4. Performance Dashboard</h2>
+  <div class="bar-legend">
+    <span class="l-okf">OKF (true / total)</span>
+    <span class="l-base">Baseline draft</span>
+    <span class="l-rem">Baseline remediation (stacked into true)</span>
+  </div>
+  <p class="sec-note">True wall and parent runs are scored. Tool-turn bars are informational.</p>
+  <div class="bars">
+{{DASHBOARD_BARS_HTML}}
+  </div>
+</section>
+
+<section>
+  <h2>5. Full Metrics Table</h2>
+  <p class="sec-note">Rows labeled non-scoring / informational must use winner <code>—</code>. Scored wall is <strong>True Wall Time</strong> only.</p>
+  <table>
+    <thead><tr><th>Metric</th><th>OKF</th><th>Baseline</th><th>Delta</th><th>Winner</th></tr></thead>
+    <tbody>
+{{METRICS_TABLE_ROWS}}
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>6. Architecture Review (0–5 each, /60)</h2>
+  <table>
+    <thead><tr><th>Dimension</th><th>OKF</th><th>Baseline</th><th>Delta</th><th>Winner</th></tr></thead>
+    <tbody>
+{{ARCHITECTURE_TABLE_ROWS}}
+    </tbody>
+  </table>
+  <p style="color:var(--muted);font-size:0.85rem;margin-top:10px;">{{ARCHITECTURE_NOTE}}</p>
+</section>
+
+<section>
+  <h2>7. Runtime Correctness Audit</h2>
+  <table>
+    <thead><tr><th>Check</th><th>OKF</th><th>Baseline</th><th>Delta</th><th>Winner</th></tr></thead>
+    <tbody>
+{{RUNTIME_TABLE_ROWS}}
+    </tbody>
+  </table>
+  <div class="cols" style="margin-top:14px">
+    <div>
+      <h3 style="margin:0 0 6px;font-size:0.95rem;color:var(--okf)">OKF findings</h3>
+      <ul>
+{{RUNTIME_FINDINGS_OKF_HTML}}
+      </ul>
+    </div>
+    <div>
+      <h3 style="margin:0 0 6px;font-size:0.95rem;color:var(--base)">Baseline findings</h3>
+      <ul>
+{{RUNTIME_FINDINGS_BASE_HTML}}
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>8. Artifact &amp; Cache Flow</h2>
+  <div class="cols">
+    <div>
+      <h3 style="margin:0 0 8px;font-size:0.95rem;color:var(--okf)">OKF</h3>
+      <div class="flow">{{ARTIFACT_FLOW_OKF}}</div>
+    </div>
+    <div>
+      <h3 style="margin:0 0 8px;font-size:0.95rem;color:var(--base)">Baseline</h3>
+      <div class="flow">{{ARTIFACT_FLOW_BASE}}</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>9. Benefits Observed</h2>
+  <div class="cols">
+    <div>
+      <h3 style="margin:0 0 6px;font-size:0.95rem;color:var(--okf)">OKF arm</h3>
+      <ul>
+{{BENEFITS_OKF_HTML}}
+      </ul>
+    </div>
+    <div>
+      <h3 style="margin:0 0 6px;font-size:0.95rem;color:var(--base)">Baseline arm</h3>
+      <ul>
+{{BENEFITS_BASE_HTML}}
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>10. Parent Findings</h2>
+  <table>
+    <thead><tr><th>Success Gate Item</th><th>OKF</th><th>Baseline</th><th>Delta</th><th>Winner</th></tr></thead>
+    <tbody>
+{{PARENT_FINDINGS_ROWS}}
+    </tbody>
+  </table>
+  <p style="margin-top:12px;color:var(--muted);font-size:0.9rem;">{{PARENT_FINDINGS_NOTE}}</p>
+</section>
+
+<section>
+  <h2>11. Methodology</h2>
+  <ul>
+{{METHODOLOGY_LIST_HTML}}
+  </ul>
+</section>
+
+<section class="verdict">
+  <h2>12. Final Verdict</h2>
+{{VERDICT_LINES_HTML}}
+</section>
+
+<footer class="note">
+  {{ROI_FOOTER}}
+</footer>
+</div>
+</body>
+</html>
