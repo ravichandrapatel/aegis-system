@@ -6,7 +6,7 @@ This folder explains **what every file is for**, **when to use it**, and **how t
 
 | Field | Value |
 | --- | --- |
-| **Protocol version documented** | `4.9.2` |
+| **Protocol version documented** | `5.1.0` |
 | **Package root** | sibling of this `docs/` folder |
 | **Brain** | [`../_okf_knowledge/`](../_okf_knowledge/) |
 
@@ -19,10 +19,9 @@ This folder explains **what every file is for**, **when to use it**, and **how t
 | 1 | [Overview](01-overview.md) | What Aegis is / is not; design goal; how pieces fit |
 | 2 | [Package layout](02-package-layout.md) | Every root-level file and when to open it |
 | 3 | [Brain zones](03-brain-zones.md) | The 4-zone map under `_okf_knowledge/` |
-| 4 | [Document types](04-document-types.md) | Concept vs Playbook vs Module vs Vendor vs Profile — **when to use which** |
+| 4 | [Document types](04-document-types.md) | Concept vs Playbook vs System vs Incident vs Reference — **when to use which** |
 | 5 | [Frontmatter schema](05-frontmatter-schema.md) | Required YAML fields, `owns`, `priority`, status |
 | 6 | [Protocol & routing](06-protocol-routing.md) | Intent matrix, pre-flight state machine, knowledge precedence |
-| 7 | [Profiles](07-profiles.md) | Dynamic Profiles (`_schema.md`), RBAC capabilities, Capability Check |
 | 8 | [Compiled artifacts](08-compiled-artifacts.md) | `index.json`, `prompt_cards.json`, graph/lint embeds in `aegis-brain.html` |
 | 9 | [Lookup & Prompt Cards](09-lookup-and-prompt-cards.md) | Cheap retrieval → slim injection (Rule #2) |
 | 10 | [Kernel tools](10-kernel-tools.md) | Every `kernel/*.py` script — purpose and CLI |

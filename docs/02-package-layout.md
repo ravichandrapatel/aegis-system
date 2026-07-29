@@ -32,10 +32,9 @@ aegis-system/
 | Path | Zone | Role |
 | --- | --- | --- |
 | `_inbox/` | 1 | Raw, untriaged material |
-| `kernel/` | 2 | Scripts + profiles + modules + vendors |
+| `kernel/` | 2 | `okf.py` + `src/` tooling |
 | `standards/` | 3 | Binding house law |
 | `vault/` | 4 | Passive memory (concepts, playbooks, systems, …) |
-| `code/` | 5 | OKF v0.2 code facts (`type: Code`) — machine-produced, regenerate-only |
 | `index.md` | — | Human entry map for the brain |
 | `log.md` | — | Append-only mutation history |
 | `index.json` | compiled | Slim lookup index (+ adjacency for hop-boost) |

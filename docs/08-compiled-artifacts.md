@@ -106,7 +106,7 @@ Avoid re-parsing markdown bodies when emitting `--card` results for winning hits
 }
 ```
 
-Edges come from markdown cross-links plus, for `type: Code` concepts, resolvable typed-relationship frontmatter (`depends_on`, `references`, `calls`, `called_by`).
+Edges come from markdown cross-links between concepts.
 
 ### When to use
 

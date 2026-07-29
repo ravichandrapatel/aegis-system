@@ -26,7 +26,6 @@ If the user’s ask is ambiguous, detect intent first — do not skip into gener
 
 ```
 [Intent Detection]
-        → [Load Profile (kernel/profiles/)]
         → [Capability Check]
         → [Context Expansion (Typed Graph Traversal)]
         → [Governance Engine]
@@ -80,7 +79,6 @@ When sources conflict, resolve in this order:
 1. Local Brain **standards** (via lookup / Prompt Cards)  
 2. Local workspace (`_inbox/`, terminal context)  
 3. Passive **vault**  
-4. **Code facts** (`code/`, OKF v0.2 — grade `observed`)  
 5. Official external metadata (OCI / Git APIs)
 
 **Owns / priority:** overlapping standards → document whose `owns` claims the domain wins; if both claim it, higher `priority` wins.  
@@ -122,5 +120,4 @@ Details: [Lookup & Prompt Cards](09-lookup-and-prompt-cards.md).
 ## Related
 
 - [Pipelines & outputs](12-pipelines-and-outputs.md)
-- [Profiles](07-profiles.md)
 - [Compiled artifacts](08-compiled-artifacts.md)

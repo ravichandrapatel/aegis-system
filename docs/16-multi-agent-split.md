@@ -68,12 +68,11 @@ aegis-system/
 | `execute.md` | DEPLOY / UPGRADE / ROLLBACK | Execution Plan |
 | `maintain.md` | MAINTAIN / INGEST | Execution Plan + maintain playbook |
 
-## 4. Profiles vs agent files
+## 4. Agent files (profiles removed)
 
 | Mechanism | Answers |
 | --- | --- |
 | **Agent entrypoint** | Which **pipeline** contract is loaded? |
-| **Profile** (`kernel/profiles/`) | Which **modules / vendors / standards** may load? |
 
 Example: invoke **Generate** agent + **architect** Profile.
 
@@ -127,4 +126,4 @@ Static `agents/*.md` + `_common.md` has an unresolved mechanism problem: IDE age
 | Use Path A/B/C sections inside one `AGENTS.md` | Duplicate vaults |
 | Keep Prompt Packs slim | Paste full `AGENTS.md` into generation turns |
 
-See also: [Protocol & routing](06-protocol-routing.md), [Profiles](07-profiles.md), [Pipelines](12-pipelines-and-outputs.md).
+See also: [Protocol & routing](06-protocol-routing.md), [Pipelines](12-pipelines-and-outputs.md).

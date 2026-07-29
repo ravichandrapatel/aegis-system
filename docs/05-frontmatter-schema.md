@@ -47,34 +47,6 @@ priority: 100
 ---
 ```
 
-### Code concepts (OKF v0.2, Zone 5 `code/`)
-
-`type: Code` documents additionally require (lint **error** `DBG-310` if missing):
-
-| Field | Purpose | Example |
-| --- | --- | --- |
-| `schema_version` | OKF dialect version | `0.2` (warning `DBG-311` if other) |
-| `language` | Source language | `terraform` \| `cloudformation` \| `bicep` \| `shell` \| `python` \| `go` \| `yaml-k8s` \| `yaml-ansible` \| `yaml` |
-| `kind` | Artifact kind | `resource` \| `module` \| `function` \| `class` \| `manifest` \| `play` |
-| `source` | Back-reference to the artifact | `infra/eks.tf:42` |
-
-Optional typed relationships (`depends_on`, `references`, `calls`, `called_by`) are frontmatter lists; entries resolving to concept ids become graph/adjacency edges. Code concepts are exempt from orphan warnings (`DBG-306`) and are never touched by `enrich`/`optimize` — regenerate the zone externally instead.
-
-```yaml
----
-type: Code
-title: aws_eks_cluster.main
-description: EKS cluster resource for the platform workload.
-tags: [terraform, eks, code]
-timestamp: 2026-07-18T00:00:00Z
-status: active
-schema_version: 0.2
-language: terraform
-kind: resource
-source: infra/eks.tf:42
-depends_on: [code/infra/vpc/aws_vpc.main]
----
-```
 
 ## Prompt Card section (body, not frontmatter)
 

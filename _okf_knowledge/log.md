@@ -2,6 +2,11 @@
 
 ## 2026-07-30
 
+* **Align with portable v5.1:** Removed obsolete `_okf_knowledge/code/` (Zone 5) and `kernel/profiles/` — not part of the current control-plane package. Docs updated to the 4-zone map.
+
+
+## 2026-07-30
+
 * **Aegis OKF v5.1 portable bindings:** Added Cursor (`.cursor/rules|skills|commands`) and Copilot (`.github/agents|skills|prompts|instructions|copilot-instructions`) mirrors; refreshed DNA (`AGENTS.md` v5.1) and kernel. Template remains domain-agnostic.
 
 ## 2026-07-17

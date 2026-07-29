@@ -13,7 +13,6 @@
 | **Standard** | Binding Concept under `standards/` with tag `standard` |
 | **Playbook** | Step-by-step executable procedure |
 | **Module** / **Vendor** | Retired concepts — no kernel registries exist (`AGENTS.md` §4.1); domain knowledge loads via lookup over `standards/` + `vault/` |
-| **Profile** | Dynamic operational context (`type: Profile`) under `kernel/profiles/`; schema in `_schema.md` |
 | **Dynamic Profile** | Role-specific Profile instantiated from `_schema.md` (intents, modes, modules, standards) |
 | **System** | Documented running system in the workspace |
 | **Incident** | Post-mortem record |

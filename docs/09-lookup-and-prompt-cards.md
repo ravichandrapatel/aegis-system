@@ -108,7 +108,7 @@ Standards without a card fail lint (`DBG-308`).
 1. Locate knowledge with lookup when the path is unknown.  
 2. Do **not** paste whole vault files or compiled artifacts into generation by default.  
 3. Respect card/token budgets; stop expanding when the budget is hit.  
-4. Eviction tier: `Standards > Playbooks > Systems/Concepts > References > Code`. Zone 5 `Code` cards fill remaining slots only — pack assembly sorts them after every curated hit, so they can never crowd curated cards out of the budget.
+4. Eviction tier: `Standards > Playbooks > Systems/Concepts > References`.
 
 ## Related standards
 

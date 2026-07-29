@@ -26,7 +26,6 @@ Key fields to always fill:
 
 | Field | Meaning |
 | --- | --- |
-| Profile Loaded | Which `kernel/profiles/*` applied |
 | Graph Traversal Path | e.g. EKS → IRSA → IAM → OIDC |
 | Context Budget Executed | `X/8` cards; note evictions |
 | Mutation Gate Status | PENDING \| APPROVED \| N/A |
@@ -94,4 +93,3 @@ Every report ends with:
 
 - [Protocol & routing](06-protocol-routing.md)
 - [Maintenance](13-maintenance.md)
-- [Profiles](07-profiles.md)

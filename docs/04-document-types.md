@@ -13,8 +13,6 @@ Every durable markdown concept under the brain **MUST** declare a `type` in YAML
 | `System` | 4 | `vault/systems/` | A running system you operate |
 | `Incident` | 4 | `vault/incidents/` | Post-mortem / learning from failure |
 | `Reference` | 4 | `vault/references/` | Cached upstream documentation |
-| `Profile` | 2 | `kernel/profiles/` | Dynamic role context from `_schema.md` (intents, modes, standards) |
-| `Code` | 5 | `code/` | OKF v0.2 code fact (machine-produced, regenerate-only) |
 
 ## Decision table (practical)
 
@@ -26,8 +24,6 @@ Every durable markdown concept under the brain **MUST** declare a `type` in YAML
 | Cached upstream docs | `Reference` | `vault/references/` | Run `okf.py optimize` when applicable |
 | Running system in workspace | `System` | `vault/systems/` | `systems/index.md` |
 | Post-mortem | `Incident` | `vault/incidents/` | Link systems/playbooks |
-| Who/what is loaded for a role | `Profile` | `kernel/profiles/` | Profile index / schema as you define it |
-| Code artifact fact (resource, function, manifest) | `Code` | `code/` (external producer writes it) | Nothing by hand — regenerate the zone |
 | Vault tooling (lint, compile) | Python script | `kernel/` | Maintain playbook § Scripts |
 | Control-plane behavior | Markdown | `AGENTS.md` (package root) | Brain `index.md` if orientation changes |
 
@@ -71,11 +67,9 @@ References are **not** law. Prefer linking; do not paste entire references into 
 
 ## Deep dive: Profile
 
-**Use when:** you need a named **dynamic** operational context (any role), authored from `kernel/profiles/_schema.md`.
 
 Profiles are optional capability templates (schema-only today): authorized intents, execution modes, and enforced standards. The runtime capability check is `AGENTS.md` §4.1 — required standards/evidence from the Prompt Pack present, else **HALT** exit code `4` (Unsupported).
 
-See [Profiles](07-profiles.md) for the full dynamic schema, RBAC sections, and authoring steps.
 
 ## Precedence reminder (conflicts)
 
@@ -84,7 +78,6 @@ When two sources disagree (`AGENTS.md` §2.2):
 1. Standards (via Prompt Cards / lookup)
 2. Local workspace / `_inbox` / terminal context
 3. Passive vault
-4. Code facts (`code/`, OKF v0.2)
 5. External OCI/Git metadata
 
 Within overlapping standards: **`owns` list wins**; if both claim the domain, higher **`priority`** wins; identical `owns`+`priority` → **fail closed** (exit `1`).

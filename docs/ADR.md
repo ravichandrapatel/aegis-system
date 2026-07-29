@@ -551,7 +551,7 @@ Proposed layout, trigger criteria, migration sketch, contract-delivery options, 
 
 #### Relationship to Profiles
 
-Profiles and agent entrypoints are orthogonal (Profiles = capabilities; entrypoints = pipeline shape). Detail: [`docs/16-multi-agent-split.md`](16-multi-agent-split.md) §4 and [`docs/07-profiles.md`](07-profiles.md) §10. Prefer lookup + cards; do not assume a Module/Vendor loader.
+Prefer lookup + cards; do not assume a Module/Vendor loader. Detail: [`docs/16-multi-agent-split.md`](16-multi-agent-split.md).
 
 ---
 

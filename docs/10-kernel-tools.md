@@ -52,8 +52,7 @@ Also deletes legacy `context.toon` if present.
 
 **Use when:** verifying vault health after mutations; CI gate.
 
-Checks include (among others): frontmatter presence/type, link integrity, orphans, and **standards Prompt Card gate** (`DBG-308` / `DBG-309`). Zone 5 `type: Code` concepts get the OKF v0.2 checks instead: required `schema_version` / `language` / `kind` / `source` (error `DBG-310`), `schema_version` mismatch warning (`DBG-311`), and exemption from orphan warnings.
-
+Checks include (among others): frontmatter presence/type, link integrity, orphans, and **standards Prompt Card gate** (`DBG-308` / `DBG-309`). 
 Success criterion for maintain checklist: **`0 error(s)`**.
 
 ## `okf.py serve`
@@ -90,7 +89,7 @@ python3 _okf_knowledge/kernel/okf.py enrich --write [--only playbooks] [--limit 
 
 Gap-fill only and idempotent: existing fields are never overwritten, tags are merged, cards are inserted before `# Related`, and LLM output is sanitized and clamped (card ≤ 600 chars) before any write. Follow with the compile + lint loop.
 
-**Do not use when:** the gap is judgment content (steps, ownership tables) — write that by hand per the maintain playbook. `type: Code` concepts (Zone 5) are always skipped — regenerate them externally instead.
+**Do not use when:** the gap is judgment content (steps, ownership tables) — write that by hand per the maintain playbook.
 
 ## `okf.py scrape`
 

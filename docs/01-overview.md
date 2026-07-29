@@ -42,7 +42,6 @@ If you change *what* Aegis knows (EKS facts, playbooks, house rules), edit the *
 User intent (CREATE / REVIEW / DEPLOY / MAINTAIN / …)
         │
         ▼
-Load Profile (kernel/profiles/)
         │
         ▼
 Capability check (required modules/vendors/standards present?)
