@@ -16,7 +16,7 @@ This folder explains **what every file is for**, **when to use it**, and **how t
 
 | # | Document | What you learn |
 | ---: | --- | --- |
-| 1 | [Overview](01-overview.md) | What Aegis is / is not; design goal; how pieces fit |
+| 1 | [Overview](01-overview.md) | What Aegis is / is not; design goal; request + kernel flow diagrams |
 | 2 | [Package layout](02-package-layout.md) | Every root-level file and when to open it |
 | 3 | [Brain zones](03-brain-zones.md) | The 4-zone map under `_okf_knowledge/` |
 | 4 | [Document types](04-document-types.md) | Concept vs Playbook vs System vs Incident vs Reference — **when to use which** |

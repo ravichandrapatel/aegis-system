@@ -32,6 +32,8 @@ If the user’s ask is ambiguous, detect intent first — do not skip into gener
         → Path A | Path B | Path C
 ```
 
+Mermaid diagrams + step explanations: [Overview — End-to-end flow](01-overview.md#end-to-end-flow-when-a-user-asks-for-something).
+
 ### Capability Registry Check (§4.1)
 
 Before planning or traversing, verify the loaded Profile’s required modules, vendors, and standards exist locally.
