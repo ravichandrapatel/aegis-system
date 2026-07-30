@@ -182,7 +182,7 @@ def _concept_from_cache(path: Path, blob: dict[str, object]) -> Concept:
 
 def load_vault_incremental(force: bool = False) -> tuple[list[Concept], int, int]:
     """
-    intent: Load vault concepts, reusing compile-cache entries when mtime/hash match.
+    intent: Load vault concepts, reusing compile-cache entries when sha256 matches.
     input: force — ignore cache and re-parse everything.
     output: (concepts including parse errors, dirty_count, reused_count).
     role: incremental vault loader.

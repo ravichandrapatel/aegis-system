@@ -140,12 +140,21 @@ class OkfSmokeTests(unittest.TestCase):
             _validate_fetch_url("file:///etc/passwd")
 
     def test_enrich_ssrf_blocks_private_cloud(self) -> None:
-        from src.enrich_cmd import _validate_llm_endpoint
+        from src.enrich_cmd import _validate_llm_endpoint, _validate_llm_redirect
 
         with self.assertRaises(ValueError):
             _validate_llm_endpoint("http://10.0.0.5/v1/chat/completions")
-        # Local models intentionally allowed.
+        # Configured local models intentionally allowed.
         _validate_llm_endpoint("http://127.0.0.1:11434/v1/chat/completions")
+        # Redirects must NOT inherit the local allow-list (scrape parity).
+        with self.assertRaises(ValueError):
+            _validate_llm_redirect("http://127.0.0.1/secret")
+        with self.assertRaises(ValueError):
+            _validate_llm_redirect("http://evil.local/v1/chat/completions")
+        with self.assertRaises(ValueError):
+            _validate_llm_endpoint(
+                "http://127.0.0.1/secret", allow_local=False
+            )
 
     def test_atomic_write_text(self) -> None:
         from src.compile_cmd import _atomic_write_text
@@ -216,13 +225,52 @@ class OkfSmokeTests(unittest.TestCase):
             self.assertIn("description: body-line", body)
 
     def test_compile_cache_requires_hash(self) -> None:
-        from src.compile_cmd import _sha256_bytes
+        from src.compile_cmd import _sha256_bytes, load_vault_incremental
+        from src.paths import COMPILE_CACHE_VERSION, VAULT_ROOT
+        import os
 
         a = _sha256_bytes(b"content-a")
         b = _sha256_bytes(b"content-b")
         self.assertNotEqual(a, b)
-        # Same mtime, different bytes → different digests (mtime-only reuse would fail).
         self.assertEqual(_sha256_bytes(b"same"), _sha256_bytes(b"same"))
+
+        # Poison cache: matching mtime + wrong sha256 must NOT reuse.
+        cache = VAULT_ROOT / ".okf-compile-cache.json"
+        concepts = list((VAULT_ROOT / "standards").glob("*.md"))
+        self.assertTrue(concepts)
+        sample = concepts[0]
+        rel = str(sample.relative_to(VAULT_ROOT)).replace("\\", "/")
+        mtime_ns = sample.stat().st_mtime_ns
+        poison = {
+            "version": COMPILE_CACHE_VERSION,
+            "files": {
+                rel: {
+                    "mtime_ns": mtime_ns,
+                    "sha256": "0" * 64,
+                    "concept": {
+                        "concept_id": "poisoned",
+                        "frontmatter": {"type": "Concept", "title": "Poison"},
+                        "body": "",
+                        "parse_error": None,
+                    },
+                }
+            },
+        }
+        prev = cache.read_text(encoding="utf-8") if cache.is_file() else None
+        try:
+            cache.write_text(json.dumps(poison) + "\n", encoding="utf-8")
+            os.utime(sample, ns=(sample.stat().st_atime_ns, mtime_ns))
+            loaded, dirty, reused = load_vault_incremental(force=False)
+            ids = {c.concept_id for c in loaded}
+            self.assertNotIn("poisoned", ids)
+            # At least the mismatched file was re-parsed (dirty), not reused from poison.
+            self.assertGreaterEqual(dirty, 1)
+        finally:
+            if prev is None:
+                if cache.is_file():
+                    cache.unlink()
+            else:
+                cache.write_text(prev, encoding="utf-8")
 
     def test_serve_csrf_origin_gate(self) -> None:
         from src.serve_cmd import _origin_is_loopback
@@ -233,11 +281,25 @@ class OkfSmokeTests(unittest.TestCase):
         self.assertFalse(_origin_is_loopback("https://evil.example/"))
         self.assertFalse(_origin_is_loopback("http://192.168.1.10/"))
 
-    def test_enrich_redirect_handler_present(self) -> None:
+    def test_enrich_redirect_handler_blocks_loopback(self) -> None:
         from src.enrich_cmd import _SafeLlmRedirectHandler
+        import urllib.request
 
-        self.assertTrue(issubclass(_SafeLlmRedirectHandler, object))
-        self.assertTrue(callable(_SafeLlmRedirectHandler.redirect_request))
+        handler = _SafeLlmRedirectHandler()
+        req = urllib.request.Request(
+            "https://example.com/v1/chat/completions",
+            data=b"{}",
+            headers={"Authorization": "Bearer secret-token", "Content-Type": "application/json"},
+            method="POST",
+        )
+        with self.assertRaises(ValueError):
+            handler.redirect_request(
+                req, None, 302, "Found", {}, "http://127.0.0.1:11434/v1/chat/completions"
+            )
+        with self.assertRaises(ValueError):
+            handler.redirect_request(
+                req, None, 302, "Found", {}, "http://metadata.local/latest"
+            )
 
     def test_argparse_imported_on_cmd_modules(self) -> None:
         from src import cards, lint_cmd, optimize_cmd

@@ -87,10 +87,10 @@ def _truncate_body(body: str, max_lines: int) -> str:
         return body
     return "\n".join(lines[:max_lines] + ["... (truncated)"])
 
-def _validate_llm_endpoint(url: str) -> None:
+def _validate_llm_endpoint(url: str, *, allow_local: bool = True) -> None:
     """
-    intent: Block non-http(s) and private/reserved LLM endpoints (SSRF guard).
-    input: url — OKF_LLM_BASE_URL (+ /chat/completions path applied by caller).
+    intent: Block non-http(s) / private LLM hosts; optionally allow loopback Ollama.
+    input: url; allow_local — True only for the configured base URL (not redirects).
     output: none; raises ValueError when blocked.
     role: security gate for enrich transport.
     side_effects: may resolve DNS via getaddrinfo.
@@ -104,11 +104,17 @@ def _validate_llm_endpoint(url: str) -> None:
         raise ValueError("[DBG-404] LLM endpoint must have a hostname")
     lowered = host.lower()
     unspecified_v4 = ".".join(("0",) * 4)
-    if lowered in {"localhost", "127.0.0.1", "::1", unspecified_v4} or lowered.endswith(
-        ".local"
-    ):
-        # Local OpenAI-compatible servers are allowed for enrich (unlike scrape).
-        return
+    is_local_name = lowered in {
+        "localhost",
+        "127.0.0.1",
+        "::1",
+        unspecified_v4,
+    } or lowered.endswith(".local")
+    if is_local_name:
+        if allow_local:
+            # Configured local OpenAI-compatible servers (unlike scrape / redirects).
+            return
+        raise ValueError(f"[DBG-404] blocked local LLM redirect host: {host}")
     try:
         port = parsed.port or (443 if scheme == "https" else 80)
         for info in socket.getaddrinfo(host, port, type=socket.SOCK_STREAM):
@@ -125,12 +131,33 @@ def _validate_llm_endpoint(url: str) -> None:
         raise ValueError(f"[DBG-404] cannot resolve LLM host {host}: {exc}") from exc
 
 
+def _validate_llm_redirect(url: str) -> None:
+    """
+    intent: Scrape-parity SSRF for redirect targets (never allow loopback/.local).
+    input: redirect URL from LLM hop.
+    output: none; raises ValueError when blocked.
+    role: redirect-only security gate.
+    side_effects: may resolve DNS via getaddrinfo.
+    """
+    _validate_llm_endpoint(url, allow_local=False)
+
+
 class _SafeLlmRedirectHandler(urllib.request.HTTPRedirectHandler):
-    """Re-validate LLM redirect targets with the same SSRF gate."""
+    """Re-validate redirect targets (strict) and drop Authorization on hops."""
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        _validate_llm_endpoint(newurl)
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
+        _validate_llm_redirect(newurl)
+        new_req = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new_req is None:
+            return None
+        # Never forward bearer tokens across redirects (SSRF / credential leak).
+        for bag in (getattr(new_req, "headers", None), getattr(new_req, "unredirected_hdrs", None)):
+            if not isinstance(bag, dict):
+                continue
+            for key in list(bag):
+                if key.lower() in {"authorization", "proxy-authorization", "cookie"}:
+                    bag.pop(key, None)
+        return new_req
 
 
 def _llm_chat(base_url: str, api_key: str, model: str, prompt: str) -> str:
