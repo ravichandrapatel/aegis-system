@@ -7,26 +7,19 @@ import re
 import sys
 import urllib.error
 import urllib.request
-from pathlib import Path
 
 from src.cards import extract_prompt_card
 from src.models import Concept
 from src.paths import (
     DEFAULT_LLM_BASE_URL,
     DEFAULT_LLM_MODEL,
-    ENRICH_MAX_BODY_LINES,
     ENRICH_MAX_TAGS,
     ENRICH_MIN_DESC_LEN,
     LLM_REQUEST_TIMEOUT_S,
     PROMPT_CARD_MAX_CHARS,
-    VAULT_ROOT,
 )
 from src.vault import (
-    escape_yaml_scalar,
-    format_frontmatter,
-    is_standard_concept,
     load_vault,
-    parse_frontmatter,
 )
 
 

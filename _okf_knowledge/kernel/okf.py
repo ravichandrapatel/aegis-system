@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # file_name: okf.py
 # description: Thin CLI caller for the Aegis OKF kernel (implementation in kernel/src/).
-# version: 1.5.0
+# version: 1.6.1
 # authors: contributors
 #
 # Usage:

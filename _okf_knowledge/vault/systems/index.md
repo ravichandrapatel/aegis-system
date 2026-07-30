@@ -5,4 +5,4 @@ Every file is `type: System`.
 
 | Title | Description |
 | :--- | :--- |
-| *(Empty)* | Add a system card when you ingest a running workspace system. |
+| (Empty) | No systems currently recorded. Seed domain systems for this repo as they are documented. |

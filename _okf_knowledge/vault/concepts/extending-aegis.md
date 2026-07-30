@@ -22,24 +22,26 @@ _okf_knowledge/
 .cursor/rules/aegis-okf.mdc
 .cursor/skills/{aegis-discover,okf-pack,grill-me,mutation-gate,okf-writeback,okf-maintain,aegis-review}/
 .cursor/commands/{aegis-discover,okf-pack,grill-me,mutation-gate,okf-writeback,okf-maintain,aegis-review}.md
-.github/skills/{aegis-discover,okf-pack,grill-me,mutation-gate,okf-writeback,okf-maintain,aegis-review}/
+.github/skills/          # sync from .cursor/skills via scripts/sync-aegis-mirrors.sh
 .github/prompts/{aegis-discover,okf-pack,grill-me,mutation-gate,okf-writeback,okf-maintain,aegis-review}.prompt.md
 .github/agents/aegis-okf.agent.md
 .github/copilot-instructions.md
 .github/instructions/aegis-okf.instructions.md
 .github/instructions/okf-brain.instructions.md
+scripts/sync-aegis-mirrors.sh
 ```
 
-Optional CI: `.github/workflows/okf-lint.yml`.
+Optional CI: add `.github/workflows/okf-lint.yml` that runs `okf.py compile && okf.py lint` (not shipped by default).
 
 Place at repo root or inside one folder (e.g. `agents/`). From package root:
 
 ```bash
 python3 _okf_knowledge/kernel/okf.py compile
 python3 _okf_knowledge/kernel/okf.py lint
+bash scripts/sync-aegis-mirrors.sh   # after editing .cursor/skills
 ```
 
-Requires Python 3.9+ (kernel is stdlib-only). Keep kernel + DNA; adapt domain cards under `standards/` and `vault/` for the target repo. Include Cursor / Copilot / CI bindings as needed.
+Requires Python 3.9+ (kernel is stdlib-only). Keep kernel + DNA; adapt domain cards under `standards/` and `vault/` for the target repo. Include Cursor / Copilot bindings as needed. If a parent workspace still points at legacy `knowledge/` / TOON paths, **this package’s AGENTS.md wins** when `_okf_knowledge/` is present.
 
 ## Add knowledge
 

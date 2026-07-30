@@ -1,14 +1,12 @@
 """Reference normalize / optimize."""
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 
-from src.cards import extract_prompt_card
 from src.compile_cmd import cmd_compile
 from src.paths import VAULT_ROOT
-from src.vault import escape_yaml_scalar, format_frontmatter, load_concept, parse_frontmatter
+from src.vault import format_frontmatter, load_concept
 
 
 VAULT_DIR = VAULT_ROOT / "vault"

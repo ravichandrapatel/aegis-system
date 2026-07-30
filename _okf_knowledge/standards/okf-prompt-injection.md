@@ -19,7 +19,7 @@ Curated OKF stays in the vault. Generation context gets a **dynamic Prompt Pack*
 | :---: | :--- | :--- | :--- |
 | 1 | OKF | `okf.py pack` / `lookup --card` | Standards, playbooks, catalogs, pins on cards |
 | 2 | Card pointers | Read only paths the **current cards** name | One deep dive |
-| 3 | Task corpus | Glob → Grep → Read | Product code in this repository |
+| 3 | Task corpus | Glob → **ripgrep (`rg`)** → Read | Product code in this repository (never legacy `grep`) |
 | 4 | Live external | Official Git/OCI/`gh` | Pins still missing/stale after 1–3 |
 | 5 | Grader | Only to explain/fix a failure | Not for inventing compliance at author time |
 
@@ -44,5 +44,6 @@ No graph/full-doc paste; no grader mining to invent compliance.
 # Related
 
 - DNA: [AGENTS.md](/AGENTS.md)
-- Schema: [OKF House Schema](/standards/okf-house-schema.md)
+- Schema: [OKF House Schema](okf-house-schema.md)
+- IDE tokens: [IDE Context Guardrails](ide-context-guardrails.md)
 - Pins / caches: [`vault/references/`](/vault/references/) (populate via scrape + maintain)

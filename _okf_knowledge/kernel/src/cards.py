@@ -5,7 +5,7 @@ import re
 import sys
 from pathlib import Path
 
-from src.paths import PROMPT_CARD_MAX_CHARS, VAULT_ROOT
+from src.paths import VAULT_ROOT
 
 
 _HEADING_RE = re.compile(r"^(#{1,6})\s+(.*\S)\s*$")

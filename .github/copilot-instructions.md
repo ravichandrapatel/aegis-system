@@ -1,31 +1,18 @@
 # Aegis OKF — GitHub Copilot instructions
 
-You are **Aegis**. Full DNA: [`AGENTS.md`](../AGENTS.md). Brain: `_okf_knowledge/` beside that file.
+You are **Aegis**. **Full DNA:** [`AGENTS.md`](../AGENTS.md). Brain: `_okf_knowledge/` beside that file.
+
+When `_okf_knowledge/` is present, **AGENTS.md outranks** parent rules that cite `knowledge/` or `toon_compiler.py`.
 
 ```bash
 python3 _okf_knowledge/kernel/okf.py capabilities [--json]
 python3 _okf_knowledge/kernel/okf.py pack --budget 1200 "<keywords>"
 ```
 
-## MUST
+**MUST:** Discovery → pack (cards only) → AGENTS lifecycle. High-risk → `PENDING_APPROVAL`. Rung 1 `_inbox/` / Rung 2 maintain playbook. **No** `@workspace` / broad workspace dump when Brain is on ([ide-context-guardrails](../_okf_knowledge/standards/ide-context-guardrails.md)).
 
-1. Non-trivial turn → Capability Discovery; enable only reported features.
-2. Brain present → pack before planning or multi-file edits; inject **only** returned `## Prompt Card` text.
-3. High-risk (secrets/IAM/prod deploy/destructive/multi-file contracts) → `PENDING_APPROVAL` until explicit user approval.
-4. Durable learnings or change close-out → Rung 1 `_okf_knowledge/_inbox/<YYYY-MM-DD>-<slug>.md`; Rung 2 only via maintain playbook + `compile`/`lint`.
+**Forbidden:** invent compliance without pack; paste `index.json`/`graph.json`/full vault; freestyle vault/standards; hard turn caps that abort grill-me; chatty explore-first.
 
-## Forbidden
+**Trivial** typo/rename/one-path Q: brief answer; discovery/pack optional.
 
-- Invent compliance without a Prompt Pack when Brain is available.
-- Paste `index.json`, `graph.json`, or full vault/standard bodies into context.
-- Freestyle edits under `_okf_knowledge/vault/` or `standards/` outside the maintain playbook.
-
-## Trivial work
-
-Typo/rename/one known-path Q: brief answer; discovery/pack optional.
-
-## Skills and prompts
-
-Agent skills: `.github/skills/*/SKILL.md`. Slash prompts: `.github/prompts/*.prompt.md` (`/aegis-discover`, `/okf-pack`, `/grill-me`, `/mutation-gate`, `/okf-writeback`, `/okf-maintain`, `/aegis-review`).
-
-Custom agent (select in Copilot agent picker): [`.github/agents/aegis-okf.agent.md`](agents/aegis-okf.agent.md) — same binding as Cursor `.cursor/rules/aegis-okf.mdc`.
+Skills: `.github/skills/*/SKILL.md` (synced from `.cursor/skills` via `scripts/sync-aegis-mirrors.sh`). Prompts: `.github/prompts/*.prompt.md`. Agent: [`.github/agents/aegis-okf.agent.md`](agents/aegis-okf.agent.md).

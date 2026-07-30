@@ -2,6 +2,66 @@
   "version": 2,
   "entries": [
     {
+      "id": "standards/ide-context-guardrails",
+      "path": "standards/ide-context-guardrails.md",
+      "title": "IDE Context Guardrails",
+      "description": "Binding rules to stop IDE token bloat and drift \u2014 no @workspace, pack-first cards, rg over legacy search.",
+      "tags": [
+        "standard",
+        "okf",
+        "tokens",
+        "ide",
+        "copilot",
+        "cursor",
+        "drift"
+      ],
+      "type": "Concept",
+      "id_norm": "standards ide context guardrails",
+      "title_norm": "ide context guardrails",
+      "desc_norm": "binding rules to stop ide token bloat and drift \u2014 no @workspace, pack-first cards, rg over legacy search.",
+      "tags_norm": "standard okf tokens ide copilot cursor drift",
+      "type_norm": "concept",
+      "tokens": [
+        "and",
+        "binding",
+        "bloat",
+        "cards",
+        "concept",
+        "context",
+        "copilot",
+        "cursor",
+        "drift",
+        "first",
+        "guardrails",
+        "ide",
+        "legacy",
+        "no",
+        "okf",
+        "over",
+        "pack",
+        "rg",
+        "rules",
+        "search",
+        "standard",
+        "standards",
+        "stop",
+        "tab",
+        "to",
+        "token",
+        "tokens",
+        "workspace"
+      ],
+      "pack_force_when": [
+        "token",
+        "drift",
+        "workspace",
+        "@workspace",
+        "copilot",
+        "context",
+        "tab"
+      ]
+    },
+    {
       "id": "standards/metadata-headers",
       "path": "standards/metadata-headers.md",
       "title": "Metadata Headers",
@@ -273,6 +333,59 @@
       ]
     },
     {
+      "id": "vault/concepts/okf-cognitive-bundle",
+      "path": "vault/concepts/okf-cognitive-bundle.md",
+      "title": "OKF Cognitive Bundle",
+      "description": "Modular OKF brain \u2014 atomic docs, index hub, inverted cache, prompt cards, autonomous okf.py.",
+      "tags": [
+        "okf",
+        "architecture",
+        "tokens",
+        "bundle",
+        "aegis"
+      ],
+      "type": "Concept",
+      "id_norm": "vault concepts okf cognitive bundle",
+      "title_norm": "okf cognitive bundle",
+      "desc_norm": "modular okf brain \u2014 atomic docs, index hub, inverted cache, prompt cards, autonomous okf.py.",
+      "tags_norm": "okf architecture tokens bundle aegis",
+      "type_norm": "concept",
+      "tokens": [
+        "aegis",
+        "architecture",
+        "atomic",
+        "autonomous",
+        "brain",
+        "bundle",
+        "cache",
+        "card",
+        "cards",
+        "cognitive",
+        "concept",
+        "concepts",
+        "docs",
+        "hub",
+        "index",
+        "inverted",
+        "modular",
+        "module",
+        "okf",
+        "prompt",
+        "py",
+        "tokens",
+        "toon",
+        "vault"
+      ],
+      "pack_force_when": [
+        "bundle",
+        "module",
+        "inverted",
+        "prompt card",
+        "cognitive",
+        "toon"
+      ]
+    },
+    {
       "id": "vault/playbooks/maintain-aegis-system",
       "path": "vault/playbooks/maintain-aegis-system.md",
       "title": "Maintain aegis-system",
@@ -316,23 +429,126 @@
   ],
   "inverted": {
     "and": [
+      "standards/ide-context-guardrails",
       "standards/metadata-headers",
       "standards/okf-house-schema",
       "vault/concepts/extending-aegis"
+    ],
+    "binding": [
+      "standards/ide-context-guardrails"
+    ],
+    "bloat": [
+      "standards/ide-context-guardrails"
+    ],
+    "cards": [
+      "standards/ide-context-guardrails",
+      "standards/okf-prompt-injection",
+      "vault/concepts/okf-cognitive-bundle"
+    ],
+    "concept": [
+      "standards/ide-context-guardrails",
+      "standards/metadata-headers",
+      "standards/okf-house-schema",
+      "standards/okf-prompt-injection",
+      "standards/simplicity-first",
+      "vault/concepts/aegis-capability-discovery",
+      "vault/concepts/extending-aegis",
+      "vault/concepts/okf-cognitive-bundle"
+    ],
+    "context": [
+      "standards/ide-context-guardrails"
+    ],
+    "copilot": [
+      "standards/ide-context-guardrails"
+    ],
+    "cursor": [
+      "standards/ide-context-guardrails"
+    ],
+    "drift": [
+      "standards/ide-context-guardrails"
+    ],
+    "first": [
+      "standards/ide-context-guardrails",
+      "standards/simplicity-first"
+    ],
+    "guardrails": [
+      "standards/ide-context-guardrails"
+    ],
+    "ide": [
+      "standards/ide-context-guardrails"
+    ],
+    "legacy": [
+      "standards/ide-context-guardrails"
+    ],
+    "no": [
+      "standards/ide-context-guardrails"
+    ],
+    "okf": [
+      "standards/ide-context-guardrails",
+      "standards/okf-house-schema",
+      "standards/okf-prompt-injection",
+      "vault/concepts/aegis-capability-discovery",
+      "vault/concepts/okf-cognitive-bundle",
+      "vault/playbooks/maintain-aegis-system"
+    ],
+    "over": [
+      "standards/ide-context-guardrails"
+    ],
+    "pack": [
+      "standards/ide-context-guardrails",
+      "standards/okf-prompt-injection",
+      "vault/concepts/aegis-capability-discovery"
+    ],
+    "rg": [
+      "standards/ide-context-guardrails"
+    ],
+    "rules": [
+      "standards/ide-context-guardrails",
+      "standards/okf-house-schema"
+    ],
+    "search": [
+      "standards/ide-context-guardrails"
+    ],
+    "standard": [
+      "standards/ide-context-guardrails",
+      "standards/metadata-headers",
+      "standards/okf-house-schema",
+      "standards/okf-prompt-injection",
+      "standards/simplicity-first"
+    ],
+    "standards": [
+      "standards/ide-context-guardrails",
+      "standards/metadata-headers",
+      "standards/okf-house-schema",
+      "standards/okf-prompt-injection",
+      "standards/simplicity-first"
+    ],
+    "stop": [
+      "standards/ide-context-guardrails"
+    ],
+    "tab": [
+      "standards/ide-context-guardrails"
+    ],
+    "to": [
+      "standards/ide-context-guardrails",
+      "vault/concepts/extending-aegis"
+    ],
+    "token": [
+      "standards/ide-context-guardrails"
+    ],
+    "tokens": [
+      "standards/ide-context-guardrails",
+      "standards/okf-prompt-injection",
+      "vault/concepts/okf-cognitive-bundle"
+    ],
+    "workspace": [
+      "standards/ide-context-guardrails"
     ],
     "blocks": [
       "standards/metadata-headers"
     ],
     "code": [
       "standards/metadata-headers"
-    ],
-    "concept": [
-      "standards/metadata-headers",
-      "standards/okf-house-schema",
-      "standards/okf-prompt-injection",
-      "standards/simplicity-first",
-      "vault/concepts/aegis-capability-discovery",
-      "vault/concepts/extending-aegis"
     ],
     "conventions": [
       "standards/metadata-headers"
@@ -378,27 +594,17 @@
     "scripts": [
       "standards/metadata-headers"
     ],
-    "standard": [
-      "standards/metadata-headers",
-      "standards/okf-house-schema",
-      "standards/okf-prompt-injection",
-      "standards/simplicity-first"
-    ],
-    "standards": [
-      "standards/metadata-headers",
-      "standards/okf-house-schema",
-      "standards/okf-prompt-injection",
-      "standards/simplicity-first"
-    ],
     "aegis": [
       "standards/okf-house-schema",
       "standards/okf-prompt-injection",
       "vault/concepts/aegis-capability-discovery",
       "vault/concepts/extending-aegis",
+      "vault/concepts/okf-cognitive-bundle",
       "vault/playbooks/maintain-aegis-system"
     ],
     "card": [
-      "standards/okf-house-schema"
+      "standards/okf-house-schema",
+      "vault/concepts/okf-cognitive-bundle"
     ],
     "documents": [
       "standards/okf-house-schema"
@@ -415,26 +621,15 @@
       "standards/okf-house-schema",
       "vault/playbooks/maintain-aegis-system"
     ],
-    "okf": [
-      "standards/okf-house-schema",
-      "standards/okf-prompt-injection",
-      "vault/concepts/aegis-capability-discovery",
-      "vault/playbooks/maintain-aegis-system"
-    ],
     "prompt": [
       "standards/okf-house-schema",
-      "standards/okf-prompt-injection"
-    ],
-    "rules": [
-      "standards/okf-house-schema"
+      "standards/okf-prompt-injection",
+      "vault/concepts/okf-cognitive-bundle"
     ],
     "schema": [
       "standards/okf-house-schema"
     ],
     "back": [
-      "standards/okf-prompt-injection"
-    ],
-    "cards": [
       "standards/okf-prompt-injection"
     ],
     "corpus": [
@@ -456,10 +651,6 @@
     "lookup": [
       "standards/okf-prompt-injection"
     ],
-    "pack": [
-      "standards/okf-prompt-injection",
-      "vault/concepts/aegis-capability-discovery"
-    ],
     "prompting": [
       "standards/okf-prompt-injection"
     ],
@@ -472,9 +663,6 @@
     "slim": [
       "standards/okf-prompt-injection"
     ],
-    "tokens": [
-      "standards/okf-prompt-injection"
-    ],
     "write": [
       "standards/okf-prompt-injection"
     ],
@@ -483,9 +671,6 @@
       "vault/concepts/aegis-capability-discovery"
     ],
     "files": [
-      "standards/simplicity-first"
-    ],
-    "first": [
       "standards/simplicity-first"
     ],
     "laziness": [
@@ -532,7 +717,8 @@
       "vault/concepts/aegis-capability-discovery"
     ],
     "brain": [
-      "vault/concepts/aegis-capability-discovery"
+      "vault/concepts/aegis-capability-discovery",
+      "vault/concepts/okf-cognitive-bundle"
     ],
     "capabilities": [
       "vault/concepts/aegis-capability-discovery"
@@ -546,7 +732,8 @@
     ],
     "concepts": [
       "vault/concepts/aegis-capability-discovery",
-      "vault/concepts/extending-aegis"
+      "vault/concepts/extending-aegis",
+      "vault/concepts/okf-cognitive-bundle"
     ],
     "discovery": [
       "vault/concepts/aegis-capability-discovery"
@@ -581,7 +768,8 @@
       "vault/concepts/aegis-capability-discovery"
     ],
     "py": [
-      "vault/concepts/aegis-capability-discovery"
+      "vault/concepts/aegis-capability-discovery",
+      "vault/concepts/okf-cognitive-bundle"
     ],
     "shell": [
       "vault/concepts/aegis-capability-discovery"
@@ -597,6 +785,7 @@
     "vault": [
       "vault/concepts/aegis-capability-discovery",
       "vault/concepts/extending-aegis",
+      "vault/concepts/okf-cognitive-bundle",
       "vault/playbooks/maintain-aegis-system"
     ],
     "when": [
@@ -648,11 +837,47 @@
     "this": [
       "vault/concepts/extending-aegis"
     ],
-    "to": [
-      "vault/concepts/extending-aegis"
-    ],
     "without": [
       "vault/concepts/extending-aegis"
+    ],
+    "architecture": [
+      "vault/concepts/okf-cognitive-bundle"
+    ],
+    "atomic": [
+      "vault/concepts/okf-cognitive-bundle"
+    ],
+    "autonomous": [
+      "vault/concepts/okf-cognitive-bundle"
+    ],
+    "bundle": [
+      "vault/concepts/okf-cognitive-bundle"
+    ],
+    "cache": [
+      "vault/concepts/okf-cognitive-bundle"
+    ],
+    "cognitive": [
+      "vault/concepts/okf-cognitive-bundle"
+    ],
+    "docs": [
+      "vault/concepts/okf-cognitive-bundle"
+    ],
+    "hub": [
+      "vault/concepts/okf-cognitive-bundle"
+    ],
+    "index": [
+      "vault/concepts/okf-cognitive-bundle"
+    ],
+    "inverted": [
+      "vault/concepts/okf-cognitive-bundle"
+    ],
+    "modular": [
+      "vault/concepts/okf-cognitive-bundle"
+    ],
+    "module": [
+      "vault/concepts/okf-cognitive-bundle"
+    ],
+    "toon": [
+      "vault/concepts/okf-cognitive-bundle"
     ],
     "add": [
       "vault/playbooks/maintain-aegis-system"

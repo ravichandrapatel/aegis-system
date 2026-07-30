@@ -1,7 +1,6 @@
 """Vault load/parse/link helpers."""
 from __future__ import annotations
 
-import json
 import re
 import sys
 from pathlib import Path
@@ -10,7 +9,6 @@ from src.models import Concept
 from src.config import path_ignored
 from src.paths import (
     AEGIS_BRAIN_HTML,
-    BRAIN_ROOT,
     RESERVED_FILENAMES,
     SKIP_DIRS,
     VAULT_ROOT,

@@ -6,8 +6,6 @@ import re
 from pathlib import Path
 
 from src.paths import (
-    BRAIN_ROOT,
-    CHARS_PER_TOKEN,
     DEFAULT_MAX_CARDS,
     DEFAULT_TOKEN_BUDGET,
     OKFIGNORE_NAME,

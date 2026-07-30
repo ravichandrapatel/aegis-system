@@ -22,15 +22,13 @@ from src.lookup import (
     _CARD_CACHE,
     _INDEX_CACHE,
     _INVERTED_CACHE,
-    _norm,
-    _tokenize,
 )
+from src.textutil import norm as _norm, tokenize as _tokenize
 from src.vault import (
     concept_id_from_path,
     extract_links,
     inject_into_aegis_brain,
     iter_concept_files,
-    load_vault,
     parse_frontmatter,
     resolve_link,
 )

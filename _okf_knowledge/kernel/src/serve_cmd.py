@@ -1,7 +1,6 @@
 """Local brain HTTP server."""
 from __future__ import annotations
 
-import sys
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse

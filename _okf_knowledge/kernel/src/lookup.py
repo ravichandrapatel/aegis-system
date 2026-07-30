@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
 from src.cards import extract_prompt_card
-from src.config import count_tokens, load_okf_config
+from src.config import _tiktoken_encoder, count_tokens, load_okf_config
 from src.models import Hit, IndexEntry, _MtimeCache
 from src.paths import (
     BRAIN_ROOT,
@@ -19,17 +21,22 @@ from src.paths import (
     GRAPH_HOP2,
     GRAPH_JSON,
     ID_WEIGHT,
-    MIN_TERM_LEN,
+    INDEX_FORMAT_VERSION,
     PREFIX_MULT,
+    RESERVED_FILENAMES,
     SLUG_BONUS,
     SUBSTRING_MULT,
     TAG_WEIGHT,
     TITLE_WEIGHT,
     TYPE_WEIGHT,
     VAULT_ROOT,
-    _CAMEL_RE,
 )
-from src.vault import load_vault
+from src.vault import concept_id_from_path, load_vault
+from src.textutil import norm as _norm, tokenize as _tokenize
+
+# Soft cap for rg file hits before scoring (keeps pack budgets small).
+_RG_MAX_FILES = 40
+_RG_TIMEOUT_S = 8
 
 
 _INDEX_CACHE = _MtimeCache()
@@ -39,29 +46,6 @@ _ADJ_CACHE = _MtimeCache()
 _CARD_CACHE = _MtimeCache()
 
 _INVERTED_CACHE = _MtimeCache()
-
-def _norm(text: str) -> str:
-    return re.sub(r"\s+", " ", text.lower()).strip()
-
-def _tokenize(text: str) -> list[str]:
-    """
-    intent: Split on whitespace, snake_case, camelCase, and punctuation.
-    input: raw text (title, id, query, …).
-    output: lowercase tokens (length ≥ MIN_TERM_LEN).
-    """
-    out: list[str] = []
-    for word in re.split(r"[^A-Za-z0-9_+.-]+", text or ""):
-        if not word:
-            continue
-        for part in word.replace("-", "_").split("_"):
-            if not part:
-                continue
-            chunks = _CAMEL_RE.findall(part) or [part]
-            for c in chunks:
-                t = c.lower()
-                if len(t) >= MIN_TERM_LEN:
-                    out.append(t)
-    return out
 
 def _tokens(query: str) -> list[str]:
     # Preserve order, drop dupes.
@@ -284,9 +268,31 @@ def _load_inverted() -> dict[str, list[str]]:
     _, inv = _load_index_bundle()
     return inv
 
+def _entry_from_concept(concept) -> IndexEntry | None:
+    if concept.parse_error:
+        return None
+    fm = concept.frontmatter
+    tags = fm.get("tags", [])
+    if not isinstance(tags, list):
+        tags = [tags] if tags else []
+    pfw = fm.get("pack_force_when", [])
+    if not isinstance(pfw, list):
+        pfw = [pfw] if pfw else []
+    entry = IndexEntry(
+        concept_id=concept.concept_id,
+        title=str(fm.get("title", "")),
+        description=str(fm.get("description", "")),
+        tags=[str(t) for t in tags],
+        ctype=str(fm.get("type", "")),
+        path=concept.path,
+        pack_force_when=[str(x) for x in pfw if str(x).strip()],
+    )
+    _ensure_norms(entry)
+    return entry
+
 def _entries_from_vault() -> list[IndexEntry]:
     """
-    intent: Fallback — build index rows by walking the vault (frontmatter only).
+    intent: Last-resort fallback — walk vault frontmatter (no grep; prefer rg first).
     input: none.
     output: IndexEntry list.
     role: live indexer.
@@ -294,27 +300,115 @@ def _entries_from_vault() -> list[IndexEntry]:
     """
     entries: list[IndexEntry] = []
     for concept in load_vault():
-        if concept.parse_error:
-            continue
-        fm = concept.frontmatter
-        tags = fm.get("tags", [])
-        if not isinstance(tags, list):
-            tags = [tags] if tags else []
-        pfw = fm.get("pack_force_when", [])
-        if not isinstance(pfw, list):
-            pfw = [pfw] if pfw else []
-        entry = IndexEntry(
-            concept_id=concept.concept_id,
-            title=str(fm.get("title", "")),
-            description=str(fm.get("description", "")),
-            tags=[str(t) for t in tags],
-            ctype=str(fm.get("type", "")),
-            path=concept.path,
-            pack_force_when=[str(x) for x in pfw if str(x).strip()],
-        )
-        _ensure_norms(entry)
-        entries.append(entry)
+        entry = _entry_from_concept(concept)
+        if entry:
+            entries.append(entry)
     return entries
+
+def _rg_bin() -> str | None:
+    """
+    intent: Resolve ripgrep binary; never use legacy grep.
+    output: path to rg or None.
+    """
+    return shutil.which("rg")
+
+def _rg_concept_ids(query: str, *, max_files: int = _RG_MAX_FILES) -> list[str]:
+    """
+    intent: Cache-miss body search via ripgrep only (no grep/egrep).
+    input: query string; max file hits.
+    output: ordered unique concept_ids under BRAIN_ROOT.
+    role: rg fallback searcher.
+    side_effects: may spawn `rg` subprocess (no shell).
+    """
+    rg = _rg_bin()
+    if not rg:
+        return []
+    terms = [t for t in _tokens(query) if len(t) >= 3]
+    raw = (query or "").strip()
+    patterns: list[str] = []
+    if raw and len(raw) >= 3:
+        patterns.append(re.escape(raw))
+    for t in terms[:6]:
+        esc = re.escape(t)
+        if esc not in patterns:
+            patterns.append(esc)
+    if not patterns:
+        return []
+    # Prefer fewer false positives: OR of substantial terms / full phrase.
+    pattern = "|".join(patterns)
+    cmd = [
+        rg,
+        "-l",
+        "-i",
+        "--glob",
+        "*.md",
+        "--glob",
+        "!**/kernel/src/**",
+        "--glob",
+        "!**/.okf-compile-cache.json",
+        "-e",
+        pattern,
+        str(BRAIN_ROOT),
+    ]
+    try:
+        proc = subprocess.run(
+            cmd,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=_RG_TIMEOUT_S,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return []
+    if proc.returncode not in (0, 1):
+        # 0 = matches, 1 = no matches; other = error
+        return []
+    ids: list[str] = []
+    seen: set[str] = set()
+    for line in (proc.stdout or "").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        cid = concept_id_from_path(Path(line))
+        if not cid:
+            continue
+        base = cid.rsplit("/", 1)[-1] + ".md"
+        if base in RESERVED_FILENAMES or cid in seen:
+            continue
+        seen.add(cid)
+        ids.append(cid)
+        if len(ids) >= max(1, max_files):
+            break
+    return ids
+
+def _entries_for_ids(
+    concept_ids: list[str],
+    by_id: dict[str, IndexEntry] | None = None,
+) -> list[IndexEntry]:
+    """
+    intent: Resolve IndexEntry rows for concept ids (index first, else vault parse).
+    """
+    out: list[IndexEntry] = []
+    have = by_id or {}
+    need_vault: list[str] = []
+    for cid in concept_ids:
+        if cid in have:
+            out.append(have[cid])
+        else:
+            need_vault.append(cid)
+    if not need_vault:
+        return out
+    wanted = set(need_vault)
+    for concept in load_vault():
+        if concept.concept_id not in wanted:
+            continue
+        entry = _entry_from_concept(concept)
+        if entry:
+            out.append(entry)
+            wanted.discard(entry.concept_id)
+        if not wanted:
+            break
+    return out
 
 def _load_adjacency() -> dict[str, set[str]]:
     """
@@ -431,33 +525,64 @@ def lookup(
     type_filter: str | None = None,
 ) -> list[Hit]:
     """
-    intent: Search vault concepts without loading full bodies into ranking.
+    intent: Search vault concepts — JSON inverted index first, ripgrep on miss.
     input: query; max hits; optional type filter (case-insensitive).
     output: ranked Hit list.
     role: searcher.
-    side_effects: reads index.json (or vault) and optionally graph.json.
+    side_effects: reads index.json; may spawn `rg` (never grep); may read vault.
     """
     terms = _tokens(query)
+    # Prefer substantial tokens for ranking (avoids "me"/"to" noise); keep all if none.
+    rank_terms = [t for t in terms if len(t) >= 3] or terms
     entries, inverted = _load_index_bundle()
+    source = "index"
     if entries is None:
-        entries = _entries_from_vault()
+        # No compiled index → ripgrep discover paths (not grep), else vault walk.
+        rg_ids = _rg_concept_ids(query)
+        if rg_ids:
+            entries = _entries_for_ids(rg_ids)
+            source = "rg"
+        else:
+            entries = _entries_from_vault()
+            source = "live-vault"
         inverted = {}
     by_id = {e.concept_id: e for e in entries}
-    candidate_ids = _candidate_ids(terms, inverted, list(by_id.keys()))
+    candidate_ids = _candidate_ids(rank_terms, inverted, list(by_id.keys()))
     if candidate_ids is None:
-        pool = entries
+        pool = entries  # full index / vault scan (fuzzy + acronym recall)
     else:
         pool = [by_id[cid] for cid in candidate_ids if cid in by_id]
+
     hits: list[Hit] = []
     want_type = type_filter.lower() if type_filter else None
     for entry in pool:
         if want_type and entry.ctype.lower() != want_type:
             continue
-        s, matched = score_entry(entry, terms)
+        s, matched = score_entry(entry, rank_terms)
         if s > 0:
+            if source == "rg" and "rg" not in matched:
+                matched = list(matched) + ["rg"]
             hits.append(Hit(entry=entry, score=s, matched=matched))
+
+    # Cache / lexical miss → ripgrep body fallback (never grep).
+    if not hits:
+        rg_ids = _rg_concept_ids(query)
+        if rg_ids:
+            for entry in _entries_for_ids(rg_ids, by_id):
+                if want_type and entry.ctype.lower() != want_type:
+                    continue
+                s, matched = score_entry(entry, rank_terms)
+                if s <= 0:
+                    s = max(1, TITLE_WEIGHT)
+                    matched = ["rg"]
+                elif "rg" not in matched:
+                    matched = list(matched) + ["rg"]
+                hits.append(Hit(entry=entry, score=s, matched=matched))
+            source = "rg" if source in {"live-vault", "rg"} else "index+rg"
+
     _apply_graph_boost(hits, _load_adjacency())
     hits.sort(key=lambda h: (-h.score, h.entry.concept_id))
+    lookup._last_source = source  # type: ignore[attr-defined]
     return hits[: max(1, limit)]
 
 def _card_for(hit: Hit, cache: dict[str, str]) -> str | None:
@@ -477,10 +602,6 @@ def _card_for(hit: Hit, cache: dict[str, str]) -> str | None:
     if not path.is_file():
         return None
     return extract_prompt_card(path.read_text(encoding="utf-8"))
-
-def _est_tokens(text: str) -> int:
-    """Backward-compatible alias for count_tokens."""
-    return count_tokens(text)
 
 def _query_matches_pack_force(query: str, keywords: list[str]) -> bool:
     """True when any pack_force_when keyword appears as a phrase in the query."""
@@ -709,11 +830,11 @@ def cmd_lookup(args: argparse.Namespace) -> int:
 
     if (BRAIN_ROOT / "index.json").is_file():
         _, inv = _load_index_bundle()
-        src = f"index.json v{INDEX_FORMAT_VERSION}"
-        if inv:
-            src += f" (inv={len(inv)} tokens)"
+        src = getattr(lookup, "_last_source", None) or f"index.json v{INDEX_FORMAT_VERSION}"
+        if inv and str(src).startswith("index"):
+            src = f"{src} (inv={len(inv)} tokens)"
     else:
-        src = "live vault"
+        src = getattr(lookup, "_last_source", None) or "rg|live-vault"
     print(f"# okf lookup  query={args.query!r}  source={src}  vault={VAULT_ROOT}")
     for hit in hits:
         e = hit.entry

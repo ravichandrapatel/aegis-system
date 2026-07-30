@@ -5,7 +5,7 @@ description: >-
   task, after environment change, or when unsure whether Brain/Git/Python exist.
 ---
 
-Probe what exists. Do not assume tools. Enable only reported features.
+Probe what exists. Enable only reported features. Policy (disable table, hard rules): [`AGENTS.md`](../../../AGENTS.md) § Capability Discovery · packable: [`aegis-capability-discovery.md`](../../../_okf_knowledge/vault/concepts/aegis-capability-discovery.md).
 
 ## How to run
 
@@ -13,18 +13,10 @@ Probe what exists. Do not assume tools. Enable only reported features.
 python3 _okf_knowledge/kernel/okf.py capabilities [--json] [--strict]
 ```
 
-Emit a short Capability Report: each cap status + `enabled_features` + `runtime_hint`.
-
-| Cap missing | Disable | Still allow |
-| --- | --- | --- |
-| FS / Shell | Mutations | Explain-only with pasted context |
-| Python / Brain | Pack, compile, lint, ingest | `BLOCKED` for non-trivial CREATE/MODIFY |
-| Git | Commit / PR | Edits + pack if Brain OK |
-| compile / lint | Rung 2 maintain | Rung 1 `_inbox/` + `MAINTAIN later` |
+Emit a short Capability Report: cap statuses + `enabled_features` + `runtime_hint`.
 
 ## Guardrails
 
-- Hard rule: non-trivial CREATE/MODIFY with Brain missing → `BLOCKED`. Do not freestyle.
-- Fallback if `okf.py` unavailable: probe `_okf_knowledge/`, `command -v git`, writable cwd; **MUST NOT** claim a successful Prompt Pack.
-- Trivial typo/rename/one-path Q may skip discovery.
-- Next: `okf-pack` when Brain is present.
+- Brain missing on non-trivial CREATE/MODIFY → `BLOCKED` (do not freestyle).
+- If `okf.py` missing: shell-probe only — **never** claim a successful Prompt Pack.
+- Trivial Q&A may skip. Next: `okf-pack` when Brain is present.

@@ -1,3 +1,3 @@
 # Cached references — references
 
-*(Empty)* — Add cached upstream docs here via the maintain playbook / `okf.py scrape`.
+(Empty) — no cached references yet. Use `python3 _okf_knowledge/kernel/okf.py scrape "<query or URL>"` to fetch and cache upstream docs.
