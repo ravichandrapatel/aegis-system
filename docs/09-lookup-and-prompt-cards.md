@@ -52,7 +52,7 @@ python3 _okf_knowledge/kernel/okf.py lookup --card --max-cards 8 --budget 1200 "
 
 ### Ranking (lexical)
 
-Field weights (tunable constants in code): title > id > tags > description > type, with exact/prefix/substring multipliers. Optional **graph hop** bonuses from the `index.json` adjacency map.
+Field weights (tunable constants in code): title > id > tags > description > type, with exact/prefix/substring multipliers. Optional **graph hop** bonuses from `kernel/src/graph.json` adjacency.
 
 Listing metadata shows `matched=…` and `graph=N hop` for debugging.
 
@@ -62,7 +62,7 @@ Listing metadata shows `matched=…` and `graph=N hop` for debugging.
 | --- | --- | --- |
 | Candidate list | `index.json` | Live `load_vault()` frontmatter |
 | Card body | `prompt_cards.json` | Read `.md` + extract `## Prompt Card` |
-| Proximity | `index.json` adjacency | No boost |
+| Proximity | `graph.json` adjacency | No boost |
 
 ## Tool: `okf.py card`
 

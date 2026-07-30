@@ -24,8 +24,9 @@ from src.paths import (
     PROMPT_CARD_MAX_CHARS,
 )
 from src.vault import (
-    escape_yaml_scalar,
+    format_frontmatter,
     load_vault,
+    parse_frontmatter,
 )
 
 
@@ -124,6 +125,14 @@ def _validate_llm_endpoint(url: str) -> None:
         raise ValueError(f"[DBG-404] cannot resolve LLM host {host}: {exc}") from exc
 
 
+class _SafeLlmRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Re-validate LLM redirect targets with the same SSRF gate."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        _validate_llm_endpoint(newurl)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def _llm_chat(base_url: str, api_key: str, model: str, prompt: str) -> str:
     """
     intent: Minimal OpenAI-compatible /chat/completions call via stdlib.
@@ -150,7 +159,8 @@ def _llm_chat(base_url: str, api_key: str, model: str, prompt: str) -> str:
         },
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=LLM_REQUEST_TIMEOUT_S) as resp:  # nosec B310
+    opener = urllib.request.build_opener(_SafeLlmRedirectHandler())
+    with opener.open(req, timeout=LLM_REQUEST_TIMEOUT_S) as resp:  # nosec B310
         data = json.loads(resp.read().decode("utf-8"))
     return str(data["choices"][0]["message"]["content"] or "")
 
@@ -203,50 +213,44 @@ def _apply_enrich(concept: Concept, gaps: list[str], fix: dict) -> tuple[str, li
     input: concept; gap names; sanitized fix dict.
     output: (new file text, list of gaps actually filled).
     role: pure rewriter (caller writes the file).
-    side_effects: none.
+    side_effects: none (reads concept.path).
     """
     text = concept.path.read_text(encoding="utf-8")
+    fm, body = parse_frontmatter(text)
+    if fm is None:
+        return text, []
+    fm = dict(fm)
     filled: list[str] = []
 
     if "description" in gaps and fix.get("description"):
-        new_line = f"description: {escape_yaml_scalar(str(fix['description']))}"
-        if re.search(r"^description:.*$", text, flags=re.M):
-            text = re.sub(r"^description:.*$", new_line, text, count=1, flags=re.M)
-        else:
-            text = re.sub(r"^(type:.*)$", r"\1\n" + new_line, text, count=1, flags=re.M)
+        fm["description"] = str(fix["description"])
         filled.append("description")
 
     if "tags" in gaps and fix.get("tags"):
-        existing = concept.frontmatter.get("tags", [])
+        existing = fm.get("tags", [])
         if not isinstance(existing, list):
             existing = [existing] if existing else []
         merged = [str(t) for t in existing if str(t).strip()]
         for t in fix["tags"]:
             if t not in merged:
                 merged.append(t)
-        items = [escape_yaml_scalar(t) for t in merged[:ENRICH_MAX_TAGS]]
-        new_line = f"tags: [{', '.join(items)}]"
-        if re.search(r"^tags:.*$", text, flags=re.M):
-            text = re.sub(r"^tags:.*$", new_line, text, count=1, flags=re.M)
-        else:
-            text = re.sub(r"^(type:.*)$", r"\1\n" + new_line, text, count=1, flags=re.M)
+        fm["tags"] = merged[:ENRICH_MAX_TAGS]
         filled.append("tags")
 
     if "card" in gaps and fix.get("prompt_card"):
         block = f"\n## Prompt Card\n\n```text\n{fix['prompt_card']}\n```\n"
-        # Insert before the first Related heading so the card stays scoped;
-        # otherwise append at the end of the document.
-        m = re.search(r"^#{1,2} Related\s*$", text, flags=re.M)
+        m = re.search(r"^#{1,2} Related\s*$", body, flags=re.M)
         if m:
-            text = text[: m.start()] + block.lstrip("\n") + "\n" + text[m.start():]
+            body = body[: m.start()] + block.lstrip("\n") + "\n" + body[m.start() :]
         else:
-            text = text.rstrip("\n") + "\n" + block
+            body = body.rstrip("\n") + "\n" + block
         filled.append("card")
 
-    if filled:
-        stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        text = re.sub(r"^timestamp:.*$", f"timestamp: {stamp}", text, count=1, flags=re.M)
-    return text, filled
+    if not filled:
+        return text, []
+
+    fm["timestamp"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return format_frontmatter(fm) + body, filled
 
 def cmd_enrich(args: argparse.Namespace) -> int:
     """

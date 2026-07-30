@@ -37,7 +37,7 @@ aegis-system/
 | `vault/` | 4 | Passive memory (concepts, playbooks, systems, …) |
 | `index.md` | — | Human entry map for the brain |
 | `log.md` | — | Append-only mutation history |
-| `index.json` | compiled | Slim lookup index (+ adjacency for hop-boost) |
+| `index.json` | compiled | Slim lookup index (v2 + inverted tokens; hop-boost from `graph.json`) |
 | `prompt_cards.json` | compiled | Cached Prompt Cards |
 | `aegis-brain.html` | UI | Interactive brain visualizer; graph + lint payloads are **embedded** here by `compile` / `lint`. Compile also writes `kernel/src/graph.json` (no `lint.json` sidecar). |
 

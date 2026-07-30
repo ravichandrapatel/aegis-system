@@ -38,6 +38,24 @@ def _is_loopback(host: str) -> bool:
         return False
 
 
+def _origin_is_loopback(origin: str) -> bool:
+    """
+    intent: Allow browser Origin only when it points at loopback.
+    input: Origin or Referer header value (may be empty).
+    output: True when missing (non-browser/curl) or host is loopback.
+    role: CSRF soft gate for mutate POSTs.
+    side_effects: none.
+    """
+    raw = (origin or "").strip()
+    if not raw:
+        return True  # curl / non-browser clients
+    try:
+        host = urlparse(raw).hostname or ""
+    except ValueError:
+        return False
+    return _is_loopback(host)
+
+
 class VaultHandler(BaseHTTPRequestHandler):
     """
     intent: Serve only brain visualizer assets + loopback mutate APIs.
@@ -77,10 +95,14 @@ class VaultHandler(BaseHTTPRequestHandler):
     def _require_loopback_client(self) -> bool:
         """Reject mutate APIs unless the TCP peer is loopback."""
         peer = self.client_address[0] if self.client_address else ""
-        if _is_loopback(peer):
-            return True
-        self.send_error(403, "mutate APIs are loopback-only")
-        return False
+        if not _is_loopback(peer):
+            self.send_error(403, "mutate APIs are loopback-only")
+            return False
+        origin = self.headers.get("Origin") or self.headers.get("Referer") or ""
+        if not _origin_is_loopback(origin):
+            self.send_error(403, "mutate APIs require loopback Origin/Referer (or none)")
+            return False
+        return True
 
     def do_POST(self) -> None:
         """

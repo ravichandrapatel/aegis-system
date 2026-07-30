@@ -221,17 +221,6 @@ def load_vault_incremental(force: bool = False) -> tuple[list[Concept], int, int
             continue
 
         cached = prev_files.get(rel) if isinstance(prev_files, dict) else None
-        if (
-            not force
-            and isinstance(cached, dict)
-            and cached.get("mtime_ns") == mtime_ns
-            and isinstance(cached.get("concept"), dict)
-        ):
-            concepts.append(_concept_from_cache(path, cached["concept"]))  # type: ignore[arg-type]
-            new_files[rel] = cached
-            reused += 1
-            continue
-
         try:
             data = path.read_bytes()
         except OSError as exc:
@@ -246,6 +235,7 @@ def load_vault_incremental(force: bool = False) -> tuple[list[Concept], int, int
             continue
 
         digest = _sha256_bytes(data)
+        # Always verify content hash — mtime alone is not sufficient (can be preserved).
         if (
             not force
             and isinstance(cached, dict)

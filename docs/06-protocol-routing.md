@@ -43,7 +43,7 @@ Before planning or traversing, verify the loaded Profile’s required modules, v
 
 ### Context expansion & budget (§4.2)
 
-Build a Context / Prompt Pack by traversing the `index.json` adjacency map (and using lookup for cards). **Do not** paste compiled artifacts into the generation prompt.
+Build a Context / Prompt Pack via `okf.py lookup` / `pack` (hop-boost reads adjacency from `kernel/src/graph.json`). **Do not** paste compiled artifacts into the generation prompt.
 
 | Budget rule | Value |
 | --- | --- |

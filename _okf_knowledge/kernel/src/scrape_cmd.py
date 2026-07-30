@@ -279,6 +279,33 @@ def compress_reference_body(content: str, max_chars: int) -> tuple[str, str]:
         return text_out[: max(0, max_chars - 64)], "\n\n*(compressed/truncated)*"
     return text_out, note
 
+def _safe_ref_segment(value: str, *, label: str) -> str:
+    """
+    intent: Reject path traversal / separators in reference domain or slug.
+    input: raw segment; label for error messages.
+    output: sanitized single path segment.
+    role: path containment gate.
+    side_effects: raises ValueError when unsafe.
+    """
+    s = (value or "").strip().replace("\\", "/")
+    if not s or s in {".", ".."} or "/" in s or s.startswith("~"):
+        raise ValueError(f"[DBG-403] unsafe {label}: {value!r}")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", s):
+        raise ValueError(f"[DBG-403] unsafe {label} characters: {value!r}")
+    return s
+
+
+def _brain_contained(path: Path) -> Path:
+    """Resolve path and require it stays under VAULT_ROOT."""
+    root = VAULT_ROOT.resolve()
+    resolved = path.resolve()
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"[DBG-403] path escapes brain root: {path}") from exc
+    return resolved
+
+
 def write_reference(
     slug: str,
     title: str,
@@ -300,8 +327,12 @@ def write_reference(
             "Redact upstream content or set credential_scan=False in src.config.OKF_CONFIG."
         )
     cfg = load_okf_config()
-    domain_slug = (domain or _domain_from_url(url)).strip() or "upstream"
-    out_dir = VAULT_ROOT / "vault" / "references" / domain_slug
+    domain_slug = _safe_ref_segment(
+        (domain or _domain_from_url(url)).strip() or "upstream",
+        label="domain",
+    )
+    safe_slug = _safe_ref_segment(slug, label="slug")
+    out_dir = _brain_contained(VAULT_ROOT / "vault" / "references" / domain_slug)
     out_dir.mkdir(parents=True, exist_ok=True)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     max_chars = int(cfg.get("reference_max_chars", 20_000))
@@ -340,7 +371,7 @@ def write_reference(
         raise ValueError(
             f"[DBG-403] secret scan blocked reference document ({', '.join(leaks_doc)})."
         )
-    out_path = out_dir / f"{slug}.md"
+    out_path = _brain_contained(out_dir / f"{safe_slug}.md")
     out_path.write_text(doc, encoding="utf-8")
     return out_path
 

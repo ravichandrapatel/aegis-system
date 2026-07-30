@@ -157,6 +157,95 @@ class OkfSmokeTests(unittest.TestCase):
             leftovers = list(Path(tmp).glob(".out.json.*.tmp"))
             self.assertEqual(leftovers, [])
 
+    def test_scrape_path_traversal_blocked(self) -> None:
+        from src.scrape_cmd import _safe_ref_segment, write_reference
+
+        with self.assertRaises(ValueError):
+            _safe_ref_segment("../../../outside", label="domain")
+        with self.assertRaises(ValueError):
+            _safe_ref_segment("a/b", label="slug")
+        with self.assertRaises(ValueError):
+            write_reference(
+                slug="pwn",
+                title="Pwn",
+                url="https://example.com/docs",
+                content="safe body text for reference",
+                domain="../../../outside",
+            )
+
+    def test_enrich_block_list_and_body_description(self) -> None:
+        from src.enrich_cmd import _apply_enrich
+        from src.models import Concept
+        from src.vault import parse_frontmatter
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "block.md"
+            path.write_text(
+                "---\ntype: Concept\ntitle: Sample\n"
+                "tags:\n  - a\n"
+                "timestamp: 2026-01-01T00:00:00Z\n---\n\n"
+                "description: body-line\n\n## Body\n",
+                encoding="utf-8",
+            )
+            concept = Concept(
+                concept_id="block",
+                path=path,
+                frontmatter={
+                    "type": "Concept",
+                    "title": "Sample",
+                    "tags": ["a"],
+                    "timestamp": "2026-01-01T00:00:00Z",
+                },
+                body="\ndescription: body-line\n\n## Body\n",
+            )
+            text, filled = _apply_enrich(
+                concept,
+                ["description", "tags"],
+                {"description": "NEWSAFE", "tags": ["b"]},
+            )
+            self.assertEqual(set(filled), {"description", "tags"})
+            fm, body = parse_frontmatter(text)
+            self.assertIsNotNone(fm)
+            assert fm is not None
+            self.assertEqual(fm.get("description"), "NEWSAFE")
+            self.assertEqual(fm.get("tags"), ["a", "b"])
+            # Must not leave orphan block-list dashes after tags.
+            head = text.split("---", 2)[1]
+            self.assertNotRegex(head, r"(?m)^\s+-\s+")
+            # Body description line must remain untouched.
+            self.assertIn("description: body-line", body)
+
+    def test_compile_cache_requires_hash(self) -> None:
+        from src.compile_cmd import _sha256_bytes
+
+        a = _sha256_bytes(b"content-a")
+        b = _sha256_bytes(b"content-b")
+        self.assertNotEqual(a, b)
+        # Same mtime, different bytes → different digests (mtime-only reuse would fail).
+        self.assertEqual(_sha256_bytes(b"same"), _sha256_bytes(b"same"))
+
+    def test_serve_csrf_origin_gate(self) -> None:
+        from src.serve_cmd import _origin_is_loopback
+
+        self.assertTrue(_origin_is_loopback(""))
+        self.assertTrue(_origin_is_loopback("http://127.0.0.1:8765/"))
+        self.assertTrue(_origin_is_loopback("http://localhost:8765/aegis-brain.html"))
+        self.assertFalse(_origin_is_loopback("https://evil.example/"))
+        self.assertFalse(_origin_is_loopback("http://192.168.1.10/"))
+
+    def test_enrich_redirect_handler_present(self) -> None:
+        from src.enrich_cmd import _SafeLlmRedirectHandler
+
+        self.assertTrue(issubclass(_SafeLlmRedirectHandler, object))
+        self.assertTrue(callable(_SafeLlmRedirectHandler.redirect_request))
+
+    def test_argparse_imported_on_cmd_modules(self) -> None:
+        from src import cards, lint_cmd, optimize_cmd
+
+        for mod in (cards, lint_cmd, optimize_cmd):
+            self.assertTrue(hasattr(mod, "argparse"), f"{mod.__name__} missing argparse import")
+            self.assertTrue(hasattr(mod.argparse, "Namespace"))
+
     def test_serve_does_not_expose_vault_paths(self) -> None:
         from src.serve_cmd import VaultHandler, _is_loopback
         from http.server import HTTPServer

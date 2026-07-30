@@ -117,7 +117,7 @@ Edges come from markdown cross-links between concepts.
 | --- | --- |
 | Explore relationships visually | `okf.py serve` → `aegis-brain.html` |
 | Walk dependencies for Prompt Pack assembly | Traverse edges; then load **Prompt Cards**, not node `content` |
-| Boost lookup ranking by proximity | Lookup reads `index.json` adjacency for hop bonuses |
+| Boost lookup ranking by proximity | Lookup reads `graph.json` adjacency for hop bonuses |
 
 ### When **not** to use
 
@@ -140,11 +140,12 @@ Vault markdown (source of truth)
         ▼
  okf.py compile
         │
-        ├──► index.json          (search fields + inverted + adjacency)
+        ├──► index.json          (search fields + inverted tokens)
         ├──► prompt_cards.json   (injection snippets)
+        ├──► kernel/src/graph.json (nodes/edges; hop-boost + serve)
         └──► aegis-brain.html    (graph embed; lint embed via okf.py lint)
 
-lookup:   index.json → score (+ adjacency hop-boost) → prompt_cards.json (winners only)
+lookup:   index.json → score (+ graph.json hop-boost) → prompt_cards.json (winners only)
 ```
 
 ## Related
