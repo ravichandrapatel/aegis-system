@@ -1,0 +1,190 @@
+#!/usr/bin/env python3
+# file_name: test_okf_smoke.py
+# description: Stdlib smoke tests for OKF kernel harden paths.
+# version: 0.2.0
+# authors: contributors
+from __future__ import annotations
+
+import json
+import sys
+import tempfile
+import threading
+import unittest
+from http.client import HTTPConnection
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+KERNEL = ROOT / "_okf_knowledge" / "kernel"
+sys.path.insert(0, str(KERNEL))
+
+
+class OkfSmokeTests(unittest.TestCase):
+    def test_imports(self) -> None:
+        from src import (  # noqa: F401
+            cards,
+            cli,
+            compile_cmd,
+            enrich_cmd,
+            lint_cmd,
+            lookup,
+            optimize_cmd,
+            pack_cmd,
+            scrape_cmd,
+            serve_cmd,
+            vault,
+        )
+
+        self.assertTrue(callable(enrich_cmd._llm_chat))
+        self.assertTrue(callable(enrich_cmd._apply_enrich))
+        self.assertTrue(hasattr(optimize_cmd, "datetime"))
+        self.assertTrue(callable(pack_cmd.assemble_prompt_pack))
+        self.assertTrue(callable(lookup.lookup))
+        self.assertTrue(callable(lookup.load_index))
+        self.assertTrue(callable(compile_cmd._atomic_write_text))
+
+    def test_frontmatter_block_list(self) -> None:
+        from src.vault import parse_frontmatter
+
+        text = (
+            "---\ntype: Concept\ntags:\n  - standard\n  - okf\n"
+            "title: T\ndescription: D\n---\n\nBody\n"
+        )
+        fm, body = parse_frontmatter(text)
+        self.assertIsNotNone(fm)
+        assert fm is not None
+        self.assertEqual(fm.get("tags"), ["standard", "okf"])
+        self.assertIn("Body", body)
+
+    def test_lookup_and_lint(self) -> None:
+        from src.lint_cmd import cmd_lint
+        from src.lookup import lookup
+        from src.pack_cmd import assemble_prompt_pack
+
+        hits = lookup("guardrails", limit=3)
+        self.assertTrue(hits, "expected at least one hit for 'guardrails'")
+        pack, pack_hits = assemble_prompt_pack("guardrails", limit=2)
+        self.assertTrue(pack_hits)
+        self.assertTrue(pack)
+        self.assertEqual(cmd_lint(None), 0)
+
+    def test_enrich_escape_description(self) -> None:
+        from src.enrich_cmd import _apply_enrich
+        from src.models import Concept
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sample.md"
+            path.write_text(
+                "---\ntype: Concept\ntitle: Sample\ndescription: old\n"
+                "tags: [a]\ntimestamp: 2026-01-01T00:00:00Z\n---\n\n## Body\n",
+                encoding="utf-8",
+            )
+            concept = Concept(
+                concept_id="sample",
+                path=path,
+                frontmatter={
+                    "type": "Concept",
+                    "title": "Sample",
+                    "description": "old",
+                    "tags": ["a"],
+                },
+                body="\n## Body\n",
+            )
+            text, filled = _apply_enrich(
+                concept,
+                ["description"],
+                {"description": "has: colon and 'quotes'"},
+            )
+            self.assertIn("description", filled)
+            self.assertIn('description: "has: colon and \'quotes\'"', text)
+
+    def test_serve_loopback_gate(self) -> None:
+        from src.serve_cmd import _is_loopback
+
+        self.assertTrue(_is_loopback("127.0.0.1"))
+        self.assertTrue(_is_loopback("::1"))
+        self.assertFalse(_is_loopback("0.0.0.0"))
+        self.assertFalse(_is_loopback("192.168.1.1"))
+
+    def test_xml_cdata_no_breakout(self) -> None:
+        from src.pack_cmd import format_pack
+        import xml.etree.ElementTree as ET
+
+        evil = [
+            {
+                "id": "x",
+                "path": "x.md",
+                "type": "Concept",
+                "title": "t",
+                "score": 1,
+                "kind": "card",
+                "tokens": 1,
+                "text": "before ]]> <boom/> after",
+            }
+        ]
+        xml = format_pack(evil, "xml", "q")
+        # Must parse as well-formed XML; text round-trips with terminator intact.
+        root = ET.fromstring(xml)
+        card = root.find("card")
+        self.assertIsNotNone(card)
+        assert card is not None
+        self.assertEqual((card.text or "").strip(), "before ]]> <boom/> after")
+
+    def test_scrape_ssrf_blocks_private(self) -> None:
+        from src.scrape_cmd import _validate_fetch_url
+
+        with self.assertRaises(SystemExit):
+            _validate_fetch_url("http://127.0.0.1/secret")
+        with self.assertRaises(SystemExit):
+            _validate_fetch_url("http://10.0.0.1/")
+        with self.assertRaises(SystemExit):
+            _validate_fetch_url("file:///etc/passwd")
+
+    def test_enrich_ssrf_blocks_private_cloud(self) -> None:
+        from src.enrich_cmd import _validate_llm_endpoint
+
+        with self.assertRaises(ValueError):
+            _validate_llm_endpoint("http://10.0.0.5/v1/chat/completions")
+        # Local models intentionally allowed.
+        _validate_llm_endpoint("http://127.0.0.1:11434/v1/chat/completions")
+
+    def test_atomic_write_text(self) -> None:
+        from src.compile_cmd import _atomic_write_text
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "out.json"
+            _atomic_write_text(path, '{"ok": true}\n')
+            self.assertEqual(json.loads(path.read_text(encoding="utf-8")), {"ok": True})
+            leftovers = list(Path(tmp).glob(".out.json.*.tmp"))
+            self.assertEqual(leftovers, [])
+
+    def test_serve_does_not_expose_vault_paths(self) -> None:
+        from src.serve_cmd import VaultHandler, _is_loopback
+        from http.server import HTTPServer
+
+        self.assertTrue(_is_loopback("127.0.0.1"))
+        server = HTTPServer(("127.0.0.1", 0), VaultHandler)
+        port = server.server_address[1]
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            conn = HTTPConnection("127.0.0.1", port, timeout=2)
+            conn.request("GET", "/standards/index.md")
+            resp = conn.getresponse()
+            body = resp.read()
+            self.assertEqual(resp.status, 404)
+            self.assertIn(b"not served", body.lower())
+            conn.close()
+
+            conn = HTTPConnection("127.0.0.1", port, timeout=2)
+            conn.request("GET", "/aegis-brain.html")
+            resp = conn.getresponse()
+            self.assertEqual(resp.status, 200)
+            resp.read()
+            conn.close()
+        finally:
+            server.shutdown()
+            server.server_close()
+
+
+if __name__ == "__main__":
+    raise SystemExit(unittest.main())

@@ -1,12 +1,17 @@
 """LLM enrich for description/tags/Prompt Card gaps."""
 from __future__ import annotations
 
+import argparse
+import ipaddress
 import json
 import os
 import re
+import socket
 import sys
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
+from urllib.parse import urlparse
 
 from src.cards import extract_prompt_card
 from src.models import Concept
@@ -19,6 +24,7 @@ from src.paths import (
     PROMPT_CARD_MAX_CHARS,
 )
 from src.vault import (
+    escape_yaml_scalar,
     load_vault,
 )
 
@@ -80,6 +86,44 @@ def _truncate_body(body: str, max_lines: int) -> str:
         return body
     return "\n".join(lines[:max_lines] + ["... (truncated)"])
 
+def _validate_llm_endpoint(url: str) -> None:
+    """
+    intent: Block non-http(s) and private/reserved LLM endpoints (SSRF guard).
+    input: url — OKF_LLM_BASE_URL (+ /chat/completions path applied by caller).
+    output: none; raises ValueError when blocked.
+    role: security gate for enrich transport.
+    side_effects: may resolve DNS via getaddrinfo.
+    """
+    parsed = urlparse(url)
+    scheme = (parsed.scheme or "").lower()
+    if scheme not in ("http", "https"):
+        raise ValueError(f"[DBG-404] LLM endpoint must be http/https, got {scheme!r}")
+    host = parsed.hostname
+    if not host:
+        raise ValueError("[DBG-404] LLM endpoint must have a hostname")
+    lowered = host.lower()
+    unspecified_v4 = ".".join(("0",) * 4)
+    if lowered in {"localhost", "127.0.0.1", "::1", unspecified_v4} or lowered.endswith(
+        ".local"
+    ):
+        # Local OpenAI-compatible servers are allowed for enrich (unlike scrape).
+        return
+    try:
+        port = parsed.port or (443 if scheme == "https" else 80)
+        for info in socket.getaddrinfo(host, port, type=socket.SOCK_STREAM):
+            ip = ipaddress.ip_address(info[4][0])
+            if (
+                ip.is_private
+                or ip.is_loopback
+                or ip.is_link_local
+                or ip.is_reserved
+                or ip.is_multicast
+            ):
+                raise ValueError(f"[DBG-404] blocked private/reserved LLM host: {host}")
+    except socket.gaierror as exc:
+        raise ValueError(f"[DBG-404] cannot resolve LLM host {host}: {exc}") from exc
+
+
 def _llm_chat(base_url: str, api_key: str, model: str, prompt: str) -> str:
     """
     intent: Minimal OpenAI-compatible /chat/completions call via stdlib.
@@ -96,9 +140,7 @@ def _llm_chat(base_url: str, api_key: str, model: str, prompt: str) -> str:
         }
     ).encode("utf-8")
     endpoint = base_url.rstrip("/") + "/chat/completions"
-    scheme = urlparse(endpoint).scheme.lower()
-    if scheme not in ("http", "https"):
-        raise ValueError(f"[DBG-404] LLM endpoint must be http/https, got {scheme!r}")
+    _validate_llm_endpoint(endpoint)
     req = urllib.request.Request(
         endpoint,
         data=payload,
@@ -108,7 +150,6 @@ def _llm_chat(base_url: str, api_key: str, model: str, prompt: str) -> str:
         },
         method="POST",
     )
-    # Scheme gated above; stdlib client (local/OpenAI-compatible endpoints).
     with urllib.request.urlopen(req, timeout=LLM_REQUEST_TIMEOUT_S) as resp:  # nosec B310
         data = json.loads(resp.read().decode("utf-8"))
     return str(data["choices"][0]["message"]["content"] or "")
@@ -168,7 +209,7 @@ def _apply_enrich(concept: Concept, gaps: list[str], fix: dict) -> tuple[str, li
     filled: list[str] = []
 
     if "description" in gaps and fix.get("description"):
-        new_line = f"description: {fix['description']}"
+        new_line = f"description: {escape_yaml_scalar(str(fix['description']))}"
         if re.search(r"^description:.*$", text, flags=re.M):
             text = re.sub(r"^description:.*$", new_line, text, count=1, flags=re.M)
         else:
@@ -183,7 +224,8 @@ def _apply_enrich(concept: Concept, gaps: list[str], fix: dict) -> tuple[str, li
         for t in fix["tags"]:
             if t not in merged:
                 merged.append(t)
-        new_line = f"tags: [{', '.join(merged[:ENRICH_MAX_TAGS])}]"
+        items = [escape_yaml_scalar(t) for t in merged[:ENRICH_MAX_TAGS]]
+        new_line = f"tags: [{', '.join(items)}]"
         if re.search(r"^tags:.*$", text, flags=re.M):
             text = re.sub(r"^tags:.*$", new_line, text, count=1, flags=re.M)
         else:
@@ -258,7 +300,7 @@ def cmd_enrich(args: argparse.Namespace) -> int:
         )
         try:
             reply = _llm_chat(base_url, api_key, model, prompt)
-        except (urllib.error.URLError, OSError, KeyError, json.JSONDecodeError) as exc:
+        except (urllib.error.URLError, OSError, KeyError, json.JSONDecodeError, ValueError) as exc:
             print(f"  SKIP {concept.concept_id}: LLM call failed ({exc})", file=sys.stderr)
             skipped += 1
             continue

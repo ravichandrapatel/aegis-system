@@ -39,7 +39,7 @@ aegis-system/
 | `log.md` | — | Append-only mutation history |
 | `index.json` | compiled | Slim lookup index (+ adjacency for hop-boost) |
 | `prompt_cards.json` | compiled | Cached Prompt Cards |
-| `aegis-brain.html` | UI | Interactive brain visualizer; graph + lint payloads are **embedded** here by `compile` / `lint` (no `graph.json` / `lint.json` sidecars) |
+| `aegis-brain.html` | UI | Interactive brain visualizer; graph + lint payloads are **embedded** here by `compile` / `lint`. Compile also writes `kernel/src/graph.json` (no `lint.json` sidecar). |
 
 Full zone detail: [Brain zones](03-brain-zones.md).  
 Compiled JSON detail: [Compiled artifacts](08-compiled-artifacts.md).

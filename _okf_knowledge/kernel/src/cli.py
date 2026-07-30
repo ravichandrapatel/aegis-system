@@ -9,8 +9,8 @@ from src.compile_cmd import cmd_compile
 from src.config import load_okf_config
 from src.enrich_cmd import cmd_enrich
 from src.lint_cmd import cmd_lint
-from src.lookup import cmd_lookup, cmd_pack
 from src.optimize_cmd import cmd_optimize
+from src.pack_cmd import cmd_lookup, cmd_pack
 from src.paths import DEFAULT_MAX_CARDS, DEFAULT_TOKEN_BUDGET, ENRICH_MAX_BODY_LINES, PROMPT_CARD_MAX_CHARS
 from src.scrape_cmd import cmd_scrape
 from src.serve_cmd import cmd_serve

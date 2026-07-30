@@ -13,7 +13,7 @@ from src.paths import (
     VAULT_ROOT,
 )
 
-# Built-in OKF runtime config (formerly okf.config.json).
+# Built-in OKF runtime config (no okf.config.json — edit these defaults or pass CLI flags).
 OKF_CONFIG: dict[str, object] = {
     "max_cards": DEFAULT_MAX_CARDS,
     "token_budget": DEFAULT_TOKEN_BUDGET,

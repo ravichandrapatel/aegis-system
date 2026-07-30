@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -18,10 +19,10 @@ from src.paths import (
     VAULT_ROOT,
 )
 from src.lookup import (
-    _ADJ_CACHE,
-    _CARD_CACHE,
-    _INDEX_CACHE,
-    _INVERTED_CACHE,
+    ADJ_CACHE,
+    CARD_CACHE,
+    INDEX_CACHE,
+    INVERTED_CACHE,
 )
 from src.textutil import norm as _norm, tokenize as _tokenize
 from src.vault import (
@@ -287,7 +288,7 @@ def load_vault_incremental(force: bool = False) -> tuple[list[Concept], int, int
 
     # Bust in-process artifact caches after compile inputs change.
     if dirty or force:
-        for slot in (_INDEX_CACHE, _ADJ_CACHE, _CARD_CACHE, _INVERTED_CACHE):
+        for slot in (INDEX_CACHE, ADJ_CACHE, CARD_CACHE, INVERTED_CACHE):
             slot.mtime_ns = None
             slot.payload = None
 
@@ -308,6 +309,27 @@ def _artifacts_fresh(concept_count: int) -> bool:
     except (OSError, json.JSONDecodeError):
         return False
     return False
+
+def _atomic_write_text(path: Path, text: str) -> None:
+    """
+    intent: Write text via temp file + os.replace so readers never see partial JSON.
+    input: destination path; full file contents.
+    output: none.
+    role: compile artifact writer.
+    side_effects: creates/replaces path.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        tmp.write_text(text, encoding="utf-8")
+        os.replace(tmp, path)
+    finally:
+        if tmp.exists():
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+
 
 def cmd_compile(args: object | None = None) -> int:
     """
@@ -346,15 +368,17 @@ def cmd_compile(args: object | None = None) -> int:
         index = compile_index(concepts)
         cards = compile_prompt_cards(concepts)
         graph_json = json.dumps(graph, indent=2)
-        GRAPH_JSON.write_text(graph_json + "\n", encoding="utf-8")
-        (BRAIN_ROOT / "index.json").write_text(
-            json.dumps(index, indent=2) + "\n", encoding="utf-8"
+        _atomic_write_text(GRAPH_JSON, graph_json + "\n")
+        _atomic_write_text(
+            BRAIN_ROOT / "index.json",
+            json.dumps(index, indent=2) + "\n",
         )
-        (BRAIN_ROOT / "prompt_cards.json").write_text(
-            json.dumps(cards, indent=2) + "\n", encoding="utf-8"
+        _atomic_write_text(
+            BRAIN_ROOT / "prompt_cards.json",
+            json.dumps(cards, indent=2) + "\n",
         )
         # Refresh process caches immediately.
-        for slot in (_INDEX_CACHE, _ADJ_CACHE, _CARD_CACHE, _INVERTED_CACHE):
+        for slot in (INDEX_CACHE, ADJ_CACHE, CARD_CACHE, INVERTED_CACHE):
             slot.mtime_ns = None
             slot.payload = None
         embedded = inject_into_aegis_brain("graph-data", graph_json)

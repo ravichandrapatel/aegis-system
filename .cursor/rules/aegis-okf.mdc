@@ -18,4 +18,4 @@ python3 _okf_knowledge/kernel/okf.py pack --budget 1200 "<keywords>"
 
 **Forbidden:** invent compliance without pack; paste `index.json` / full vault; freestyle vault edits; hard turn caps that kill grill-me; chatty explore-first when DNA applies.
 
-Skills: `.cursor/skills/*/SKILL.md` (canonical; sync to `.github/skills` via `scripts/sync-aegis-mirrors.sh`).
+Skills: `.cursor/skills/*/SKILL.md` (Cursor). `.github/skills/*/SKILL.md` (Copilot) — keep both in sync manually when editing skills.

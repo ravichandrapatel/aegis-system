@@ -57,7 +57,7 @@ Workflow: `.github/workflows/okf-lint.yml` runs `okf.py lint`. Keep Prompt Cards
 | --- | --- |
 | Source markdown under vault/standards/kernel | **Do** commit — source of truth |
 | `index.json` / `prompt_cards.json` | Often committed for offline lookup; always regenerable |
-| Graph/lint embeds (inside `aegis-brain.html`) | Regenerable via `compile` / `lint`; no `graph.json` / `lint.json` sidecars |
+| Graph embed + `kernel/src/graph.json` | Regenerable via `compile`; lint embed only (no `lint.json`) |
 | `__pycache__/` | Ignored |
 
 ## Bench / evaluation

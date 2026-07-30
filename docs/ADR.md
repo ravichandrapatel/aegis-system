@@ -290,7 +290,7 @@ Enhance `okf.py` **v1.2** with Repomix-adjacent capabilities that preserve OKF s
 | Token budgets | Prefer `tiktoken` `cl100k_base` when installed; else improved heuristic (not raw `chars//4` only) |
 | Secret scan | Block `scrape` / Reference writes on common credential patterns (`DBG-403`) |
 | Ignore | `.okfignore` (+ optional `.gitignore`) filters concept walks |
-| Config | `okf.config.json` for max_cards, token_budget, compress, secret_scan |
+| Config | Built-in `OKF_CONFIG` in `kernel/src/config.py` (+ CLI flags); `.okfignore` for path filters |
 | Pack export | `okf.py pack` → markdown \| json \| xml of **cards only** |
 | Machine API | `lookup --json` for agents/CI |
 | Compress | Structure-preserving Reference trim (headings + short bodies) |
@@ -315,13 +315,13 @@ Enhance `okf.py` **v1.2** with Repomix-adjacent capabilities that preserve OKF s
 
 #### Normative home
 
-Runtime flags/config: `kernel/okf.py` + optional `okf.config.json` / `.okfignore`. Agent injection rules unchanged.
+Runtime flags/config: `kernel/okf.py` + built-in `OKF_CONFIG` / `.okfignore` (no `okf.config.json` file). Agent injection rules unchanged.
 
 ---
 
 ### D5 — `graph.json` is a visualizer/tooling artifact, not agent context
 
-> **Superseded in part (kernel v1.3.1, 2026-07-17):** `graph.json` / `lint.json` sidecars no longer exist — graph and lint payloads are embedded directly into `aegis-brain.html` by `compile` / `lint`. The principle (compiled graph data is never agent context) stands; the on-disk shape below is historical.
+> **Corrected (2026-07-30):** `kernel/src/graph.json` **does** exist again as a compile sidecar for lookup hop-boost and `okf.py serve` (`GET /graph.json`). Lint remains embed-only (no `lint.json`). Graph data is still **never** agent context — paste Prompt Cards only. The 1.3.1 “no sidecar” note below is historical and superseded by this correction.
 
 #### Decision
 

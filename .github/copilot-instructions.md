@@ -15,4 +15,4 @@ python3 _okf_knowledge/kernel/okf.py pack --budget 1200 "<keywords>"
 
 **Trivial** typo/rename/one-path Q: brief answer; discovery/pack optional.
 
-Skills: `.github/skills/*/SKILL.md` (synced from `.cursor/skills` via `scripts/sync-aegis-mirrors.sh`). Prompts: `.github/prompts/*.prompt.md`. Agent: [`.github/agents/aegis-okf.agent.md`](agents/aegis-okf.agent.md).
+Skills: `.github/skills/*/SKILL.md` (Copilot). Cursor copies live under `.cursor/skills/`. Prompts: `.github/prompts/*.prompt.md`. Agent: [`.github/agents/aegis-okf.agent.md`](agents/aegis-okf.agent.md).

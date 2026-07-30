@@ -2,9 +2,11 @@
 <!--
 FILE_NAME: aegis-brain.html
 DESCRIPTION: Self-contained OKF bundle graph (aegis-brain). No backend, no CDN, no
-             dependencies. Graph + lint payloads are embedded in this file by
-             kernel/okf.py compile / lint (no graph.json / lint.json sidecars).
-             When served via okf.py serve, Run Compile / Run Lint refresh via API.
+             dependencies. Graph + lint payloads are embedded here by
+             kernel/okf.py compile / lint; compile also writes kernel/src/graph.json
+             for lookup hop-boost and GET /graph.json when served.
+             When served via okf.py serve, Run Compile / Run Lint refresh via API
+             (loopback-only mutate endpoints).
              Features: force graph, declutter panel (labels/orphans/local
              graph), type legend, navigator sidebar, and lint panel.
 VERSION: 0.2.11
@@ -775,7 +777,7 @@ AUTHORS: contributors
         "portable",
         "deploy"
       ],
-      "content": "# Extending Aegis\n\n**Package root:** directory containing [`AGENTS.md`](/AGENTS.md) and `_okf_knowledge/`. DNA lives in AGENTS.md; this page is how to ship and grow the package.\n\n## Replicate (copy-paste)\n\nCopy as a unit (keep relative layout):\n\n```\nAGENTS.md\n_okf_knowledge/\n.cursor/rules/aegis-okf.mdc\n.cursor/skills/{aegis-discover,okf-pack,grill-me,mutation-gate,okf-writeback,okf-maintain,aegis-review}/\n.cursor/commands/{aegis-discover,okf-pack,grill-me,mutation-gate,okf-writeback,okf-maintain,aegis-review}.md\n.github/skills/          # sync from .cursor/skills via scripts/sync-aegis-mirrors.sh\n.github/prompts/{aegis-discover,okf-pack,grill-me,mutation-gate,okf-writeback,okf-maintain,aegis-review}.prompt.md\n.github/agents/aegis-okf.agent.md\n.github/copilot-instructions.md\n.github/instructions/aegis-okf.instructions.md\n.github/instructions/okf-brain.instructions.md\nscripts/sync-aegis-mirrors.sh\n```\n\nOptional CI: add `.github/workflows/okf-lint.yml` that runs `okf.py compile && okf.py lint` (not shipped by default).\n\nPlace at repo root or inside one folder (e.g. `agents/`). From package root:\n\n```bash\npython3 _okf_knowledge/kernel/okf.py compile\npython3 _okf_knowledge/kernel/okf.py lint\nbash scripts/sync-aegis-mirrors.sh   # after editing .cursor/skills\n```\n\nRequires Python 3.9+ (kernel is stdlib-only). Keep kernel + DNA; adapt domain cards under `standards/` and `vault/` for the target repo. Include Cursor / Copilot bindings as needed. If a parent workspace still points at legacy `knowledge/` / TOON paths, **this package\u2019s AGENTS.md wins** when `_okf_knowledge/` is present.\n\n## Add knowledge\n\n1. Drop raw notes in [`_inbox/`](/_inbox/).\n2. Follow [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md).\n\n## Prompt Card\n\n```text\nReplicate: AGENTS.md + _okf_knowledge/ + Cursor (.cursor) and Copilot (.github/skills, prompts, agents, instructions).\nAgent: aegis-okf. Skills/prompts: aegis-discover, okf-pack, grill-me, mutation-gate, okf-writeback, okf-maintain, aegis-review.\nFrom package root: compile + lint. Adapt domain cards; keep kernel + DNA.\n```\n\n# Related\n\n- [AGENTS.md](/AGENTS.md)\n- [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md)\n- [Aegis Capability Discovery](/vault/concepts/aegis-capability-discovery.md)"
+      "content": "# Extending Aegis\n\n**Package root:** directory containing [`AGENTS.md`](/AGENTS.md) and `_okf_knowledge/`. DNA lives in AGENTS.md; this page is how to ship and grow the package.\n\n## Replicate (copy-paste)\n\nCopy as a unit (keep relative layout):\n\n```\nAGENTS.md\n_okf_knowledge/\n.cursor/rules/aegis-okf.mdc\n.cursor/skills/{aegis-discover,okf-pack,grill-me,mutation-gate,okf-writeback,okf-maintain,aegis-review}/\n.cursor/commands/{aegis-discover,okf-pack,grill-me,mutation-gate,okf-writeback,okf-maintain,aegis-review}.md\n.github/skills/          # Copilot skill copies (edit alongside .cursor/skills)\n.github/prompts/{aegis-discover,okf-pack,grill-me,mutation-gate,okf-writeback,okf-maintain,aegis-review}.prompt.md\n.github/agents/aegis-okf.agent.md\n.github/copilot-instructions.md\n.github/instructions/aegis-okf.instructions.md\n.github/instructions/okf-brain.instructions.md\n```\n\nOptional CI: add `.github/workflows/okf-lint.yml` that runs `okf.py compile && okf.py lint` (not shipped by default).\n\nPlace at repo root or inside one folder (e.g. `agents/`). From package root:\n\n```bash\npython3 _okf_knowledge/kernel/okf.py compile\npython3 _okf_knowledge/kernel/okf.py lint\n```\n\nRequires Python 3.9+ (kernel is stdlib-only). Keep kernel + DNA; adapt domain cards under `standards/` and `vault/` for the target repo. Include Cursor / Copilot bindings as needed. If a parent workspace still points at legacy `knowledge/` / TOON paths, **this package\u2019s AGENTS.md wins** when `_okf_knowledge/` is present.\n\n## Add knowledge\n\n1. Drop raw notes in [`_inbox/`](/_inbox/).\n2. Follow [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md).\n\n## Prompt Card\n\n```text\nReplicate: AGENTS.md + _okf_knowledge/ + Cursor (.cursor) and Copilot (.github/skills, prompts, agents, instructions).\nAgent: aegis-okf. Skills/prompts: aegis-discover, okf-pack, grill-me, mutation-gate, okf-writeback, okf-maintain, aegis-review.\nFrom package root: compile + lint. Adapt domain cards; keep kernel + DNA.\n```\n\n# Related\n\n- [AGENTS.md](/AGENTS.md)\n- [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md)\n- [Aegis Capability Discovery](/vault/concepts/aegis-capability-discovery.md)"
     },
     {
       "id": "vault/concepts/okf-cognitive-bundle",
@@ -910,7 +912,7 @@ AUTHORS: contributors
   ]
 }</script>
   <script id="lint-data" type="application/json">{
-  "generated": "2026-07-30T17:49:16Z",
+  "generated": "2026-07-30T18:14:59Z",
   "vault": "_okf_knowledge",
   "summary": {
     "concepts": 9,
@@ -1096,7 +1098,7 @@ AUTHORS: contributors
       for (const [type, color] of typeColors) {
         const el = document.createElement("div");
         el.className = "key" + (hiddenTypes.has(type) ? " off" : "");
-        el.innerHTML = `<span class="dot" style="background:${color}"></span>${type}`;
+        el.innerHTML = `<span class="dot" style="background:${color}"></span>${escapeHtml(type)}`;
         el.title = "Click to show/hide this type";
         el.addEventListener("click", () => {
           hiddenTypes.has(type) ? hiddenTypes.delete(type) : hiddenTypes.add(type);
@@ -1140,7 +1142,7 @@ AUTHORS: contributors
       const mark = n.lint === "error" ? `<span class="mark" style="color:var(--error)">●</span>`
         : n.lint === "warning" ? `<span class="mark" style="color:var(--warning)">●</span>` : "";
       item.innerHTML = `<span class="bullet" style="background:${n.color}"></span>` +
-        `<span class="nav-label">${n.title || n.id.split("/").pop()}</span>${mark}`;
+        `<span class="nav-label">${escapeHtml(n.title || n.id.split("/").pop())}</span>${mark}`;
       item.title = n.id + ".md";
       item.addEventListener("click", () => selectNode(n, true));
       parent.appendChild(item);
@@ -1162,7 +1164,7 @@ AUTHORS: contributors
         folderSum.style.setProperty("--depth", String(depth));
         const total = countTree(child);
         folderSum.innerHTML =
-          `<span class="nav-label">${name} (${total})</span>`;
+          `<span class="nav-label">${escapeHtml(name)} (${total})</span>`;
         folderDet.appendChild(folderSum);
         renderDirTree(folderDet, child, depth + 1);
         parentEl.appendChild(folderDet);
@@ -1766,8 +1768,8 @@ AUTHORS: contributors
           tip.style.display = "block";
           tip.style.left = (e.clientX + 14) + "px";
           tip.style.top = (e.clientY + 14) + "px";
-          tip.innerHTML = `<div class="t-title">${n.title || n.id}</div>` +
-            `<div class="t-meta">${n.type} &middot; ${n.id}.md &middot; ${n.deg} link(s)</div>` + lintLine;
+          tip.innerHTML = `<div class="t-title">${escapeHtml(n.title || n.id)}</div>` +
+            `<div class="t-meta">${escapeHtml(n.type)} &middot; ${escapeHtml(n.id)}.md &middot; ${n.deg} link(s)</div>` + lintLine;
           canvas.style.cursor = "pointer";
         } else { tip.style.display = "none"; canvas.style.cursor = panning ? "grabbing" : "default"; }
       }

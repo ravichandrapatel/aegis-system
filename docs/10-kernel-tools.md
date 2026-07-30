@@ -2,7 +2,7 @@
 
 [← Table of contents](README.md)
 
-The kernel is a **single stdlib-Python script** — `_okf_knowledge/kernel/okf.py` — with one subcommand per operation (no pip deps). Run it from the **package directory** (the folder that contains `AGENTS.md`).
+The kernel entry point is `_okf_knowledge/kernel/okf.py` (thin caller). Implementation lives under `_okf_knowledge/kernel/src/` as a **stdlib Python package** (optional `tiktoken` for token estimates). Run from the **package directory** (the folder that contains `AGENTS.md`).
 
 ```bash
 cd /path/to/aegis-system
@@ -15,9 +15,10 @@ python3 _okf_knowledge/kernel/okf.py <subcommand> …
 | --- | --- | --- | --- |
 | **`okf.py lookup`** | Find concepts; build Prompt Pack | stdout hits / cards | Read-only |
 | **`okf.py card`** | Extract cards for known paths | stdout cards | Read-only |
-| **`okf.py compile`** | After any durable brain edit | `index.json`, `prompt_cards.json`, HTML graph embed | Writes compiled artifacts |
+| **`okf.py compile`** | After any durable brain edit | `index.json`, `prompt_cards.json`, `kernel/src/graph.json`, HTML graph embed | Writes compiled artifacts |
+| **`okf.py pack`** | Cards-only Prompt Pack export | stdout/file pack (md/json/xml) | Read-only (`pack_cmd.py`) |
 | **`okf.py lint`** | After edits; CI; pre-merge | console report + HTML lint embed | Rewrites the embed (no `lint.json`) |
-| **`okf.py serve`** | Local brain visualizer | HTTP on `:8080` | Serves files; may trigger compile/lint APIs |
+| **`okf.py serve`** | Local brain visualizer | HTTP on loopback `:8080` | Serves html/graph only (not vault tree); loopback-only POST compile/lint |
 | **`okf.py optimize`** | Normalize references / rebuild indexes | Updated reference indexes + compile | Rewrites reference-related indexes; runs compiler |
 | **`okf.py enrich`** | Fill missing description/tags/Prompt Card via LLM | Report; `--write` edits concepts | Network (LLM); `--write` edits vault files |
 | **`okf.py scrape`** | JIT fetch upstream docs into vault | New/updated vault markdown | Network + writes under vault |
@@ -40,9 +41,10 @@ Full detail: [Lookup & Prompt Cards](09-lookup-and-prompt-cards.md).
 
 Produces:
 
-1. `index.json` — slim search index (+ inverted tokens + adjacency)  
+1. `index.json` — slim search index (v2 + inverted tokens)  
 2. `prompt_cards.json` — card cache  
-3. Graph embed inside `aegis-brain.html` (no `graph.json` sidecar)  
+3. `kernel/src/graph.json` — nodes/edges (lookup hop-boost + serve)  
+4. Graph embed inside `aegis-brain.html`
 
 Also deletes legacy `context.toon` if present.
 

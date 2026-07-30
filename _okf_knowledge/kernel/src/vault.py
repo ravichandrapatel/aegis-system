@@ -21,7 +21,8 @@ from src.paths import (
 def parse_frontmatter(text: str) -> tuple[dict[str, object] | None, str]:
     """
     intent: Split a markdown document into (frontmatter dict, body) without PyYAML.
-            Supports the flat `key: value` and `key: [a, b]` subset used by OKF.
+            Supports flat `key: value`, inline `key: [a, b]`, and block lists:
+            `key:\\n  - a\\n  - b`.
     input: text — full file contents.
     output: (dict or None if no/invalid frontmatter block, body string).
     role: pure parser.
@@ -36,20 +37,42 @@ def parse_frontmatter(text: str) -> tuple[dict[str, object] | None, str]:
         return None, text
 
     fm: dict[str, object] = {}
-    for raw in lines[1:end]:
+    i = 1
+    while i < end:
+        raw = lines[i]
         line = raw.strip()
         if not line or line.startswith("#"):
+            i += 1
             continue
         if ":" not in line:
             return None, text
         key, _, value = line.partition(":")
+        key = key.strip()
         value = value.strip()
         if value.startswith("[") and value.endswith("]"):
             items = [v.strip().strip("'\"") for v in value[1:-1].split(",")]
-            fm[key.strip()] = [v for v in items if v]
-        else:
-            fm[key.strip()] = value.strip("'\"")
-    body = "\n".join(lines[end + 1:])
+            fm[key] = [v for v in items if v]
+            i += 1
+            continue
+        if value == "":
+            items: list[str] = []
+            j = i + 1
+            while j < end:
+                m = re.match(r"^(\s*)-\s+(.*)$", lines[j])
+                if not m:
+                    break
+                items.append(m.group(2).strip().strip("'\""))
+                j += 1
+            if items:
+                fm[key] = items
+                i = j
+                continue
+            fm[key] = ""
+            i += 1
+            continue
+        fm[key] = value.strip("'\"")
+        i += 1
+    body = "\n".join(lines[end + 1 :])
     return fm, body
 
 def iter_concept_files(root: Path = VAULT_ROOT) -> list[Path]:

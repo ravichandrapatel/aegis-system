@@ -11,15 +11,19 @@ python3 _okf_knowledge/kernel/okf.py compile   # index + prompt_cards + HTML gra
 python3 _okf_knowledge/kernel/okf.py lint      # console report + HTML lint embed
 ```
 
-> **No sidecar `graph.json` / `lint.json`.** Graph and lint payloads are **embedded inside `aegis-brain.html`** by `compile` / `lint` (`AGENTS.md` §1.4). The only JSON files on disk are `index.json` and `prompt_cards.json` (plus the gitignored `.okf-compile-cache.json` incremental cache).
+> **On-disk artifacts:** `index.json` (v2 + inverted), `prompt_cards.json`, and
+> `kernel/src/graph.json` (nodes/edges for hop-boost + serve). Graph and lint
+> payloads are **also embedded** inside `aegis-brain.html` by `compile` / `lint`.
+> There is **no** `lint.json` sidecar. `.okf-compile-cache.json` is gitignored.
 
 ## At-a-glance comparison
 
 | Artifact | Produced by | Primary consumer | Contains | Paste into LLM? |
 | --- | --- | --- | --- | --- |
-| **`index.json`** | `okf.py compile` | `okf.py lookup` | Slim frontmatter rows + inverted token map + adjacency | **MUST NOT** |
+| **`index.json`** | `okf.py compile` | `okf.py lookup` | Slim frontmatter rows + inverted token map (v2) | **MUST NOT** |
 | **`prompt_cards.json`** | `okf.py compile` | `okf.py lookup --card` | Cached `## Prompt Card` bodies | Emit **selected** cards only (budgeted) |
-| **Graph embed** (in `aegis-brain.html`) | `okf.py compile` | Brain UI | Nodes, edges, truncated bodies | **MUST NOT** |
+| **`kernel/src/graph.json`** | `okf.py compile` | lookup hop-boost + serve `/graph.json` | Nodes, edges, truncated bodies | **MUST NOT** |
+| **Graph embed** (in `aegis-brain.html`) | `okf.py compile` | Brain UI | Same graph payload embedded | **MUST NOT** |
 | **Lint embed** (in `aegis-brain.html`) | `okf.py lint` | Brain UI / CI summary | Lint findings | No (fixational) |
 | **`aegis-brain.html`** | hand-maintained shell + embed updates | Humans in browser | Visualizer + embedded graph/lint payloads | n/a |
 
@@ -27,13 +31,13 @@ python3 _okf_knowledge/kernel/okf.py lint      # console report + HTML lint embe
 
 ### Purpose
 
-Make vault search **O(read one JSON)** instead of **O(open every markdown + parse YAML)** on each query. Since format v3 it also carries the **inverted token map** (candidate narrowing) and the **adjacency map** (graph hop-boost) — there is no separate graph file for lookup.
+Make vault search **O(read one JSON)** instead of **O(open every markdown + parse YAML)** on each query. Format **v2** carries the **inverted token map** (candidate narrowing). Graph hop-boost adjacency is loaded from `kernel/src/graph.json`, not from `index.json`.
 
 ### Shape (conceptual)
 
 ```json
 {
-  "version": 3,
+  "version": 2,
   "entries": [
     {
       "id": "standards/okf-prompt-injection",
@@ -44,8 +48,7 @@ Make vault search **O(read one JSON)** instead of **O(open every markdown + pars
       "type": "Concept"
     }
   ],
-  "inverted": { "token": ["concept-id", "…"] },
-  "adjacency": { "concept-id": ["neighbor-id", "…"] }
+  "inverted": { "token": ["concept-id", "…"] }
 }
 ```
 
@@ -92,7 +95,7 @@ Avoid re-parsing markdown bodies when emitting `--card` results for winning hits
 ### Purpose
 
 - Power the **aegis-brain** visualizer (nodes/edges reading pane).
-- Support **dependency discovery** during Context Expansion (`AGENTS.md` §1.4 / §4.2) — the lookup-facing adjacency lives in `index.json`.
+- Support **dependency discovery** during Context Expansion — lookup hop-boost reads adjacency from `kernel/src/graph.json`.
 
 ### Shape (conceptual)
 

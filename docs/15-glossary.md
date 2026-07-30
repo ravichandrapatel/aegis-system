@@ -20,8 +20,8 @@
 | **Prompt Card** | Slim `## Prompt Card` section injected into generation context |
 | **Prompt Pack** | Budgeted set of Prompt Cards for one turn (≤ 8 cards hard; target ≈1200 tokens) |
 | **Lookup** | `okf.py lookup` ranked search over frontmatter / `index.json` |
-| **Graph** | Nodes/edges embedded in `aegis-brain.html` by `compile` (no `graph.json` sidecar); lookup adjacency lives in `index.json` |
-| **Index** | `index.json` slim search rows |
+| **Graph** | Nodes/edges in `kernel/src/graph.json` and embedded in `aegis-brain.html` by `compile`; lookup hop-boost reads `graph.json` |
+| **Index** | `index.json` v2 slim search rows + inverted token map |
 | **Governance Engine** | Enforcement of standards / owns / priority during pipelines |
 | **Capability Check** | Profile allow-list verification before work (fail → exit 4) |
 | **Path A / B / C** | Generation / Validation / Execution pipelines |
