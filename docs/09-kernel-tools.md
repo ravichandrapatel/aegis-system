@@ -18,7 +18,7 @@ python3 _okf_knowledge/kernel/okf.py <subcommand> …
 | **`okf.py lookup`** | Ranked menu, paths, or a pack without the caps line | stdout hits / cards | Read-only |
 | **`okf.py card`** | Extract cards for known paths | stdout cards | Read-only |
 | **`okf.py tokens`** | Measure token cost of files / dirs (no model call) | table or `--json` | Read-only |
-| **`okf.py compile`** | After any durable brain edit | `index.json`, `prompt_cards.json`, `kernel/src/graph.json`, HTML graph embed | Writes compiled artifacts |
+| **`okf.py compile`** | After any durable brain edit | `index.json`, `prompt_cards.json`, `kernel/okf/assets/graph.json`, HTML graph embed | Writes compiled artifacts |
 | **`okf.py lint`** | After edits; CI; pre-merge | console report + HTML lint embed | Rewrites the embed (no `lint.json`) |
 | **`okf.py serve`** | Local brain visualizer | HTTP on loopback `:8080` | **Read-only** — serves html/graph only, no mutate endpoints |
 | **`okf.py optimize`** | Normalize references / rebuild indexes | Updated reference indexes + compile | Rewrites reference-related indexes; runs compiler |
@@ -100,7 +100,7 @@ Produces:
 
 1. `index.json` — slim search index (v2 + inverted tokens)  
 2. `prompt_cards.json` — card cache  
-3. `kernel/src/graph.json` — nodes/edges (lookup hop-boost, pack `related:` edges, serve)  
+3. `kernel/okf/assets/graph.json` — nodes/edges (lookup hop-boost, pack `related:` edges, serve)  
 4. Graph embed inside `okf-brain.html`
 
 Also deletes legacy `context.toon` if present.

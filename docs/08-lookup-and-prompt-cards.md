@@ -135,7 +135,7 @@ Token counts come from `tiktoken` (`cl100k_base`) when that optional package is 
 
 ### Ranking (lexical)
 
-Field weights (tunable constants in `kernel/src/paths.py`): title > id > tags > description > type, with exact / prefix / substring / acronym multipliers and a slug bonus. Optional **graph hop** bonuses come from `kernel/src/graph.json` adjacency (+4 at one hop, +2 at two).
+Field weights (tunable constants in `kernel/okf/paths.py`): title > id > tags > description > type, with exact / prefix / substring / acronym multipliers and a slug bonus. Optional **graph hop** bonuses come from `kernel/okf/assets/graph.json` adjacency (+4 at one hop, +2 at two).
 
 Listing metadata shows `matched=…` and `graph=N hop` for debugging.
 

@@ -21,10 +21,10 @@ AGENTS.md
 _okf_knowledge/
 tools/sync_skills.py
 .cursor/rules/okf.mdc
-.cursor/skills/{okf-discover,okf-pack,grill-me,mutation-gate,okf-writeback,okf-maintain,okf-review}/
-.cursor/commands/{okf-discover,okf-pack,grill-me,mutation-gate,okf-writeback,okf-maintain,okf-review}.md
+.cursor/skills/{okf-discover,okf-pack,grill-me,mutation-gate,okf-writeback,okf-maintain,okf-review,code-review}/
+.cursor/commands/{okf-discover,okf-pack,grill-me,mutation-gate,okf-writeback,okf-maintain,okf-review,code-review}.md
 .github/skills/          # GENERATED — never edit by hand
-.github/prompts/{okf-discover,okf-pack,grill-me,mutation-gate,okf-writeback,okf-maintain,okf-review}.prompt.md
+.github/prompts/{okf-discover,okf-pack,grill-me,mutation-gate,okf-writeback,okf-maintain,okf-review,code-review}.prompt.md
 .github/agents/okf.agent.md
 .github/copilot-instructions.md
 .github/instructions/okf-brain.instructions.md

@@ -10,14 +10,14 @@ pack_force_when: [okf.py, runtime cli, compile lint, scrape serve]
 
 # OKF Runtime CLI
 
-This repository's product surface is `_okf_knowledge/kernel/okf.py` (thin shim). Implementation is the installable package `_okf_knowledge/kernel/okf/` (`python3 -m okf` from `kernel/`). Compile artifacts (`index.json`, `graph.json`, `prompt_cards.json`) live at the brain root `_okf_knowledge/`, not inside the Python package. Agents and humans run commands from the package root (the directory that contains `AGENTS.md`).
+This repository's product surface is `_okf_knowledge/kernel/okf.py` (thin shim). Implementation is the installable package `_okf_knowledge/kernel/okf/` (`python3 -m okf` from `kernel/`). Lookup caches (`index.json`, `prompt_cards.json`) live at the brain root `_okf_knowledge/`; `graph.json` lives only under `kernel/okf/assets/` (with `brain.html`). Agents and humans run commands from the package root (the directory that contains `AGENTS.md`).
 
 ## Commands that matter
 
 | Command | Role |
 | --- | --- |
 | `pack` | Caps line + budgeted Prompt Cards (Rule #1). Prefer this over `lookup --card`. |
-| `compile` | Rebuilds brain-root `index.json` / `graph.json` / `prompt_cards.json`; embeds graph into `okf/assets/brain.html`. |
+| `compile` | Rebuilds brain-root `index.json` / `prompt_cards.json` and `okf/assets/graph.json`; embeds graph into `okf/assets/brain.html`. |
 | `lint` | Schema + link + trust-shape checks. Zero errors required before Rung 2 ingest. |
 | `scrape` | Fetch upstream docs into `vault/references/` with `resource` + `sources` frontmatter. |
 | `serve` | Read-only loopback visualizer — no mutate APIs, no auth. |
@@ -38,8 +38,10 @@ _okf_knowledge/
     okf.py                        # CLI shim
     pyproject.toml
     okf/                          # importable package
-      assets/brain.html           # visualizer template
-  index.json, graph.json, prompt_cards.json
+      assets/
+        brain.html                # visualizer template
+        graph.json                # hop-boost + serve /graph.json
+  index.json, prompt_cards.json
   standards/ vault/ _inbox/ …
 ```
 
@@ -52,7 +54,8 @@ _okf_knowledge/
 ## Prompt Card
 
 ```text
-Package: `_okf_knowledge/kernel/okf.py` → `kernel/okf/` package. Artifacts at brain root (not inside Python).
+Package: `_okf_knowledge/kernel/okf.py` → `kernel/okf/` package.
+index.json + prompt_cards.json at brain root; graph.json only under okf/assets/.
 pack = caps + cards (Rule #1). compile then lint after brain edits. serve is read-only loopback.
 scrape writes resource+sources. Sync skills: python3 tools/sync_skills.py after .cursor/skills edits.
 ```

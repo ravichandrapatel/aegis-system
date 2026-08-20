@@ -27,7 +27,7 @@ jobs:
           python3 _okf_knowledge/kernel/okf.py compile
           git diff --exit-code -- _okf_knowledge/index.json \
             _okf_knowledge/prompt_cards.json \
-            _okf_knowledge/graph.json
+            _okf_knowledge/kernel/okf/assets/graph.json
 
       - name: Lint vault (Prompt Card gate)
         run: python3 _okf_knowledge/kernel/okf.py lint

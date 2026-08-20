@@ -14,8 +14,10 @@ from pathlib import Path
 #     kernel/
 #       okf.py                      ← CLI shim
 #       okf/                        ← this package (PACKAGE_DIR)
-#         assets/brain.html
-#     graph.json, index.json, …     ← compile artifacts
+#         assets/
+#           brain.html
+#           graph.json              ← compile artifact (visualizer + hop-boost)
+#     index.json, prompt_cards.json ← compile artifacts at brain root
 #     standards/, vault/, …
 PACKAGE_DIR = Path(__file__).resolve().parent
 VAULT_ROOT = Path(
@@ -29,7 +31,7 @@ CLI_SCRIPT = TOOLING_DIR / "okf.py"
 ASSETS_DIR = PACKAGE_DIR / "assets"
 BRAIN_HTML = ASSETS_DIR / "brain.html"
 
-GRAPH_JSON = BRAIN_ROOT / "graph.json"
+GRAPH_JSON = ASSETS_DIR / "graph.json"
 INDEX_JSON = BRAIN_ROOT / "index.json"
 PROMPT_CARDS_JSON = BRAIN_ROOT / "prompt_cards.json"
 

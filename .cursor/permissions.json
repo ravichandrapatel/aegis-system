@@ -1,0 +1,15 @@
+{
+  // Cursor's agent allowlist. Entries are command PREFIXES, matched case-sensitively,
+  // so this covers every `okf.py` subcommand (pack, compile, lint, serve, ...) without
+  // covering Python generally — `python3 some_other_script.py` still prompts.
+  //
+  // Note: defining terminalAllowlist here REPLACES the in-app allowlist from
+  // Cursor Settings -> Agents -> Approvals & Execution. Port any entries you added
+  // there by clicking "add to allowlist" into this file.
+  "terminalAllowlist": [
+    "python3 _okf_knowledge/kernel/okf.py",
+    "python _okf_knowledge/kernel/okf.py",
+    "python3 -m okf",
+    "python3 tools/sync_skills.py"
+  ]
+}

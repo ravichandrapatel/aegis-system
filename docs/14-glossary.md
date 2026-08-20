@@ -28,7 +28,7 @@
 | **Actor convention** | The form an actor takes in `generated.by` / `verified[].by`: `human:<name>`, `process:<name>`, or `<agent>/<model>`. The `human:` prefix is what earns the human-reviewed tier |
 | **Provenance (`sources`)** | Optional frontmatter list of upstream entries, each requiring a `resource`; `scrape` writes it with per-claim footnotes instead of a body citation list |
 | **Traversal** | Following a card's `related:` / `source:` edge to reach more knowledge, instead of re-running `pack` with a reworded query |
-| **Graph** | Untyped `{source, target}` edges in `kernel/src/graph.json`, embedded in `okf-brain.html` by `compile`; lookup hop-boost and the card `related:` footer both read `graph.json` |
+| **Graph** | Untyped `{source, target}` edges in `kernel/okf/assets/graph.json`, embedded in `brain.html` by `compile`; lookup hop-boost and the card `related:` footer both read `graph.json` |
 | **Index** | `index.json` v2 slim search rows + inverted token map |
 | **Capability line** | `caps: READY \| … \| features: …` printed by `pack` / `capabilities` |
 | **Runtime state** | `READY` \| `BLOCKED` \| `PENDING_APPROVAL` — only the first two are emitted by the kernel |

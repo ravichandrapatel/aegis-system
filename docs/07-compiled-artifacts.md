@@ -11,9 +11,9 @@ python3 _okf_knowledge/kernel/okf.py compile   # index + prompt_cards + HTML gra
 python3 _okf_knowledge/kernel/okf.py lint      # console report + HTML lint embed
 ```
 
-> **On-disk artifacts:** `index.json` (v2 + inverted), `prompt_cards.json`, and
-> `kernel/src/graph.json` (nodes/edges for hop-boost, card `related:` edges, and
-> serve). Graph and lint
+> **On-disk artifacts:** `index.json` (v2 + inverted), `prompt_cards.json` at the
+> brain root, and `kernel/okf/assets/graph.json` (nodes/edges for hop-boost, card
+> `related:` edges, and serve). Graph and lint
 > payloads are **also embedded** inside `okf-brain.html` by `compile` / `lint`.
 > There is **no** `lint.json` sidecar. `.okf-compile-cache.json` is gitignored.
 
@@ -23,7 +23,7 @@ python3 _okf_knowledge/kernel/okf.py lint      # console report + HTML lint embe
 | --- | --- | --- | --- | --- |
 | **`index.json`** | `okf.py compile` | `okf.py lookup` | Slim frontmatter rows + inverted token map (v2) | **MUST NOT** |
 | **`prompt_cards.json`** | `okf.py compile` | `okf.py pack` / `lookup --card` | Cached `## Prompt Card` bodies | Emit **selected** cards only (budgeted) |
-| **`kernel/src/graph.json`** | `okf.py compile` | lookup hop-boost, pack `related:` edges, serve `/graph.json` | Nodes, edges, truncated bodies | **MUST NOT** |
+| **`kernel/okf/assets/graph.json`** | `okf.py compile` | lookup hop-boost, pack `related:` edges, serve `/graph.json` | Nodes, edges, truncated bodies | **MUST NOT** |
 | **Graph embed** (in `okf-brain.html`) | `okf.py compile` | Brain UI | Same graph payload embedded | **MUST NOT** |
 | **Lint embed** (in `okf-brain.html`) | `okf.py lint` | Brain UI / CI summary | Lint findings | No (fixational) |
 | **`okf-brain.html`** | hand-maintained shell + embed updates | Humans in browser | Visualizer + embedded graph/lint payloads | n/a |
@@ -32,7 +32,7 @@ python3 _okf_knowledge/kernel/okf.py lint      # console report + HTML lint embe
 
 ### Purpose
 
-Make vault search **O(read one JSON)** instead of **O(open every markdown + parse YAML)** on each query. Format **v2** carries the **inverted token map** (candidate narrowing). Graph hop-boost adjacency is loaded from `kernel/src/graph.json`, not from `index.json`.
+Make vault search **O(read one JSON)** instead of **O(open every markdown + parse YAML)** on each query. Format **v2** carries the **inverted token map** (candidate narrowing). Graph hop-boost adjacency is loaded from `kernel/okf/assets/graph.json`, not from `index.json`.
 
 ### Shape (conceptual)
 
@@ -103,7 +103,7 @@ Avoid re-parsing markdown bodies when emitting `--card` results for winning hits
 ### Purpose
 
 - Power the **okf-brain** visualizer (nodes/edges reading pane).
-- Support **dependency discovery** during Context Expansion — lookup hop-boost reads adjacency from `kernel/src/graph.json`.
+- Support **dependency discovery** during Context Expansion — lookup hop-boost reads adjacency from `kernel/okf/assets/graph.json`.
 - Feed **traversal**: `pack` reads the same adjacency to print each card's `related:` line, so the agent can walk to a neighbour instead of re-querying.
 
 ### Shape (conceptual)
@@ -152,7 +152,7 @@ Vault markdown (source of truth)
         │
         ├──► index.json          (search fields + inverted tokens)
         ├──► prompt_cards.json   (injection snippets)
-        ├──► kernel/src/graph.json (nodes/edges; hop-boost, related:, serve)
+        ├──► kernel/okf/assets/graph.json (nodes/edges; hop-boost, related:, serve)
         └──► okf-brain.html    (graph embed; lint embed via okf.py lint)
 
 lookup:   index.json → score (+ graph.json hop-boost) → prompt_cards.json (winners only)

@@ -2,6 +2,130 @@
   "version": 2,
   "entries": [
     {
+      "id": "standards/code-quality-gates",
+      "path": "standards/code-quality-gates.md",
+      "title": "Code Quality Gates",
+      "description": "Machine-checkable quality and security gates per DevOps stack, so review spends itself on judgement.",
+      "tags": [
+        "standard",
+        "code-quality",
+        "gates",
+        "ci",
+        "security",
+        "devops",
+        "iac"
+      ],
+      "type": "Concept",
+      "resource": "",
+      "trust": "unverified",
+      "stale_after": "",
+      "id_norm": "standards code quality gates",
+      "title_norm": "code quality gates",
+      "desc_norm": "machine-checkable quality and security gates per devops stack, so review spends itself on judgement.",
+      "tags_norm": "standard code-quality gates ci security devops iac",
+      "type_norm": "concept",
+      "tokens": [
+        "and",
+        "checkable",
+        "ci",
+        "code",
+        "concept",
+        "dev",
+        "devops",
+        "dockerfile",
+        "gate",
+        "gates",
+        "hardening",
+        "iac",
+        "itself",
+        "judgement",
+        "kubernetes",
+        "left",
+        "machine",
+        "on",
+        "ops",
+        "per",
+        "quality",
+        "review",
+        "security",
+        "shift",
+        "so",
+        "spends",
+        "stack",
+        "standard",
+        "standards",
+        "terraform",
+        "workflow"
+      ],
+      "pack_force_when": [
+        "quality gate",
+        "ci gate",
+        "terraform review",
+        "kubernetes review",
+        "dockerfile review",
+        "workflow hardening",
+        "shift left"
+      ]
+    },
+    {
+      "id": "standards/code-review",
+      "path": "standards/code-review.md",
+      "title": "Code Review",
+      "description": "Binding bar, dimensions, comment protocol, and decision states for reviewing changes.",
+      "tags": [
+        "standard",
+        "code-review",
+        "quality",
+        "devops",
+        "process"
+      ],
+      "type": "Concept",
+      "resource": "",
+      "trust": "unverified",
+      "stale_after": "",
+      "id_norm": "standards code review",
+      "title_norm": "code review",
+      "desc_norm": "binding bar, dimensions, comment protocol, and decision states for reviewing changes.",
+      "tags_norm": "standard code-review quality devops process",
+      "type_norm": "concept",
+      "tokens": [
+        "and",
+        "bar",
+        "binding",
+        "changes",
+        "code",
+        "comment",
+        "concept",
+        "decision",
+        "devops",
+        "dimensions",
+        "for",
+        "lgtm",
+        "nitpick",
+        "pr",
+        "process",
+        "protocol",
+        "pull",
+        "quality",
+        "request",
+        "review",
+        "reviewer",
+        "reviewing",
+        "standard",
+        "standards",
+        "states"
+      ],
+      "pack_force_when": [
+        "code review",
+        "review a pr",
+        "pull request review",
+        "reviewer",
+        "lgtm",
+        "review comment",
+        "nitpick"
+      ]
+    },
+    {
       "id": "standards/ide-context-guardrails",
       "path": "standards/ide-context-guardrails.md",
       "title": "IDE Context Guardrails",
@@ -539,23 +663,28 @@
   ],
   "inverted": {
     "and": [
+      "standards/code-quality-gates",
+      "standards/code-review",
       "standards/ide-context-guardrails",
       "standards/metadata-headers",
       "standards/okf-house-schema",
       "vault/concepts/extending-okf"
     ],
-    "binding": [
-      "standards/ide-context-guardrails",
+    "checkable": [
+      "standards/code-quality-gates"
+    ],
+    "ci": [
+      "standards/code-quality-gates"
+    ],
+    "code": [
+      "standards/code-quality-gates",
+      "standards/code-review",
+      "standards/metadata-headers",
       "standards/python-naming"
     ],
-    "bloat": [
-      "standards/ide-context-guardrails"
-    ],
-    "cards": [
-      "standards/ide-context-guardrails",
-      "vault/concepts/okf-cognitive-bundle"
-    ],
     "concept": [
+      "standards/code-quality-gates",
+      "standards/code-review",
       "standards/ide-context-guardrails",
       "standards/metadata-headers",
       "standards/okf-house-schema",
@@ -564,6 +693,166 @@
       "standards/simplicity-first",
       "vault/concepts/extending-okf",
       "vault/concepts/okf-capability-discovery",
+      "vault/concepts/okf-cognitive-bundle"
+    ],
+    "dev": [
+      "standards/code-quality-gates"
+    ],
+    "devops": [
+      "standards/code-quality-gates",
+      "standards/code-review"
+    ],
+    "dockerfile": [
+      "standards/code-quality-gates"
+    ],
+    "gate": [
+      "standards/code-quality-gates"
+    ],
+    "gates": [
+      "standards/code-quality-gates"
+    ],
+    "hardening": [
+      "standards/code-quality-gates"
+    ],
+    "iac": [
+      "standards/code-quality-gates"
+    ],
+    "itself": [
+      "standards/code-quality-gates"
+    ],
+    "judgement": [
+      "standards/code-quality-gates"
+    ],
+    "kubernetes": [
+      "standards/code-quality-gates"
+    ],
+    "left": [
+      "standards/code-quality-gates"
+    ],
+    "machine": [
+      "standards/code-quality-gates"
+    ],
+    "on": [
+      "standards/code-quality-gates",
+      "standards/metadata-headers"
+    ],
+    "ops": [
+      "standards/code-quality-gates"
+    ],
+    "per": [
+      "standards/code-quality-gates"
+    ],
+    "quality": [
+      "standards/code-quality-gates",
+      "standards/code-review",
+      "standards/metadata-headers",
+      "standards/python-naming"
+    ],
+    "review": [
+      "standards/code-quality-gates",
+      "standards/code-review"
+    ],
+    "security": [
+      "standards/code-quality-gates"
+    ],
+    "shift": [
+      "standards/code-quality-gates"
+    ],
+    "so": [
+      "standards/code-quality-gates"
+    ],
+    "spends": [
+      "standards/code-quality-gates"
+    ],
+    "stack": [
+      "standards/code-quality-gates"
+    ],
+    "standard": [
+      "standards/code-quality-gates",
+      "standards/code-review",
+      "standards/ide-context-guardrails",
+      "standards/metadata-headers",
+      "standards/okf-house-schema",
+      "standards/okf-prompt-injection",
+      "standards/python-naming",
+      "standards/simplicity-first"
+    ],
+    "standards": [
+      "standards/code-quality-gates",
+      "standards/code-review",
+      "standards/ide-context-guardrails",
+      "standards/metadata-headers",
+      "standards/okf-house-schema",
+      "standards/okf-prompt-injection",
+      "standards/python-naming",
+      "standards/simplicity-first"
+    ],
+    "terraform": [
+      "standards/code-quality-gates"
+    ],
+    "workflow": [
+      "standards/code-quality-gates"
+    ],
+    "bar": [
+      "standards/code-review"
+    ],
+    "binding": [
+      "standards/code-review",
+      "standards/ide-context-guardrails",
+      "standards/python-naming"
+    ],
+    "changes": [
+      "standards/code-review"
+    ],
+    "comment": [
+      "standards/code-review"
+    ],
+    "decision": [
+      "standards/code-review"
+    ],
+    "dimensions": [
+      "standards/code-review"
+    ],
+    "for": [
+      "standards/code-review",
+      "standards/okf-house-schema",
+      "standards/python-naming"
+    ],
+    "lgtm": [
+      "standards/code-review"
+    ],
+    "nitpick": [
+      "standards/code-review"
+    ],
+    "pr": [
+      "standards/code-review"
+    ],
+    "process": [
+      "standards/code-review"
+    ],
+    "protocol": [
+      "standards/code-review"
+    ],
+    "pull": [
+      "standards/code-review"
+    ],
+    "request": [
+      "standards/code-review"
+    ],
+    "reviewer": [
+      "standards/code-review"
+    ],
+    "reviewing": [
+      "standards/code-review"
+    ],
+    "states": [
+      "standards/code-review"
+    ],
+    "bloat": [
+      "standards/ide-context-guardrails"
+    ],
+    "cards": [
+      "standards/ide-context-guardrails",
       "vault/concepts/okf-cognitive-bundle"
     ],
     "context": [
@@ -626,22 +915,6 @@
     "search": [
       "standards/ide-context-guardrails"
     ],
-    "standard": [
-      "standards/ide-context-guardrails",
-      "standards/metadata-headers",
-      "standards/okf-house-schema",
-      "standards/okf-prompt-injection",
-      "standards/python-naming",
-      "standards/simplicity-first"
-    ],
-    "standards": [
-      "standards/ide-context-guardrails",
-      "standards/metadata-headers",
-      "standards/okf-house-schema",
-      "standards/okf-prompt-injection",
-      "standards/python-naming",
-      "standards/simplicity-first"
-    ],
     "stop": [
       "standards/ide-context-guardrails"
     ],
@@ -663,10 +936,6 @@
     ],
     "blocks": [
       "standards/metadata-headers"
-    ],
-    "code": [
-      "standards/metadata-headers",
-      "standards/python-naming"
     ],
     "conventions": [
       "standards/metadata-headers",
@@ -692,9 +961,6 @@
       "standards/metadata-headers",
       "standards/simplicity-first"
     ],
-    "on": [
-      "standards/metadata-headers"
-    ],
     "package": [
       "standards/metadata-headers",
       "standards/python-naming",
@@ -705,10 +971,6 @@
       "standards/metadata-headers",
       "standards/python-naming",
       "vault/concepts/okf-capability-discovery"
-    ],
-    "quality": [
-      "standards/metadata-headers",
-      "standards/python-naming"
     ],
     "required": [
       "standards/metadata-headers",
@@ -726,10 +988,6 @@
     "durable": [
       "standards/okf-house-schema",
       "vault/playbooks/maintain-okf-system"
-    ],
-    "for": [
-      "standards/okf-house-schema",
-      "standards/python-naming"
     ],
     "frontmatter": [
       "standards/okf-house-schema",

@@ -26,7 +26,7 @@ This is a **clean-slate** package: domain-agnostic control plane only. No produc
 | Copilot instructions | `.github/copilot-instructions.md`, `.github/instructions/` |
 | Copilot agent / skills / prompts | `.github/agents/`, `.github/skills/`, `.github/prompts/` |
 
-Skills/prompts: `okf-discover`, `okf-pack`, `grill-me`, `mutation-gate`, `okf-writeback`, `okf-maintain`, `okf-review`.
+Skills/prompts: `okf-discover`, `okf-pack`, `grill-me`, `mutation-gate`, `okf-writeback`, `okf-maintain`, `okf-review`, `code-review`.
 
 ### Core standards (shipped — do not strip for a “thinner” zip)
 

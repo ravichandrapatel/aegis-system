@@ -10,3 +10,8 @@ House rules under `standards/`. Every file is `type: Concept` with tag `standard
 * [Simplicity First](simplicity-first.md) — Laziness Ladder (after pack)
 * [Python Naming](python-naming.md) — Single-style identifiers (lint-enforced)
 * [Metadata Headers](metadata-headers.md) — Kernel/house Python headers only
+
+# Change quality
+
+* [Code Review](code-review.md) — Review bar, dimensions, Conventional Comments, decision states
+* [Code Quality Gates](code-quality-gates.md) — Machine-checkable gates per DevOps stack

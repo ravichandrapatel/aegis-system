@@ -1,0 +1,14 @@
+{
+  // Auto-approve this repo's own knowledge-runtime CLI so `okf.py pack/compile/lint/...`
+  // never blocks on a prompt. Entries match the START of a command, so the scope is the
+  // named script only — `python3 some_other_script.py` still requires approval.
+  //
+  // Chained commands (`a && b`) are approved per subcommand: every part must match an
+  // entry here, which is why the repo's sync tool is listed alongside the CLI.
+  "chat.tools.terminal.autoApprove": {
+    "python3 _okf_knowledge/kernel/okf.py": true,
+    "python _okf_knowledge/kernel/okf.py": true,
+    "python3 -m okf": true,
+    "python3 tools/sync_skills.py": true
+  }
+}
