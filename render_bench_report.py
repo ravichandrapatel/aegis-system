@@ -22,6 +22,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 DEFAULT_TEMPLATE = HERE / "BENCH_REPORT_TEMPLATE.html"
 
+# Internal bookkeeping key: the set of fragments expand_helpers() built itself.
+_GENERATED_KEY = "__okf_generated_keys__"
+
 # Keys whose values are inserted without HTML-escaping (pre-built fragments).
 RAW_KEYS = frozenset(
     {
@@ -207,15 +210,12 @@ def expand_helpers(data: dict) -> dict:
         if src in data and not out.get(dst):
             items = data[src]
             if src == "verdict_lines":
-                out[dst] = "\n".join(f"<p>{x}</p>" if x.strip().startswith("<") else f"<p>{x}</p>" for x in items)
+                out[dst] = "\n".join(f"<p>{_inline(x)}</p>" for x in items)
             else:
-                out[dst] = "\n".join(
-                    x if x.strip().startswith("<li") else f"<li>{x}</li>" for x in items
-                )
+                out[dst] = "\n".join(f"<li>{_inline(x)}</li>" for x in items)
 
     if "EXECUTIVE_SUMMARY_HTML" not in out and "executive_summary" in data:
-        es = data["executive_summary"]
-        out["EXECUTIVE_SUMMARY_HTML"] = es if es.strip().startswith("<") else f"<p>{es}</p>"
+        out["EXECUTIVE_SUMMARY_HTML"] = f"<p>{_inline(data['executive_summary'])}</p>"
 
     if not out.get("METHODOLOGY_NOTE"):
         out["METHODOLOGY_NOTE"] = ""
@@ -223,7 +223,32 @@ def expand_helpers(data: dict) -> dict:
     elif "METHODOLOGY_NOTE_CLASS" not in out:
         out["METHODOLOGY_NOTE_CLASS"] = ""
 
+    # Record which fragments this function generated, so render() can tell them
+    # apart from caller-supplied *_HTML values.
+    out[_GENERATED_KEY] = frozenset(set(out) - set(data))
     return out
+
+
+_INLINE_ALLOWED = ("b", "i", "em", "strong", "code", "br", "span")
+_INLINE_TAG_RE = re.compile(
+    r"&lt;(/?)(" + "|".join(_INLINE_ALLOWED) + r")\s*/?&gt;", re.IGNORECASE
+)
+
+
+def _inline(value: object) -> str:
+    """
+    intent: Escape untrusted report text, then re-enable a small inline tag set.
+    input: any value from the benchmark JSON.
+    output: HTML-safe string.
+    role: injection boundary.
+    side_effects: none.
+
+    Bench data can carry model output, so it is never trusted verbatim. This
+    replaces the old "passes through when it starts with '<'" rule, which let
+    a single leading tag smuggle arbitrary markup (including <script>).
+    """
+    escaped = html.escape(str(value))
+    return _INLINE_TAG_RE.sub(lambda m: f"<{m.group(1)}{m.group(2).lower()}>", escaped)
 
 
 def render(template: str, data: dict) -> str:
@@ -233,11 +258,17 @@ def render(template: str, data: dict) -> str:
     if missing:
         raise SystemExit(f"Missing placeholder values: {', '.join(missing)}")
 
+    generated = data.get(_GENERATED_KEY, frozenset())
+
     def repl(match: re.Match[str]) -> str:
         key = match.group(1)
         val = data[key]
-        if key in RAW_KEYS or key.endswith("_HTML"):
+        # Raw insertion only for fragments this script built itself. A caller
+        # supplying e.g. VERDICT_LINES_HTML directly is untrusted input.
+        if (key in RAW_KEYS or key.endswith("_HTML")) and key in generated:
             return str(val)
+        if key.endswith("_HTML") or key in RAW_KEYS:
+            return _inline(val)
         return html.escape(str(val))
 
     return PLACEHOLDER_RE.sub(repl, template)

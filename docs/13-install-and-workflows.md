@@ -1,0 +1,84 @@
+# 13. Install & day-to-day workflows
+
+[← Table of contents](README.md)
+
+## Install (drop-in agent package)
+
+1. Keep `AGENTS.md` and `_okf_knowledge/` together (zip the `aegis-system` folder).  
+2. Place the package into your IDE agents/skills location:
+   - **Cursor:** `.cursor/agents/aegis-system/` or `.cursor/skills/aegis-system/`
+   - **GitHub Copilot / other:** drop the whole package under that product’s agents folder (e.g. `.github/agents/aegis-system/`). Protocol is root `AGENTS.md` only — there is no separate Copilot DNA file.
+3. Select / invoke the agent that loads this package’s `AGENTS.md`.  
+4. Ask normally — OKF follows the protocol and reads/writes under `_okf_knowledge/`.
+
+Paths in the protocol are **relative to the package directory** (wherever you dropped it).
+
+## Daily workflows
+
+### A. “I need the right rule / playbook”
+
+```bash
+cd /path/to/aegis-system
+python3 _okf_knowledge/kernel/okf.py pack --budget 1200 "your topic"
+```
+
+One command: it prints the `caps:` line, then the Prompt Cards. Zero cards means the vault has nothing binding on the topic — that is a valid answer, and the command still exits `0`; browse from `_okf_knowledge/index.md` if you want to look around. Use `okf.py lookup "your topic"` when you want the ranked menu instead of an injectable pack.
+
+Each card ends with a `related:` line of neighbouring concepts (and a `source:` line when the concept sets `resource`). If the cards do not answer the question, open one of those paths — do not re-run `pack` with a reworded query.
+
+See [Lookup](08-lookup-and-prompt-cards.md).
+
+### B. “I changed brain markdown”
+
+```bash
+python3 _okf_knowledge/kernel/okf.py compile
+python3 _okf_knowledge/kernel/okf.py lint
+```
+
+See [Maintenance](12-maintenance.md).
+
+### C. “I want to see the graph”
+
+```bash
+python3 _okf_knowledge/kernel/okf.py serve
+# http://localhost:8080/okf-brain.html
+```
+
+### D. “Raw notes just landed”
+
+1. Put them in `_okf_knowledge/_inbox/`  
+2. Ask OKF to **MAINTAIN / INGEST**, or follow the maintain playbook yourself  
+3. Compile + lint + log  
+
+### E. “CI should guard the brain”
+
+Workflow: `.github/workflows/okf-lint.yml` runs `okf.py lint`. Keep Prompt Cards on all standards.
+
+## What not to commit casually
+
+| Artifact | Guidance |
+| --- | --- |
+| Source markdown under vault/standards/kernel | **Do** commit — source of truth |
+| `index.json` / `prompt_cards.json` | Often committed for offline lookup; always regenerable |
+| Graph embed + `kernel/src/graph.json` | Regenerable via `compile`; lint embed only (no `lint.json`) |
+| `__pycache__/` | Ignored |
+
+## Bench / evaluation
+
+Optional template: [`../BENCH_PROMPT.md`](../BENCH_PROMPT.md) for OKF vs no-OKF A/B runs.
+
+## Human docs vs agent brain
+
+| Tree | Role |
+| --- | --- |
+| `docs/` | Standalone human manuals (this set) |
+| `_okf_knowledge/` | Curated memory agents **must** look up |
+| `AGENTS.md` | Binding protocol agents load |
+
+Keep them consistent when protocol changes: update `AGENTS.md` first, then refresh relevant `docs/*.md` pages.
+
+## Related
+
+- [Package layout](02-package-layout.md)
+- [Kernel tools](09-kernel-tools.md)
+- [`../README.md`](../README.md)

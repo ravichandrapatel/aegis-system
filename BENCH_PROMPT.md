@@ -2,7 +2,7 @@
 
 > **Purpose**
 >
-> Benchmark whether the Aegis/OKF knowledge system improves engineering outcomes over a baseline model by running two isolated subagents on the same task using the same model.
+> Benchmark whether the OKF/OKF knowledge system improves engineering outcomes over a baseline model by running two isolated subagents on the same task using the same model.
 
 Copy this file into a Cursor chat (or `@`-mention it), fill every `{{...}}` placeholder, then send.
 
@@ -14,7 +14,7 @@ If a parent-run gate fails, the parent **must** feed the failure back to that ar
 - Template: [`BENCH_REPORT_TEMPLATE.html`](BENCH_REPORT_TEMPLATE.html)
 - Renderer: [`render_bench_report.py`](render_bench_report.py)
 
-**Aegis is not automatic for subagents.** The OKF arm must be told to use Aegis; the no-OKF arm must be told not to.
+**OKF is not automatic for subagents.** The OKF arm must be told to use OKF; the no-OKF arm must be told not to.
 
 **Compliance knowledge isolation (hard):** Org compliance and the **answer-key sources for this task’s `{{PARENT_GATE}}`** MUST NOT appear in the shared task brief or either arm’s initial prompt. The OKF arm obtains compliance **only** via live `okf.py lookup` / `okf.py card` Prompt Cards (dynamic per domain — see AGENTS.md Rule #1). Fill `{{GATE_ANSWER_KEY_GLOBS}}` with the grader paths for **this** gate only (GHA example: `**/policies/**`, `**/*.rego`). Do not put a universal path ban into AGENTS.md. Parent runs `{{PARENT_GATE}}` and an isolation audit against those globs.
 
@@ -41,7 +41,7 @@ You are the parent. Do **not** implement the task.
 | Source | OKF arm | Baseline arm | Parent |
 | --- | --- | --- | --- |
 | Shared `{{TASK_DESCRIPTION}}` | Functional only | Functional only | — |
-| Aegis / OKF Prompt Cards (live lookup) | **Required** (only compliance source) | Forbidden | — |
+| OKF / OKF Prompt Cards (live lookup) | **Required** (only compliance source) | Forbidden | — |
 | `{{GATE_ANSWER_KEY_GLOBS}}` (grader for this gate) | **Forbidden** | **Forbidden** | May read to run gate |
 | Pins/versions/catalogs | From **cards** only | Public knowledge only | — |
 | `{{PARENT_GATE}}` | Not in initial prompt | **Not in initial prompt** | Runs for score |
@@ -130,7 +130,7 @@ Control plane: {{AEGIS_PATH}}/AGENTS.md
 Brain: {{AEGIS_PATH}}/_okf_knowledge/
 
 Must use:
-- Aegis
+- OKF
 - AGENTS.md (lookup-first; Prompt Pack is DYNAMIC from live lookup — not a static path ban-list)
 - OKF lookup / card Prompt Cards only for org/compliance
 - Inject Prompt Cards only
@@ -191,19 +191,19 @@ Must NOT use:
 - OKF
 - Prompt Cards
 - Vault
-- Standards from Aegis
+- Standards from OKF
 
 FORBIDDEN (this bench task):
 - Reading {{AEGIS_PATH}}/AGENTS.md
 - Reading anything under {{AEGIS_PATH}}/_okf_knowledge/
 - Running okf.py lookup / okf.py card
-- Using Prompt Cards, vault playbooks, or standards from Aegis
+- Using Prompt Cards, vault playbooks, or standards from OKF
 - Reading this task’s gate answer keys: {{GATE_ANSWER_KEY_GLOBS}}
 - Using org pin lists, rule IDs, or gate commands from memory of this monorepo’s docs (general public knowledge for the domain only)
 
 Record your start time (`date +%s.%N`) FIRST so you can report wall_s at the end.
 
-Complete this task from general public knowledge only (no Aegis, no repo policy trees):
+Complete this task from general public knowledge only (no OKF, no repo policy trees):
 {{TASK_DESCRIPTION}}
 
 Deliverables:
@@ -246,7 +246,7 @@ Flag OKF isolation FAIL (even if `{{PARENT_GATE}}` PASSes) if the arm:
 - Mined monorepo/network for org pins/rule IDs that should have come from Prompt Cards
 - Exceeded the discovery budget (more than one extra `okf.py lookup|card` before first write for grader archaeology)
 
-Baseline isolation FAIL if it touched Aegis/OKF or `{{GATE_ANSWER_KEY_GLOBS}}`.
+Baseline isolation FAIL if it touched OKF/OKF or `{{GATE_ANSWER_KEY_GLOBS}}`.
 
 Record `isolation_okf` / `isolation_base` as PASS|FAIL in parent findings. Gate PASS + isolation FAIL is **not** a clean OKF win.
 
@@ -260,7 +260,7 @@ This is mandatory. A first-draft FAIL is not a final result.
    - Do **not** implement the fix in the parent.
    - Resume **only the failing arm** (same model, same isolation rules).
    - Paste the **full raw gate/failure output** into the resume prompt (this may reveal policy details — that cost counts toward true cost-to-PASS).
-   - Baseline remains forbidden from `{{GATE_ANSWER_KEY_GLOBS}}` / Aegis; it may only use the pasted failure text + its own files.
+   - Baseline remains forbidden from `{{GATE_ANSWER_KEY_GLOBS}}` / OKF; it may only use the pasted failure text + its own files.
    - Instruct the arm to fix the issues and stop when PASS or after at most {{MAX_GATE_FIX_LOOPS — e.g. 2}} parent feedback loops.
    - Parent re-runs `{{PARENT_GATE}}` after each loop.
 4. **True metrics** for a remediated arm = initial run + all remediation loops (`wall_s`, `round_trips`, `prompt_chars`, `output_chars`, tokens, USD).
@@ -275,7 +275,7 @@ Use this as the Task `resume` prompt body (keep arm isolation unchanged):
 
     Keep the same arm rules as your original run:
     - OKF: live Prompt Cards only; still FORBIDDEN from {{GATE_ANSWER_KEY_GLOBS}} and pin/rule mining outside cards.
-    - Baseline: still forbidden from Aegis/OKF and from {{GATE_ANSWER_KEY_GLOBS}}.
+    - Baseline: still forbidden from OKF/OKF and from {{GATE_ANSWER_KEY_GLOBS}}.
 
     Record remediation start: date +%s.%N
 
@@ -328,7 +328,7 @@ Check for (adapt to domain; keep as PASS/FAIL per arm):
 - missing concurrency
 - missing timeout
 - invalid dependency / `needs` graph
-- **card-only isolation** (OKF did not mine `{{GATE_ANSWER_KEY_GLOBS}}`; baseline did not touch Aegis/OKF or those globs)
+- **card-only isolation** (OKF did not mine `{{GATE_ANSWER_KEY_GLOBS}}`; baseline did not touch OKF/OKF or those globs)
 
 Score runtime correctness as % of checks PASSED. Isolation FAIL may be tracked separately in Parent Findings even when other checks PASS.
 
@@ -488,7 +488,7 @@ Summarize in **maximum 6 lines**:
 - **Shared task + both initial arm prompts: zero org-compliance text** and no answer-key paths.
 - **OKF compliance source: live Prompt Cards** (dynamic lookup per AGENTS.md). **Forbidden** for this task: `{{GATE_ANSWER_KEY_GLOBS}}` and mining pins outside cards.
 - **OKF discovery budget:** mandated lookup + at most one extra card/lookup, then write.
-- **Baseline: no Aegis; no `{{GATE_ANSWER_KEY_GLOBS}}`.**
+- **Baseline: no OKF; no `{{GATE_ANSWER_KEY_GLOBS}}`.**
 - **Gate FAIL → resume failing arm with failure output and fix until PASS (or budget exhausted); score true totals.**
 - **Isolation FAIL is reported even when the gate PASSes** (not a clean OKF win).
 - HTML report must be self-contained and rendered from `BENCH_REPORT_TEMPLATE.html` via `render_bench_report.py`.

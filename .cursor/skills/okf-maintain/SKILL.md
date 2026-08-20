@@ -7,7 +7,7 @@ description: >-
 
 Follow the playbook end-to-end — do not restate it here.
 
-1. Read [`maintain-aegis-system.md`](../../../_okf_knowledge/vault/playbooks/maintain-aegis-system.md).
+1. Read [`maintain-okf-system.md`](../../../_okf_knowledge/vault/playbooks/maintain-okf-system.md).
 2. Schema: [`okf-house-schema.md`](../../../_okf_knowledge/standards/okf-house-schema.md).
 3. From package root, when the checklist reaches compile/lint:
 

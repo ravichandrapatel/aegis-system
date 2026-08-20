@@ -3,13 +3,13 @@ type: Concept
 title: Simplicity First (Laziness Ladder)
 description: Prefer the simplest, shortest, minimal solution that works — reuse before new files before tooling.
 tags: [standard, simplicity, laziness-ladder, principles]
-timestamp: 2026-07-28T00:30:00Z
-status: active
+generated: { by: okf-agent/cursor, at: 2026-07-28T00:30:00Z }
+status: stable
 ---
 
 # Laziness Ladder
 
-Design lens used after Rule #1 (Pack First) in [AGENTS.md](/AGENTS.md). When multiple approaches solve the problem, pick the lowest rung that still works:
+The design lens applied *after* Rule #1 (Pack First) in [AGENTS.md](/AGENTS.md) — a lens, not a numbered rule. When multiple approaches solve the problem, pick the lowest rung that still works:
 
 | Rung | Approach | Example |
 |------|----------|---------|

@@ -2,7 +2,7 @@
 
 [← Table of contents](README.md)
 
-Aegis maps all brain operations to a **4-zone** tree under `_okf_knowledge/`. Zones encode **lifecycle and authority**: scratch vs execution vs law vs passive memory.
+OKF maps all brain operations to a **4-zone** tree under `_okf_knowledge/`. Zones encode **lifecycle and authority**: scratch vs execution vs law vs passive memory.
 
 Bundle-absolute links inside the brain (e.g. `/vault/...`, `/standards/...`) are resolved relative to `_okf_knowledge/`.
 
@@ -43,7 +43,7 @@ Kernel markdown role templates (`profiles/`) and machine Zone-5 `code/` facts we
 
 Binding technical policies (`type: Concept` + tag `standard`). Prompt Card required — lint fails (`DBG-308`) if missing.
 
-Shipped core standards: [Standards](11-standards.md).
+Shipped core standards: [Standards](10-standards.md).
 
 ## Zone 4 — `vault/` (Knowledge)
 
@@ -59,8 +59,8 @@ Shipped core standards: [Standards](11-standards.md).
 
 | File | Role |
 | --- | --- |
-| `index.md` | Human map of the brain |
-| `log.md` | Dated mutation log |
+| `index.md` | Human map of the brain; carries **only** `okf_version` in frontmatter |
+| `log.md` | Dated mutation log; date headings **MUST** be bare ISO 8601 `YYYY-MM-DD` |
 | `*/index.md` | Progressive disclosure per folder |
 
 ## Zone decision flowchart
@@ -84,5 +84,5 @@ Else → vault/ (Concept, System, Incident, or Reference)
 ## Related
 
 - [Document types](04-document-types.md)
-- [Maintenance](13-maintenance.md)
+- [Maintenance](12-maintenance.md)
 - [Package layout](02-package-layout.md)

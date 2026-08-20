@@ -1,10 +1,13 @@
 ---
 name: mutation-gate
 description: >-
-  Halt for explicit user approval on high-risk mutations (Aegis PENDING_APPROVAL).
+  Halt for explicit user approval on high-risk mutations (OKF PENDING_APPROVAL).
   Use before IAM/secrets/prod deploy, destructive ops, or multi-file contract rewrites.
 ---
 
+<!-- GENERATED FILE — do not edit.
+     Source: .cursor/skills/mutation-gate/SKILL.md
+     Regenerate: python3 tools/sync_skills.py -->
 Enter Runtime State `PENDING_APPROVAL`. Do not apply the gated change until the user explicitly approves.
 
 ## When this fires

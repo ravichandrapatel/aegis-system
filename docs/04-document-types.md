@@ -4,7 +4,11 @@
 
 Every durable markdown concept under the brain **MUST** declare a `type` in YAML frontmatter. Lint treats missing `type` as an error.
 
-## Known types ([okf-house-schema](../_okf_knowledge/standards/okf-house-schema.md); AGENTS.md §1.3 stub)
+`type` says what a document **is**; `status` says where it sits in its lifecycle — `draft` | `stable` | `deprecated`, with absent meaning `stable` (`active` is not a value). The two are independent: see [Frontmatter schema — Status values](05-frontmatter-schema.md#status-values--when-to-use).
+
+## Known types ([okf-house-schema](../_okf_knowledge/standards/okf-house-schema.md))
+
+There are exactly five. `okf.py lint` warns (`DBG-302`) on any `type` outside this taxonomy.
 
 | `type` | Zone | Directory (under `_okf_knowledge/`) | Primary job |
 | --- | --- | --- | --- |
@@ -21,7 +25,7 @@ Every durable markdown concept under the brain **MUST** declare a `type` in YAML
 | Evergreen knowledge, pattern, tool overview | `Concept` | `vault/concepts/` (or domain folder under `vault/`) | `vault/…/index.md` |
 | House rule (MUST/SHOULD) | `Concept` + tag `standard` | `standards/` | `standards/index.md` |
 | Executable agent procedure | `Playbook` | `vault/playbooks/` | `playbooks/index.md` |
-| Cached upstream docs | `Reference` | `vault/references/` | Run `okf.py optimize` when applicable |
+| Cached upstream docs | `Reference` | `vault/references/` | Set `resource`; run `okf.py optimize` when applicable |
 | Running system in workspace | `System` | `vault/systems/` | `systems/index.md` |
 | Post-mortem | `Incident` | `vault/incidents/` | Link systems/playbooks |
 | Vault tooling (lint, compile) | Python script | `kernel/` | Maintain playbook § Scripts |
@@ -34,7 +38,7 @@ Every durable markdown concept under the brain **MUST** declare a `type` in YAML
 | Kind of Concept | Location | Extra requirements |
 | --- | --- | --- |
 | Domain / pattern Concept | `vault/` | Prompt Card **SHOULD** |
-| House **standard** | `standards/` | tag `standard`; Prompt Card **MUST**; `owns` + `priority` **REQUIRED** (protocol) |
+| House **standard** | `standards/` | tag `standard`; Prompt Card **MUST** (lint error `DBG-308` without one) |
 
 **Do not use Concept for:** multi-step “do this then that” agent workflows — those are Playbooks.
 
@@ -51,7 +55,7 @@ Required section skeleton (maintain playbook convention):
 # Verification
 ```
 
-**Canonical brain-mutation playbook:** `vault/playbooks/maintain-aegis-system.md` — bound by `AGENTS.md` §1.2 for **all** durable MAINTAIN/INGEST work.
+**Canonical brain-mutation playbook:** `vault/playbooks/maintain-okf-system.md` — bound by `AGENTS.md` (Brain layout) for **all** durable MAINTAIN/INGEST work.
 
 ## Deep dive: System vs Incident vs Reference
 
@@ -63,27 +67,25 @@ Required section skeleton (maintain playbook convention):
 
 References are **not** law. Prefer linking; do not paste entire references into generation prompts.
 
-> **Retired types:** `Module` / `Vendor` kernel registries no longer exist (`AGENTS.md` §1.1 / §4.1 — "no separate Module/Vendor runtime registry"). Domain knowledge lives under `standards/` and `vault/` and loads via OKF lookup.
+A `Reference` **SHOULD** set [`resource`](05-frontmatter-schema.md#resource-pointer-to-the-described-thing) to the upstream URL it cached — `okf.py scrape` writes it automatically, and lint warns (`DBG-311`) when it is missing. Pack then prints it as the card's `source:` line, so an agent holding a cached page can reach the original.
 
-## Deep dive: Profile
-
-
-Profiles are optional capability templates (schema-only today): authorized intents, execution modes, and enforced standards. The runtime capability check is `AGENTS.md` §4.1 — required standards/evidence from the Prompt Pack present, else **HALT** exit code `4` (Unsupported).
-
+`scrape` also writes a `sources` provenance entry (each entry **MUST** carry its own `resource`, else `DBG-316`) plus a per-claim markdown footnote keyed to that entry's `id`. That replaces the old `# Citations` body list: in OKF v0.2, provenance lives in frontmatter where a consumer can read it. A freshly scraped `Reference` has no `verified` entry, so its card reads `trust: unverified` until someone confirms it.
 
 ## Precedence reminder (conflicts)
 
-When two sources disagree (`AGENTS.md` §2.2):
+> **Convention, not kernel behavior.** Nothing in `okf.py` resolves conflicts between documents. The ordering below is what the agent applies while reasoning; the kernel only ranks and returns cards.
 
-1. Standards (via Prompt Cards / lookup)
-2. Local workspace / `_inbox` / terminal context
+When two sources disagree, `AGENTS.md` resolves in this order:
+
+1. Standards (via Prompt Cards / pack)
+2. Local workspace / `_inbox/` / terminal context
 3. Passive vault
-5. External OCI/Git metadata
+4. External OCI/Git metadata
 
-Within overlapping standards: **`owns` list wins**; if both claim the domain, higher **`priority`** wins; identical `owns`+`priority` → **fail closed** (exit `1`).
+At plan time the standard wins and the agent notes the correction. At execution time a conflict with the approved plan fails closed (`PENDING_APPROVAL` or `BLOCKED`) rather than being guessed.
 
 ## Related
 
 - [Frontmatter schema](05-frontmatter-schema.md)
 - [Brain zones](03-brain-zones.md)
-- [Maintenance](13-maintenance.md)
+- [Maintenance](12-maintenance.md)

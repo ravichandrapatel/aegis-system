@@ -1,0 +1,303 @@
+{
+  "nodes": [
+    {
+      "id": "standards/ide-context-guardrails",
+      "type": "Concept",
+      "title": "IDE Context Guardrails",
+      "description": "Binding rules to stop IDE token bloat and drift \u2014 no @workspace, pack-first cards, rg over legacy search.",
+      "tags": [
+        "standard",
+        "okf",
+        "tokens",
+        "ide",
+        "copilot",
+        "cursor",
+        "drift"
+      ],
+      "content": "# IDE Context Guardrails\n\nStops **token inflation** and **context drift** in Copilot / Cursor / VS Code when an OKF brain is present. Complements [OKF Prompt Injection](okf-prompt-injection.md) (Rule #1).\n\n## MUST\n\n1. **Explicit scope only** \u2014 Name paths, `@file`, or pack/lookup results. **FORBIDDEN:** `@workspace`, \u201csearch the whole repo\u201d, or other broad workspace dumps as the primary retrieval move when Brain is enabled.\n2. **Pack before corpus** \u2014 Non-trivial tasks: `okf.py pack` once (it reports capabilities in the same output); inject **only** `## Prompt Card` text. Do not paste `index.json`, `graph.json`, or full vault/standard bodies. An empty pack ends the retrieval attempt \u2014 do not re-query for a hit.\n3. **Prefer `rg` (ripgrep)** \u2014 `okf.py` lookup cache-miss and IDE file search use **ripgrep only**. **FORBIDDEN:** legacy `grep`/`egrep` as the search backend when `rg` is available.\n4. **Preserve grill-me** \u2014 Do **not** impose hard chat turn caps that abort challenge-response design reviews. Multi-turn vetting is intentional.\n\n## SHOULD\n\n1. Close unused editor tabs / buffers before long agent sessions so background scanners do not pull idle files into context (e.g. IDE \u201cclose all\u201d / `code --close` when that CLI is available).\n2. Prefer short, new threads for unrelated tasks over one unbounded chat that re-injects stale tool noise.\n3. Keep script/`okf.py` stdout hyper-compressed (JSON pointers / card text) \u2014 no conversational wrapper in tool output meant for the model.\n\n## Local cache contract\n\n| Artifact | Role |\n| --- | --- |\n| `index.json` (v2 + inverted) | Keyword \u2192 concept pointers (ms lookup) |\n| `prompt_cards.json` | Pre-extracted cards for pack |\n| `.okf-compile-cache.json` | Incremental compile cache |\n\nRebuild with `python3 _okf_knowledge/kernel/okf.py compile`. **JSON** is the on-disk/LLM-facing cache format (native parse weights); do not replace pack payloads with exotic serializations for \u201ctoken savings.\u201d\n\n## Prompt Card\n\n```text\nIDE: no @workspace / broad workspace dump when Brain on \u2014 pack cards only.\nPack once per task (it prints caps too); empty pack is final, do not re-query.\nLookup: JSON inverted hit \u2192 else ripgrep (rg), never grep; then Prompt Cards.\nNo hard turn-cap killing grill-me; close idle tabs when possible.\n```\n\n# Related\n\n- [OKF Prompt Injection](okf-prompt-injection.md)\n- [OKF Cognitive Bundle](/vault/concepts/okf-cognitive-bundle.md)\n- DNA: [AGENTS.md](/AGENTS.md)"
+    },
+    {
+      "id": "standards/metadata-headers",
+      "type": "Concept",
+      "title": "Metadata Headers",
+      "description": "Required metadata blocks on new okf package modules and house scripts.",
+      "tags": [
+        "standard",
+        "code-quality",
+        "documentation",
+        "conventions",
+        "python"
+      ],
+      "content": "# Metadata Headers\n\n**Scope:** new/edited files under `_okf_knowledge/kernel/okf/` and other house Python tooling. Domain YAML/code follows this repo\u2019s domain standards when present.\n\n**Identifier style** is binding under [Python Naming](/standards/python-naming.md) and enforced by `okf.py lint` \u2014 do not invent a second convention here.\n\n## File header\n\n```python\n# file_name: okf.py\n# description: Thin CLI caller for the OKF runtime package.\n# version: 1.3.0\n# authors: contributors\n```\n\nHeader keys are `lower_snake` only (`file_name`, not `FILE_NAME`).\n\n## Function / class docstring fields\n\n`intent`, `input`, `output`, `role`, `side_effects` (snake_case) \u2014 match existing package style.\n\n## Prompt Card\n\n```text\nHouse Python headers: file_name/description/version/authors (lower_snake keys).\nDocstrings: intent, input, output, role, side_effects.\nIdentifier style: standards/python-naming.md (lint DBG-320/321).\n```\n\n# Related\n\n- [Python Naming](/standards/python-naming.md)\n- [Simplicity First](/standards/simplicity-first.md)\n- [OKF House Schema](/standards/okf-house-schema.md)"
+    },
+    {
+      "id": "standards/okf-house-schema",
+      "type": "Concept",
+      "title": "OKF House Schema",
+      "description": "Required frontmatter and Prompt Card rules for durable OKF documents.",
+      "tags": [
+        "standard",
+        "okf",
+        "schema",
+        "frontmatter"
+      ],
+      "content": "# OKF House Schema\n\nBinding schema for durable docs under `_okf_knowledge/`, targeting **OKF**. Enforced by `okf.py lint` (required `type`; standards Prompt Card gate; trust-family shape).\n\n## Required frontmatter\n\n```yaml\n---\ntype: Concept          # Concept | Playbook | System | Reference | Incident\ntitle: Human-readable name\ndescription: One-line summary for indexes and pack/lookup\ntags: [kebab-case, topic]\nstatus: stable                                              # draft | stable | deprecated\ngenerated: { by: okf-agent/cursor, at: 2026-07-28T00:00:00Z }\n---\n```\n\nReserved by the spec: `type`, `title`, `description`, `resource`, `tags`, plus the `generated` / `verified` / `status` / `stale_after` / `sources` families. House extension: `pack_force_when` only.\n\n| Field | Rule |\n| --- | --- |\n| `type` | **MUST** \u2014 the one field OKF requires |\n| `title`, `description` | **MUST** for house docs (lint warns if missing) |\n| `tags` | **SHOULD**; house rules under `standards/` **MUST** include tag `standard` |\n| `resource` | Optional URL or vault-absolute path to the thing this concept describes. `Reference` concepts **SHOULD** set it (`DBG-311`); a non-URL, non-absolute value warns (`DBG-310`). `scrape` writes it |\n| `status` | **SHOULD** \u2014 `draft` \\| `stable` \\| `deprecated`. Absent means `stable`. Any other value warns (`DBG-314`) |\n| `generated` | **SHOULD** \u2014 `{ by, at }`. `by` **MUST** follow the actor convention (`DBG-313`) |\n| `verified` | Optional list (or a bare mapping) of `{ by, at }` confirmations |\n| `stale_after` | Optional `YYYY-MM-DD`. Past that date the content is stale (`DBG-315`) |\n| `sources` | Optional provenance list; each entry **MUST** carry `resource` (`DBG-316`) |\n| `pack_force_when` | House extension. Keyword list \u2014 pack force-includes when the query matches on **token boundaries** (multi-word keywords must match as a contiguous phrase). Prefer distinctive terms; a common English word will fire on unrelated queries |\n\n`timestamp` is **superseded** by `generated.at`. It still parses for legacy documents, but new work MUST NOT use it.\n\n## Trust is derived, never stored\n\nMost knowledge here is written by agents and then injected as binding cards. The spec's answer is to record *who* and let the consumer judge:\n\n| `verified` | Tier | Card shows |\n| --- | --- | --- |\n| absent | unverified | *(nothing \u2014 silent default)* |\n| non-`human:` actors only | machine-confirmed | `trust: machine-confirmed` |\n| any `human:<name>` actor | human-reviewed | *(nothing)* |\n\nActors follow one form: `human:<name>`, `process:<name>`, or `<agent>/<model>`. Unverified is silent so an all-agent vault does not tax every pack; machine-confirmed and stale still warn. Human review keeps the card quiet.\n\n## Cross-links are load-bearing\n\nLinks are not decoration. `compile` turns **every in-vault markdown link in the body** into a `graph.json` edge \u2014 a `# Related` section is the house convention for making them deliberate \u2014 and `pack` prints each card's neighbours as a `related:` line so the agent can traverse on to concepts the ranked pack did not include. A concept nothing links to is unreachable by traversal; lint flags orphans (`DBG-306`).\n\n## Prompt Cards\n\n- Binding standards (`standards/` or tag `standard`) **MUST** include a non-empty `## Prompt Card` (lint `DBG-308`).\n- Card body **SHOULD** be \u2264 ~600 characters (~150 tokens).\n- Other agent-facing concepts **SHOULD** ship a card.\n\n## Frontmatter parsing\n\nFrontmatter is real YAML, parsed by PyYAML when it is importable. **Without PyYAML** the kernel falls back to a flat subset \u2014 `key: value`, inline `key: [a, b]`, block lists \u2014 which cannot represent the nested families, so those documents are reported unparseable (`DBG-002`) rather than silently mangled. `okf.py capabilities` reports which path is live; the `nested_yaml` feature flag means the full parser is available.\n\nQuote scalars YAML reserves. `pack_force_when: [@workspace]` is invalid \u2014 `@` is a reserved indicator \u2014 and must \n\n\u2026"
+    },
+    {
+      "id": "standards/okf-prompt-injection",
+      "type": "Concept",
+      "title": "OKF Prompt Injection",
+      "description": "Rule",
+      "tags": [
+        "standard",
+        "okf",
+        "prompting",
+        "tokens",
+        "pack",
+        "retrieval"
+      ],
+      "content": "# OKF Prompt Injection\n\nImplements **Rule #1 \u2014 Pack first** from [AGENTS.md](/AGENTS.md).\n\nCurated OKF stays in the vault. Generation context gets a **dynamic Prompt Pack**: slim `## Prompt Card` text from this task\u2019s `okf.py pack` \u2014 not a full-brain dump. `pack` also prints a one-line `caps:` header, so Capability Discovery and retrieval cost a single command.\n\n## Retrieval ladder\n\n| Priority | Lane | How | Use for |\n| :---: | :--- | :--- | :--- |\n| 1 | OKF | `okf.py pack` | Standards, playbooks, catalogs, pins on cards (+ `caps:` line) |\n| 2 | Traverse | Follow a card's `related:` / `source:` line | One deep dive |\n| 3 | Task corpus | Glob \u2192 **ripgrep (`rg`)** \u2192 Read | Product code in this repository (never legacy `grep`) |\n| 4 | Live external | Official Git/OCI/`gh` | Pins still missing/stale after 1\u20133 |\n| 5 | Grader | Only to explain/fix a failure | Not for inventing compliance at author time |\n\nLane 1 **MUST** run before corpus or authoring \u2014 once per task, not per message. Write-back durable pins/recipes to `_inbox/` (Rung 1); ingest via maintain playbook.\n\n**FORBIDDEN:** paste `graph.json` / full standards into the prompt; skip pack and grep the vault for compliance; invent stub designs that omit wiring the current Prompt Pack requires.\n\n## Traversal (lane 2)\n\nRanking picks the entry points; the **graph** carries you the rest of the way. Every card ends with the edges `compile` found in that concept's body (by convention, its `# Related` section):\n\n```text\nsource: https://upstream.example/docs/thing     # only when frontmatter sets `resource`\nrelated: standards/simplicity-first.md \u00b7 vault/concepts/okf-cognitive-bundle.md (+2 more)\n```\n\nNeighbours already in the pack are omitted, so every path listed is genuinely new reach. Open one **only** when the cards you hold do not answer the question \u2014 this is deliberate traversal, not a second search. Re-running `pack` instead of following an edge is the mistake this line exists to prevent.\n\nWhen the pack is empty, `_okf_knowledge/index.md` is the entry point for browsing the bundle by hand.\n\n## Empty packs\n\nAn empty pack is a **valid answer**: the vault holds nothing binding on this topic. Drop to lane 3 and proceed on general engineering judgement, then note anything durable for `_inbox/`. Re-running `pack` with reworded queries to force a hit is **FORBIDDEN** \u2014 it burns turns and invites an irrelevant card.\n\nRanked hits below `--min-score` (default 24) are dropped for this reason: a confidently-injected wrong card is worse than no card, because cards outrank the model's own judgement.\n\n## Budgets\n\n- Each card **SHOULD** be \u2264 ~600 characters (~150 tokens); lint warns above it.\n- A pack is capped at 8 cards and the `--budget` token ceiling (default ~1200). Cards are added in rank order until either limit is reached; a single oversized card is truncated rather than allowed to exceed the budget.\n- Concepts may set `pack_force_when: [keywords]`. Matching is on **token boundaries**, and multi-word keywords must appear as a contiguous phrase \u2014 so `tab` does not fire on `table`, and `deploy` does not fire on `deployment`.\n- `related:` lines cost ~8 tokens per link and are attached **after** card selection, so traversal never displaces a card. Set `related_links: 0` in `okf/config.py` to disable.\n\n## Prompt Card\n\n```text\nRule #1: okf.py pack before authoring \u2014 it prints caps + cards in one command.\nInject ## Prompt Card text only; empty pack is valid, do not re-query for a hit.\nNeed more? Follow a card's related:/source: edge \u2014 do not re-pack. Empty: index.md.\nLadder: OKF \u2192 traverse edges \u2192 repo corpus (rg) \u2192 live upstream \u2192 write-back _inbox.\nNo graph/index/full-doc paste; no grader mining to invent compliance.\n```\n\n# Related\n\n- DNA: [AGENTS.md](/AGENTS.md)\n- Schema: [OKF House Schema](okf-house-schema.md)\n- IDE tokens: [IDE Context Guardrails](ide-context-guardrails.md)\n- Pins / caches: [`vault/references/`](/vault/references/) (populate via scrape + maintain)"
+    },
+    {
+      "id": "standards/python-naming",
+      "type": "Concept",
+      "title": "Python Naming",
+      "description": "Binding single-style identifier rules for the OKF runtime package (PEP 8 snake_case).",
+      "tags": [
+        "standard",
+        "python",
+        "naming",
+        "pep8",
+        "conventions",
+        "code-quality"
+      ],
+      "content": "# Python Naming\n\n**Binding** for `_okf_knowledge/kernel/okf/**/*.py` and `_okf_knowledge/kernel/okf.py`. Enforced by `okf.py lint` (`DBG-320`, `DBG-321`). Domain code outside this package SHOULD follow the same rules.\n\n## One style per name\n\nEvery identifier is **exactly one** of:\n\n| Style | Pattern | Used for |\n| --- | --- | --- |\n| `lower_snake` | `_?[a-z][a-z0-9_]*` | modules, files, functions, params, locals |\n| `UPPER_SNAKE` | `_?[A-Z][A-Z0-9_]*` | module constants only |\n| `CapWords` | `_?[A-Z][A-Za-z0-9]*` (no `_`) | classes and type aliases only |\n\n**Exception:** stdlib overrides that the runtime requires (e.g. `BaseHTTPRequestHandler.do_GET`) keep the upstream spelling.\n\n**Forbidden**\n\n- Mixing styles in one name (`MaxCards`, `VAULT_root`, `parseHTML`)\n- Product prefixes on identifiers (`okf_*`, `OKF_*`, `kernel_*`, `KERNEL_*`) \u2014 the package import `okf` is fine; prefixes on *variables* are not\n- `camelCase` functions or locals\n\nSchema keys in frontmatter (e.g. `okf_version`) are document fields, not Python identifiers \u2014 leave them alone.\n\n## Examples\n\n```python\n# good\nVAULT_ROOT = Path(\"...\")\nDEFAULT_MAX_CARDS = 8\nentry_script = brain / \"okf.py\"\n\nclass IndexEntry:\n    def score_hit(self, query: str) -> int: ...\n\n# bad\nokf_config = {}       # product prefix\nKERNEL_DIR = ...      # product prefix\nmaxCards = 8          # camelCase\nparseHTML = ...         # mixed\n```\n\n## Files\n\nPython modules and package data files use `lower_snake` (e.g. `paths.py`, `brain.html`).\n\n## Prompt Card\n\n```text\nOKF runtime Python: one style per name \u2014 lower_snake (funcs/locals/files),\nUPPER_SNAKE (constants), CapWords (classes/types only). Never mix; never okf_/kernel_ prefixes on identifiers. Lint: DBG-320 style, DBG-321 prefix.\n```\n\n# Related\n\n- [Metadata Headers](/standards/metadata-headers.md) \u2014 file/function header fields\n- [Simplicity First](/standards/simplicity-first.md)\n- [OKF House Schema](/standards/okf-house-schema.md)"
+    },
+    {
+      "id": "standards/simplicity-first",
+      "type": "Concept",
+      "title": "Simplicity First (Laziness Ladder)",
+      "description": "Prefer the simplest, shortest, minimal solution that works \u2014 reuse before new files before tooling.",
+      "tags": [
+        "standard",
+        "simplicity",
+        "laziness-ladder",
+        "principles"
+      ],
+      "content": "# Laziness Ladder\n\nThe design lens applied *after* Rule #1 (Pack First) in [AGENTS.md](/AGENTS.md) \u2014 a lens, not a numbered rule. When multiple approaches solve the problem, pick the lowest rung that still works:\n\n| Rung | Approach | Example |\n|------|----------|---------|\n| 1 | Do nothing new | Reuse an existing concept, playbook, or reference |\n| 2 | Edit one file | Fix a link, add one paragraph, patch one script |\n| 3 | Add one small file | One new concept \u2014 not a new directory tree |\n| 4 | Add tooling | Only when manual steps repeat and hurt |\n| 5 | Add abstraction | Last resort \u2014 never start here |\n\n## In the vault\n\n- One concept per file; cross-link instead of duplicating prose.\n- Prefer `index.md` disclosure over bulk-reading the tree.\n- Kernel stays stdlib-only unless a dependency is unavoidable.\n- New types, directories, or tooling require justification against this ladder.\n\n## In code\n\n- Smallest diff that fixes the root cause \u2014 no drive-by refactors.\n- Match existing conventions before inventing new ones.\n\n## Prompt Card\n\n```text\nLaziness Ladder: reuse \u2192 one-file edit \u2192 one small file \u2192 tooling \u2192 abstraction last.\nSmallest diff; stdlib kernel; justify new dirs/types.\n```\n\n# Related\n\n- DNA: [AGENTS.md](/AGENTS.md)\n- Schema: [OKF House Schema](/standards/okf-house-schema.md)\n- Prompt discipline: [OKF Prompt Injection](/standards/okf-prompt-injection.md)"
+    },
+    {
+      "id": "vault/concepts/extending-okf",
+      "type": "Concept",
+      "title": "Extending OKF",
+      "description": "How to replicate this package and grow domain knowledge without rewriting the kernel.",
+      "tags": [
+        "okf-system",
+        "getting-started",
+        "portable"
+      ],
+      "content": "# Extending OKF\n\n**Package root:** directory containing [`AGENTS.md`](/AGENTS.md) and `_okf_knowledge/`. DNA lives in AGENTS.md; this page is how to ship and grow the package.\n\n## Replicate (copy-paste)\n\nCopy as a unit (keep relative layout):\n\n```\nAGENTS.md\n_okf_knowledge/\ntools/sync_skills.py\n.cursor/rules/okf.mdc\n.cursor/skills/{okf-discover,okf-pack,grill-me,mutation-gate,okf-writeback,okf-maintain,okf-review}/\n.cursor/commands/{okf-discover,okf-pack,grill-me,mutation-gate,okf-writeback,okf-maintain,okf-review}.md\n.github/skills/          # GENERATED \u2014 never edit by hand\n.github/prompts/{okf-discover,okf-pack,grill-me,mutation-gate,okf-writeback,okf-maintain,okf-review}.prompt.md\n.github/agents/okf.agent.md\n.github/copilot-instructions.md\n.github/instructions/okf-brain.instructions.md\n```\n\n`.cursor/skills/` is the single source of truth. Regenerate the Copilot copies with `python3 tools/sync_skills.py`; CI enforces it with `--check`.\n\nOptional CI: `.github/workflows/okf-lint.yml` runs compile, lint, the skill drift check, and the kernel tests.\n\nPlace at repo root or inside one folder (e.g. `agents/`). From package root:\n\n```bash\npython3 _okf_knowledge/kernel/okf.py compile\npython3 _okf_knowledge/kernel/okf.py lint\n```\n\nRequires Python 3.9+ (kernel is stdlib-only). Keep kernel + DNA; adapt domain cards under `standards/` and `vault/` for the target repo. Include Cursor / Copilot bindings as needed. If a parent workspace still points at legacy `knowledge/` / TOON paths, **this package\u2019s AGENTS.md wins** when `_okf_knowledge/` is present.\n\n## Add knowledge\n\n1. Drop raw notes in [`_inbox/`](/_inbox/).\n2. Follow [Maintain OKF System](/vault/playbooks/maintain-okf-system.md).\n\nA vault holding only OKF's own documentation makes Rule #1 pure overhead: every pack costs a command and returns nothing task-relevant. Fill `standards/` and `vault/` with the domain knowledge the target repo actually argues about \u2014 pinned versions, deployment runbooks, house policy \u2014 or expect empty packs and answer from general judgement.\n\n## Prompt Card\n\n```text\nReplicate: AGENTS.md + _okf_knowledge/ + tools/sync_skills.py + Cursor (.cursor) and Copilot (.github).\n.cursor/skills is the source of truth; .github/skills is generated (tools/sync_skills.py).\nFrom package root: compile + lint. Keep kernel + DNA; fill standards/ and vault/ with DOMAIN\nknowledge \u2014 a self-referential vault makes every pack empty and Rule #1 pure cost.\n```\n\n# Related\n\n- [AGENTS.md](/AGENTS.md)\n- [OKF Runtime CLI](/vault/systems/okf-runtime.md)\n- [Maintain OKF System](/vault/playbooks/maintain-okf-system.md)\n- [OKF Capability Discovery](/vault/concepts/okf-capability-discovery.md)"
+    },
+    {
+      "id": "vault/concepts/okf-capability-discovery",
+      "type": "Concept",
+      "title": "OKF Capability Discovery",
+      "description": "Probe Brain/FS/Python/Git/Shell before enabling pack/compile/lint; folded into pack as a one-line caps header.",
+      "tags": [
+        "okf-system",
+        "capability",
+        "discovery",
+        "portable"
+      ],
+      "content": "# OKF Capability Discovery\n\nBinding policy (disable table, fallbacks, hard `BLOCKED` rule): **[`AGENTS.md`](/AGENTS.md)** \u00a7 Capability fallback. Skill recipe: `okf-discover`.\n\n## Normally you get this for free\n\n`okf.py pack` prints a capability line before the cards, so Rule #1 and discovery are one command and one round trip:\n\n```\ncaps: READY | all present | features: prompt_pack,vault_lookup,compile,lint,rung2_maintain,git_ops\n```\n\nRun the standalone command only when that line reports something other than `all present`, or when `okf.py` itself may be missing:\n\n```bash\npython3 _okf_knowledge/kernel/okf.py capabilities [--json] [--strict]\n```\n\nProbes `python`, `filesystem`, `shell`, `brain`, `git`, `compile`, `lint`. `--strict` exits `4` when the hint is `BLOCKED`. Enable **only** the features reported; capabilities do not change mid-session, so probing repeatedly is pure token cost.\n\n## Prompt Card\n\n```text\nCapabilities ride along with okf.py pack as a one-line \"caps:\" header \u2014 no separate call.\nOnly run okf.py capabilities when that line is not \"all present\" or okf.py may be missing.\nEnable only reported features; Brain missing on non-trivial mutate => BLOCKED. No tool assumptions.\n```\n\n# Related\n\n- [AGENTS.md](/AGENTS.md)\n- [OKF Prompt Injection](/standards/okf-prompt-injection.md)\n- [Extending OKF](extending-okf.md)"
+    },
+    {
+      "id": "vault/concepts/okf-cognitive-bundle",
+      "type": "Concept",
+      "title": "OKF Cognitive Bundle",
+      "description": "Modular OKF brain \u2014 atomic docs, index hub, inverted cache, prompt cards, autonomous okf.py.",
+      "tags": [
+        "okf",
+        "architecture",
+        "tokens",
+        "bundle",
+        "knowledge-format"
+      ],
+      "content": "# OKF Cognitive Bundle\n\nHow the Open Knowledge Format keeps agents **grounded** and **token-cheap**.\n\n## Pluggable modules\n\nA bundle is a version-controlled tree (`_okf_knowledge/` + DNA in `AGENTS.md`) you can drop into another team/repo. Zones:\n\n| Zone | Path | Role |\n| --- | --- | --- |\n| Inbox | `_inbox/` | Untriaged notes |\n| Kernel | `kernel/` | `okf.py` + compile/pack/lint |\n| Law | `standards/` | Binding MUST/SHOULD + Prompt Cards |\n| Memory | `vault/` | Concepts, playbooks, systems, incidents, references |\n\n## Atomic knowledge\n\nOne topic per markdown file with YAML frontmatter (`type`, `title`, `description`, `tags`, \u2026). Prefer small linked pages over monolithic dumps. Schema: [OKF House Schema](/standards/okf-house-schema.md).\n\n## Traversable graph\n\n[`index.md`](/index.md) is the hub. Use **explicit relative links** so agents map relationships without inventing neighbors from vector similarity alone. Compiled `graph.json` / `index.json` are for **tools**, not for pasting into prompts.\n\n## Token path\n\n```mermaid\nflowchart TB\n  User[User_Developer] --> Agent[AI_Agent]\n  Agent -->|\"okf.py pack/lookup\"| Okf[okf.py]\n  Okf --> Cache{JSON_index_cache}\n  Cache -->|hit| Idx[Inverted_index_lookup]\n  Cache -->|miss| Rg[\"ripgrep_rg_fallback\"]\n  Idx --> Card[Attach_Prompt_Card]\n  Rg --> Card\n  Card --> Json[Hyper_compressed_JSON]\n  Json --> Agent\n  Agent --> Task[Execute_or_Grill_Me]\n```\n\n1. `okf.py compile` \u2192 inverted `index.json` + `prompt_cards.json`\n2. `okf.py pack` \u2192 **cache hit:** instant inverted lookup; **cache miss / empty lexical hits:** **`rg` only** (never `grep`) over brain markdown\n3. Drop ranked hits below the relevance floor (`--min-score`, default 24), then attach mapped Prompt Cards up to 8 cards / the token budget\n4. **No card clears the floor \u2192 empty pack.** That is a real answer: the vault has nothing binding. Skip to step 6; do not reword and retry\n5. Optional deep read of paths the **current** cards name\n6. Repo corpus via targeted Glob/`rg`/Read\n7. Live upstream only on cache miss; write-back durable pins to `_inbox/`\n\nIDE-side bans and hygiene: [IDE Context Guardrails](/standards/ide-context-guardrails.md). Pack ladder: [OKF Prompt Injection](/standards/okf-prompt-injection.md).\n\n\n## Why JSON caches\n\nLocal inverted index and cards stay **JSON**. LLMs parse JSON reliably; custom/exotic wire formats (e.g. TOON as LLM ingest) add error and token overhead without helping pack quality.\n\n## Autonomy and grill-me\n\nAgents **SHOULD** run `compile` after durable brain mutations and may refresh indexes when files change. **Grill-me** remains a first-class multi-turn workflow \u2014 do not replace it with a rigid turn counter.\n\n## Prompt Card\n\n```text\nOKF bundle: atomic md + index.md links; pack cards only (no graph/index paste).\nLookup: JSON inverted hit \u2192 else ripgrep (rg), never grep \u2192 floor \u2192 Prompt Cards.\nEmpty pack = vault has nothing binding; proceed on judgement, do not re-query.\nGrill-me stays multi-turn; compile after brain mutations.\n```\n\n# Related\n\n- [Extending OKF](extending-okf.md)\n- [IDE Context Guardrails](/standards/ide-context-guardrails.md)\n- [Maintain OKF System](/vault/playbooks/maintain-okf-system.md)"
+    },
+    {
+      "id": "vault/playbooks/maintain-okf-system",
+      "type": "Playbook",
+      "title": "Maintain OKF System",
+      "description": "Add or update durable OKF knowledge \u2014 frontmatter, links, compile, lint.",
+      "tags": [
+        "okf-system",
+        "ingest",
+        "maintenance",
+        "okf",
+        "procedure"
+      ],
+      "content": "# Trigger\n\nAdd or change durable knowledge in this package: standard, concept, playbook, system, reference, or incident.\n\n# Preconditions\n\n- Raw material (if any) is in `_inbox/` and not edited in place.\n- You know the `type` and destination directory (table below).\n- Schema: [OKF House Schema](/standards/okf-house-schema.md).\n\n# Destination table\n\n| Content | `type` | Directory |\n| --- | --- | --- |\n| House rule | `Concept` + tag `standard` | `standards/` |\n| Evergreen fact | `Concept` | `vault/concepts/` |\n| Procedure | `Playbook` | `vault/playbooks/` |\n| Running system | `System` | `vault/systems/` |\n| Post-mortem | `Incident` | `vault/incidents/` |\n| Cached upstream / pins | `Reference` | `vault/references/` |\n\n# Steps\n\n1. Create/update one file with required frontmatter.\n2. Standards **MUST** include `## Prompt Card` (\u2264 ~600 chars).\n3. Cross-link both directions; update affected `index.md` files.\n4. Append a line to [log.md](/log.md).\n5. From **package root** (directory with `AGENTS.md`):\n\n```bash\npython3 _okf_knowledge/kernel/okf.py compile\npython3 _okf_knowledge/kernel/okf.py lint\n```\n\n6. Lint must report `0 error(s)`. Archive or delete the `_inbox/` source after successful ingest.\n\n# Change close-out write-back\n\nIf a non-trivial engineering change learned something durable: write `_inbox/<YYYY-MM-DD>-<slug>.md` (Rung 1). Run this playbook for Rung 2 only when destination is clear and the checklist above can finish; else leave `MAINTAIN later`.\n\n# Verification\n\n- [ ] Frontmatter valid\n- [ ] Indexes + cross-links updated\n- [ ] `compile` + `lint` clean\n- [ ] `log.md` updated\n\n## Prompt Card\n\n```text\nBrain mutate: correct type/dir; frontmatter; cross-links; index.md; log.md.\nStandards MUST ## Prompt Card. From package root: okf.py compile then lint (0 errors).\nClose-out: Rung 1 _inbox; Rung 2 only if this checklist finishes.\n```\n\n# Related\n\n- [AGENTS.md](/AGENTS.md)\n- [OKF House Schema](/standards/okf-house-schema.md)\n- [Extending OKF](/vault/concepts/extending-okf.md)"
+    },
+    {
+      "id": "vault/systems/okf-runtime",
+      "type": "System",
+      "title": "OKF Runtime CLI",
+      "description": "Runnable okf.py surface this package ships \u2014 pack, compile, lint, scrape, serve, tokens.",
+      "tags": [
+        "okf",
+        "runtime",
+        "cli",
+        "pack",
+        "compile"
+      ],
+      "content": "# OKF Runtime CLI\n\nThis repository's product surface is `_okf_knowledge/kernel/okf.py` (thin shim). Implementation is the installable package `_okf_knowledge/kernel/okf/` (`python3 -m okf` from `kernel/`). Compile artifacts (`index.json`, `graph.json`, `prompt_cards.json`) live at the brain root `_okf_knowledge/`, not inside the Python package. Agents and humans run commands from the package root (the directory that contains `AGENTS.md`).\n\n## Commands that matter\n\n| Command | Role |\n| --- | --- |\n| `pack` | Caps line + budgeted Prompt Cards (Rule #1). Prefer this over `lookup --card`. |\n| `compile` | Rebuilds brain-root `index.json` / `graph.json` / `prompt_cards.json`; embeds graph into `okf/assets/brain.html`. |\n| `lint` | Schema + link + trust-shape checks. Zero errors required before Rung 2 ingest. |\n| `scrape` | Fetch upstream docs into `vault/references/` with `resource` + `sources` frontmatter. |\n| `serve` | Read-only loopback visualizer \u2014 no mutate APIs, no auth. |\n| `tokens` | Count tokens for paths (tiktoken if installed, else heuristic). |\n| `capabilities` | Verbose probe; normally unnecessary because `pack` prints `caps:`. |\n\n```bash\npython3 _okf_knowledge/kernel/okf.py pack --budget 1200 \"<keywords>\"\npython3 _okf_knowledge/kernel/okf.py compile\npython3 _okf_knowledge/kernel/okf.py lint\n```\n\n## Layout\n\n```text\n_okf_knowledge/\n  kernel/\n    okf.py                        # CLI shim\n    pyproject.toml\n    okf/                          # importable package\n      assets/brain.html           # visualizer template\n  index.json, graph.json, prompt_cards.json\n  standards/ vault/ _inbox/ \u2026\n```\n\n## Hard rules for this package\n\n- After editing `.cursor/skills/`, run `python3 tools/sync_skills.py` \u2014 `.github/skills/` is generated.\n- Brain mutations follow [Maintain OKF System](/vault/playbooks/maintain-okf-system.md).\n- Nested frontmatter needs PyYAML (`nested_yaml` on the caps line). Without it, nested docs fail parse loudly.\n\n## Prompt Card\n\n```text\nPackage: `_okf_knowledge/kernel/okf.py` \u2192 `kernel/okf/` package. Artifacts at brain root (not inside Python).\npack = caps + cards (Rule #1). compile then lint after brain edits. serve is read-only loopback.\nscrape writes resource+sources. Sync skills: python3 tools/sync_skills.py after .cursor/skills edits.\n```\n\n# Related\n\n- Bundle shape: [OKF Cognitive Bundle](/vault/concepts/okf-cognitive-bundle.md)\n- Replication: [Extending OKF](/vault/concepts/extending-okf.md)\n- Maintenance: [Maintain OKF System](/vault/playbooks/maintain-okf-system.md)\n- Caps: [OKF Capability Discovery](/vault/concepts/okf-capability-discovery.md)"
+    }
+  ],
+  "edges": [
+    {
+      "source": "standards/ide-context-guardrails",
+      "target": "standards/okf-prompt-injection"
+    },
+    {
+      "source": "standards/ide-context-guardrails",
+      "target": "standards/okf-prompt-injection"
+    },
+    {
+      "source": "standards/ide-context-guardrails",
+      "target": "vault/concepts/okf-cognitive-bundle"
+    },
+    {
+      "source": "standards/metadata-headers",
+      "target": "standards/python-naming"
+    },
+    {
+      "source": "standards/metadata-headers",
+      "target": "standards/python-naming"
+    },
+    {
+      "source": "standards/metadata-headers",
+      "target": "standards/simplicity-first"
+    },
+    {
+      "source": "standards/metadata-headers",
+      "target": "standards/okf-house-schema"
+    },
+    {
+      "source": "standards/okf-house-schema",
+      "target": "standards/okf-prompt-injection"
+    },
+    {
+      "source": "standards/okf-house-schema",
+      "target": "vault/playbooks/maintain-okf-system"
+    },
+    {
+      "source": "standards/okf-prompt-injection",
+      "target": "standards/okf-house-schema"
+    },
+    {
+      "source": "standards/okf-prompt-injection",
+      "target": "standards/ide-context-guardrails"
+    },
+    {
+      "source": "standards/python-naming",
+      "target": "standards/metadata-headers"
+    },
+    {
+      "source": "standards/python-naming",
+      "target": "standards/simplicity-first"
+    },
+    {
+      "source": "standards/python-naming",
+      "target": "standards/okf-house-schema"
+    },
+    {
+      "source": "standards/simplicity-first",
+      "target": "standards/okf-house-schema"
+    },
+    {
+      "source": "standards/simplicity-first",
+      "target": "standards/okf-prompt-injection"
+    },
+    {
+      "source": "vault/concepts/extending-okf",
+      "target": "vault/playbooks/maintain-okf-system"
+    },
+    {
+      "source": "vault/concepts/extending-okf",
+      "target": "vault/systems/okf-runtime"
+    },
+    {
+      "source": "vault/concepts/extending-okf",
+      "target": "vault/playbooks/maintain-okf-system"
+    },
+    {
+      "source": "vault/concepts/extending-okf",
+      "target": "vault/concepts/okf-capability-discovery"
+    },
+    {
+      "source": "vault/concepts/okf-capability-discovery",
+      "target": "standards/okf-prompt-injection"
+    },
+    {
+      "source": "vault/concepts/okf-capability-discovery",
+      "target": "vault/concepts/extending-okf"
+    },
+    {
+      "source": "vault/concepts/okf-cognitive-bundle",
+      "target": "standards/okf-house-schema"
+    },
+    {
+      "source": "vault/concepts/okf-cognitive-bundle",
+      "target": "standards/ide-context-guardrails"
+    },
+    {
+      "source": "vault/concepts/okf-cognitive-bundle",
+      "target": "standards/okf-prompt-injection"
+    },
+    {
+      "source": "vault/concepts/okf-cognitive-bundle",
+      "target": "vault/concepts/extending-okf"
+    },
+    {
+      "source": "vault/concepts/okf-cognitive-bundle",
+      "target": "standards/ide-context-guardrails"
+    },
+    {
+      "source": "vault/concepts/okf-cognitive-bundle",
+      "target": "vault/playbooks/maintain-okf-system"
+    },
+    {
+      "source": "vault/playbooks/maintain-okf-system",
+      "target": "standards/okf-house-schema"
+    },
+    {
+      "source": "vault/playbooks/maintain-okf-system",
+      "target": "standards/okf-house-schema"
+    },
+    {
+      "source": "vault/playbooks/maintain-okf-system",
+      "target": "vault/concepts/extending-okf"
+    },
+    {
+      "source": "vault/systems/okf-runtime",
+      "target": "vault/playbooks/maintain-okf-system"
+    },
+    {
+      "source": "vault/systems/okf-runtime",
+      "target": "vault/concepts/okf-cognitive-bundle"
+    },
+    {
+      "source": "vault/systems/okf-runtime",
+      "target": "vault/concepts/extending-okf"
+    },
+    {
+      "source": "vault/systems/okf-runtime",
+      "target": "vault/playbooks/maintain-okf-system"
+    },
+    {
+      "source": "vault/systems/okf-runtime",
+      "target": "vault/concepts/okf-capability-discovery"
+    }
+  ]
+}

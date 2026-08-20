@@ -1,8 +1,7 @@
 # Vault: Systems
 
-Running systems and infrastructure components live here.
-Every file is `type: System`.
+Running systems and infrastructure components. Every file is `type: System`.
 
 | Title | Description |
-| :--- | :--- |
-| (Empty) | No systems currently recorded. Seed domain systems for this repo as they are documented. |
+| --- | --- |
+| [OKF Runtime CLI](okf-runtime.md) | Runnable `okf.py` surface this package ships — pack, compile, lint, scrape, serve. |

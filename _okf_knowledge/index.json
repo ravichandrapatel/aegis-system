@@ -16,6 +16,9 @@
         "drift"
       ],
       "type": "Concept",
+      "resource": "",
+      "trust": "unverified",
+      "stale_after": "",
       "id_norm": "standards ide context guardrails",
       "title_norm": "ide context guardrails",
       "desc_norm": "binding rules to stop ide token bloat and drift \u2014 no @workspace, pack-first cards, rg over legacy search.",
@@ -45,27 +48,24 @@
         "standard",
         "standards",
         "stop",
-        "tab",
         "to",
         "token",
         "tokens",
         "workspace"
       ],
       "pack_force_when": [
-        "token",
-        "drift",
-        "workspace",
         "@workspace",
-        "copilot",
-        "context",
-        "tab"
+        "token bloat",
+        "context drift",
+        "ide context",
+        "copilot"
       ]
     },
     {
       "id": "standards/metadata-headers",
       "path": "standards/metadata-headers.md",
       "title": "Metadata Headers",
-      "description": "Required metadata blocks on new kernel Python modules and house scripts.",
+      "description": "Required metadata blocks on new okf package modules and house scripts.",
       "tags": [
         "standard",
         "code-quality",
@@ -74,9 +74,12 @@
         "python"
       ],
       "type": "Concept",
+      "resource": "",
+      "trust": "unverified",
+      "stale_after": "",
       "id_norm": "standards metadata headers",
       "title_norm": "metadata headers",
-      "desc_norm": "required metadata blocks on new kernel python modules and house scripts.",
+      "desc_norm": "required metadata blocks on new okf package modules and house scripts.",
       "tags_norm": "standard code-quality documentation conventions python",
       "type_norm": "concept",
       "tokens": [
@@ -88,11 +91,12 @@
         "documentation",
         "headers",
         "house",
-        "kernel",
         "metadata",
         "modules",
         "new",
+        "okf",
         "on",
+        "package",
         "python",
         "quality",
         "required",
@@ -106,7 +110,7 @@
       "id": "standards/okf-house-schema",
       "path": "standards/okf-house-schema.md",
       "title": "OKF House Schema",
-      "description": "Required frontmatter and Prompt Card rules for durable Aegis OKF documents.",
+      "description": "Required frontmatter and Prompt Card rules for durable OKF documents.",
       "tags": [
         "standard",
         "okf",
@@ -114,13 +118,15 @@
         "frontmatter"
       ],
       "type": "Concept",
+      "resource": "",
+      "trust": "unverified",
+      "stale_after": "",
       "id_norm": "standards okf house schema",
       "title_norm": "okf house schema",
-      "desc_norm": "required frontmatter and prompt card rules for durable aegis okf documents.",
+      "desc_norm": "required frontmatter and prompt card rules for durable okf documents.",
       "tags_norm": "standard okf schema frontmatter",
       "type_norm": "concept",
       "tokens": [
-        "aegis",
         "and",
         "card",
         "concept",
@@ -143,45 +149,94 @@
       "id": "standards/okf-prompt-injection",
       "path": "standards/okf-prompt-injection.md",
       "title": "OKF Prompt Injection",
-      "description": "Rule #1 pack/lookup \u2014 inject slim Prompt Cards; retrieval ladder OKF \u2192 corpus \u2192 live \u2192 write-back.",
+      "description": "Rule",
       "tags": [
         "standard",
         "okf",
         "prompting",
         "tokens",
-        "aegis",
+        "pack",
         "retrieval"
       ],
       "type": "Concept",
+      "resource": "",
+      "trust": "unverified",
+      "stale_after": "",
       "id_norm": "standards okf prompt injection",
       "title_norm": "okf prompt injection",
-      "desc_norm": "rule #1 pack/lookup \u2014 inject slim prompt cards; retrieval ladder okf \u2192 corpus \u2192 live \u2192 write-back.",
-      "tags_norm": "standard okf prompting tokens aegis retrieval",
+      "desc_norm": "rule",
+      "tags_norm": "standard okf prompting tokens pack retrieval",
       "type_norm": "concept",
       "tokens": [
-        "aegis",
-        "back",
-        "cards",
         "concept",
-        "corpus",
-        "inject",
         "injection",
-        "ladder",
-        "live",
-        "lookup",
         "okf",
         "pack",
         "prompt",
         "prompting",
         "retrieval",
         "rule",
-        "slim",
         "standard",
         "standards",
-        "tokens",
-        "write"
+        "tokens"
       ],
       "pack_force_when": []
+    },
+    {
+      "id": "standards/python-naming",
+      "path": "standards/python-naming.md",
+      "title": "Python Naming",
+      "description": "Binding single-style identifier rules for the OKF runtime package (PEP 8 snake_case).",
+      "tags": [
+        "standard",
+        "python",
+        "naming",
+        "pep8",
+        "conventions",
+        "code-quality"
+      ],
+      "type": "Concept",
+      "resource": "",
+      "trust": "unverified",
+      "stale_after": "",
+      "id_norm": "standards python naming",
+      "title_norm": "python naming",
+      "desc_norm": "binding single-style identifier rules for the okf runtime package (pep 8 snake_case).",
+      "tags_norm": "standard python naming pep8 conventions code-quality",
+      "type_norm": "concept",
+      "tokens": [
+        "binding",
+        "case",
+        "code",
+        "concept",
+        "conventions",
+        "for",
+        "identifier",
+        "lint",
+        "naming",
+        "okf",
+        "package",
+        "pep",
+        "python",
+        "quality",
+        "rules",
+        "runtime",
+        "single",
+        "snake",
+        "standard",
+        "standards",
+        "style",
+        "the",
+        "upper",
+        "variable"
+      ],
+      "pack_force_when": [
+        "python naming",
+        "snake_case",
+        "UPPER_SNAKE",
+        "variable style",
+        "naming lint"
+      ]
     },
     {
       "id": "standards/simplicity-first",
@@ -195,6 +250,9 @@
         "principles"
       ],
       "type": "Concept",
+      "resource": "",
+      "trust": "unverified",
+      "stale_after": "",
       "id_norm": "standards simplicity first",
       "title_norm": "simplicity first (laziness ladder)",
       "desc_norm": "prefer the simplest, shortest, minimal solution that works \u2014 reuse before new files before tooling.",
@@ -226,83 +284,29 @@
       "pack_force_when": []
     },
     {
-      "id": "vault/concepts/aegis-capability-discovery",
-      "path": "vault/concepts/aegis-capability-discovery.md",
-      "title": "Aegis Capability Discovery",
-      "description": "Probe Brain/FS/Python/Git/Shell before enabling pack/compile/lint; BLOCKED when Brain missing for non-trivial mutate.",
+      "id": "vault/concepts/extending-okf",
+      "path": "vault/concepts/extending-okf.md",
+      "title": "Extending OKF",
+      "description": "How to replicate this package and grow domain knowledge without rewriting the kernel.",
       "tags": [
-        "aegis-system",
-        "capability",
-        "discovery",
+        "okf-system",
+        "getting-started",
         "portable"
       ],
       "type": "Concept",
-      "id_norm": "vault concepts aegis capability discovery",
-      "title_norm": "aegis capability discovery",
-      "desc_norm": "probe brain/fs/python/git/shell before enabling pack/compile/lint; blocked when brain missing for non-trivial mutate.",
-      "tags_norm": "aegis-system capability discovery portable",
-      "type_norm": "concept",
-      "tokens": [
-        "aegis",
-        "before",
-        "blocked",
-        "brain",
-        "capabilities",
-        "capability",
-        "compile",
-        "concept",
-        "concepts",
-        "discovery",
-        "enabling",
-        "for",
-        "fs",
-        "git",
-        "lint",
-        "missing",
-        "mutate",
-        "non",
-        "okf",
-        "pack",
-        "portable",
-        "probe",
-        "py",
-        "python",
-        "shell",
-        "system",
-        "trivial",
-        "vault",
-        "when"
-      ],
-      "pack_force_when": [
-        "capabilities",
-        "capability-discovery",
-        "okf.py capabilities"
-      ]
-    },
-    {
-      "id": "vault/concepts/extending-aegis",
-      "path": "vault/concepts/extending-aegis.md",
-      "title": "Extending Aegis",
-      "description": "How to replicate this package and grow domain knowledge without rewriting the kernel.",
-      "tags": [
-        "aegis-system",
-        "getting-started",
-        "portable",
-        "deploy"
-      ],
-      "type": "Concept",
-      "id_norm": "vault concepts extending aegis",
-      "title_norm": "extending aegis",
+      "resource": "",
+      "trust": "unverified",
+      "stale_after": "",
+      "id_norm": "vault concepts extending okf",
+      "title_norm": "extending okf",
       "desc_norm": "how to replicate this package and grow domain knowledge without rewriting the kernel.",
-      "tags_norm": "aegis-system getting-started portable deploy",
+      "tags_norm": "okf-system getting-started portable",
       "type_norm": "concept",
       "tokens": [
-        "aegis",
         "and",
         "concept",
         "concepts",
         "copy",
-        "deploy",
         "domain",
         "extend",
         "extending",
@@ -311,6 +315,7 @@
         "how",
         "kernel",
         "knowledge",
+        "okf",
         "package",
         "paste",
         "portable",
@@ -325,11 +330,68 @@
         "without"
       ],
       "pack_force_when": [
-        "extend",
-        "replicate",
-        "deploy",
+        "extend okf",
+        "replicate okf",
         "copy-paste",
+        "portable package"
+      ]
+    },
+    {
+      "id": "vault/concepts/okf-capability-discovery",
+      "path": "vault/concepts/okf-capability-discovery.md",
+      "title": "OKF Capability Discovery",
+      "description": "Probe Brain/FS/Python/Git/Shell before enabling pack/compile/lint; folded into pack as a one-line caps header.",
+      "tags": [
+        "okf-system",
+        "capability",
+        "discovery",
         "portable"
+      ],
+      "type": "Concept",
+      "resource": "",
+      "trust": "unverified",
+      "stale_after": "",
+      "id_norm": "vault concepts okf capability discovery",
+      "title_norm": "okf capability discovery",
+      "desc_norm": "probe brain/fs/python/git/shell before enabling pack/compile/lint; folded into pack as a one-line caps header.",
+      "tags_norm": "okf-system capability discovery portable",
+      "type_norm": "concept",
+      "tokens": [
+        "as",
+        "before",
+        "brain",
+        "capabilities",
+        "capability",
+        "caps",
+        "compile",
+        "concept",
+        "concepts",
+        "discovery",
+        "enabling",
+        "folded",
+        "fs",
+        "git",
+        "header",
+        "hint",
+        "into",
+        "line",
+        "lint",
+        "okf",
+        "one",
+        "pack",
+        "portable",
+        "probe",
+        "py",
+        "python",
+        "runtime",
+        "shell",
+        "system",
+        "vault"
+      ],
+      "pack_force_when": [
+        "capability discovery",
+        "okf.py capabilities",
+        "runtime hint"
       ]
     },
     {
@@ -342,70 +404,70 @@
         "architecture",
         "tokens",
         "bundle",
-        "aegis"
+        "knowledge-format"
       ],
       "type": "Concept",
+      "resource": "",
+      "trust": "unverified",
+      "stale_after": "",
       "id_norm": "vault concepts okf cognitive bundle",
       "title_norm": "okf cognitive bundle",
       "desc_norm": "modular okf brain \u2014 atomic docs, index hub, inverted cache, prompt cards, autonomous okf.py.",
-      "tags_norm": "okf architecture tokens bundle aegis",
+      "tags_norm": "okf architecture tokens bundle knowledge-format",
       "type_norm": "concept",
       "tokens": [
-        "aegis",
         "architecture",
         "atomic",
         "autonomous",
         "brain",
         "bundle",
         "cache",
-        "card",
         "cards",
         "cognitive",
         "concept",
         "concepts",
         "docs",
+        "format",
         "hub",
         "index",
         "inverted",
+        "knowledge",
         "modular",
-        "module",
         "okf",
         "prompt",
         "py",
         "tokens",
-        "toon",
         "vault"
       ],
       "pack_force_when": [
-        "bundle",
-        "module",
-        "inverted",
-        "prompt card",
-        "cognitive",
-        "toon"
+        "cognitive bundle",
+        "okf bundle",
+        "inverted index"
       ]
     },
     {
-      "id": "vault/playbooks/maintain-aegis-system",
-      "path": "vault/playbooks/maintain-aegis-system.md",
-      "title": "Maintain aegis-system",
+      "id": "vault/playbooks/maintain-okf-system",
+      "path": "vault/playbooks/maintain-okf-system.md",
+      "title": "Maintain OKF System",
       "description": "Add or update durable OKF knowledge \u2014 frontmatter, links, compile, lint.",
       "tags": [
-        "aegis-system",
+        "okf-system",
         "ingest",
         "maintenance",
         "okf",
         "procedure"
       ],
       "type": "Playbook",
-      "id_norm": "vault playbooks maintain aegis system",
-      "title_norm": "maintain aegis-system",
+      "resource": "",
+      "trust": "unverified",
+      "stale_after": "",
+      "id_norm": "vault playbooks maintain okf system",
+      "title_norm": "maintain okf system",
       "desc_norm": "add or update durable okf knowledge \u2014 frontmatter, links, compile, lint.",
-      "tags_norm": "aegis-system ingest maintenance okf procedure",
+      "tags_norm": "okf-system ingest maintenance okf procedure",
       "type_norm": "playbook",
       "tokens": [
         "add",
-        "aegis",
         "compile",
         "durable",
         "frontmatter",
@@ -425,6 +487,54 @@
         "vault"
       ],
       "pack_force_when": []
+    },
+    {
+      "id": "vault/systems/okf-runtime",
+      "path": "vault/systems/okf-runtime.md",
+      "title": "OKF Runtime CLI",
+      "description": "Runnable okf.py surface this package ships \u2014 pack, compile, lint, scrape, serve, tokens.",
+      "tags": [
+        "okf",
+        "runtime",
+        "cli",
+        "pack",
+        "compile"
+      ],
+      "type": "System",
+      "resource": "",
+      "trust": "unverified",
+      "stale_after": "",
+      "id_norm": "vault systems okf runtime",
+      "title_norm": "okf runtime cli",
+      "desc_norm": "runnable okf.py surface this package ships \u2014 pack, compile, lint, scrape, serve, tokens.",
+      "tags_norm": "okf runtime cli pack compile",
+      "type_norm": "system",
+      "tokens": [
+        "cli",
+        "compile",
+        "lint",
+        "okf",
+        "pack",
+        "package",
+        "py",
+        "runnable",
+        "runtime",
+        "scrape",
+        "serve",
+        "ships",
+        "surface",
+        "system",
+        "systems",
+        "this",
+        "tokens",
+        "vault"
+      ],
+      "pack_force_when": [
+        "okf.py",
+        "runtime cli",
+        "compile lint",
+        "scrape serve"
+      ]
     }
   ],
   "inverted": {
@@ -432,17 +542,17 @@
       "standards/ide-context-guardrails",
       "standards/metadata-headers",
       "standards/okf-house-schema",
-      "vault/concepts/extending-aegis"
+      "vault/concepts/extending-okf"
     ],
     "binding": [
-      "standards/ide-context-guardrails"
+      "standards/ide-context-guardrails",
+      "standards/python-naming"
     ],
     "bloat": [
       "standards/ide-context-guardrails"
     ],
     "cards": [
       "standards/ide-context-guardrails",
-      "standards/okf-prompt-injection",
       "vault/concepts/okf-cognitive-bundle"
     ],
     "concept": [
@@ -450,9 +560,10 @@
       "standards/metadata-headers",
       "standards/okf-house-schema",
       "standards/okf-prompt-injection",
+      "standards/python-naming",
       "standards/simplicity-first",
-      "vault/concepts/aegis-capability-discovery",
-      "vault/concepts/extending-aegis",
+      "vault/concepts/extending-okf",
+      "vault/concepts/okf-capability-discovery",
       "vault/concepts/okf-cognitive-bundle"
     ],
     "context": [
@@ -485,11 +596,15 @@
     ],
     "okf": [
       "standards/ide-context-guardrails",
+      "standards/metadata-headers",
       "standards/okf-house-schema",
       "standards/okf-prompt-injection",
-      "vault/concepts/aegis-capability-discovery",
+      "standards/python-naming",
+      "vault/concepts/extending-okf",
+      "vault/concepts/okf-capability-discovery",
       "vault/concepts/okf-cognitive-bundle",
-      "vault/playbooks/maintain-aegis-system"
+      "vault/playbooks/maintain-okf-system",
+      "vault/systems/okf-runtime"
     ],
     "over": [
       "standards/ide-context-guardrails"
@@ -497,14 +612,16 @@
     "pack": [
       "standards/ide-context-guardrails",
       "standards/okf-prompt-injection",
-      "vault/concepts/aegis-capability-discovery"
+      "vault/concepts/okf-capability-discovery",
+      "vault/systems/okf-runtime"
     ],
     "rg": [
       "standards/ide-context-guardrails"
     ],
     "rules": [
       "standards/ide-context-guardrails",
-      "standards/okf-house-schema"
+      "standards/okf-house-schema",
+      "standards/python-naming"
     ],
     "search": [
       "standards/ide-context-guardrails"
@@ -514,6 +631,7 @@
       "standards/metadata-headers",
       "standards/okf-house-schema",
       "standards/okf-prompt-injection",
+      "standards/python-naming",
       "standards/simplicity-first"
     ],
     "standards": [
@@ -521,17 +639,15 @@
       "standards/metadata-headers",
       "standards/okf-house-schema",
       "standards/okf-prompt-injection",
+      "standards/python-naming",
       "standards/simplicity-first"
     ],
     "stop": [
       "standards/ide-context-guardrails"
     ],
-    "tab": [
-      "standards/ide-context-guardrails"
-    ],
     "to": [
       "standards/ide-context-guardrails",
-      "vault/concepts/extending-aegis"
+      "vault/concepts/extending-okf"
     ],
     "token": [
       "standards/ide-context-guardrails"
@@ -539,7 +655,8 @@
     "tokens": [
       "standards/ide-context-guardrails",
       "standards/okf-prompt-injection",
-      "vault/concepts/okf-cognitive-bundle"
+      "vault/concepts/okf-cognitive-bundle",
+      "vault/systems/okf-runtime"
     ],
     "workspace": [
       "standards/ide-context-guardrails"
@@ -548,10 +665,12 @@
       "standards/metadata-headers"
     ],
     "code": [
-      "standards/metadata-headers"
+      "standards/metadata-headers",
+      "standards/python-naming"
     ],
     "conventions": [
-      "standards/metadata-headers"
+      "standards/metadata-headers",
+      "standards/python-naming"
     ],
     "documentation": [
       "standards/metadata-headers"
@@ -562,10 +681,6 @@
     "house": [
       "standards/metadata-headers",
       "standards/okf-house-schema"
-    ],
-    "kernel": [
-      "standards/metadata-headers",
-      "vault/concepts/extending-aegis"
     ],
     "metadata": [
       "standards/metadata-headers"
@@ -580,12 +695,20 @@
     "on": [
       "standards/metadata-headers"
     ],
+    "package": [
+      "standards/metadata-headers",
+      "standards/python-naming",
+      "vault/concepts/extending-okf",
+      "vault/systems/okf-runtime"
+    ],
     "python": [
       "standards/metadata-headers",
-      "vault/concepts/aegis-capability-discovery"
+      "standards/python-naming",
+      "vault/concepts/okf-capability-discovery"
     ],
     "quality": [
-      "standards/metadata-headers"
+      "standards/metadata-headers",
+      "standards/python-naming"
     ],
     "required": [
       "standards/metadata-headers",
@@ -594,32 +717,23 @@
     "scripts": [
       "standards/metadata-headers"
     ],
-    "aegis": [
-      "standards/okf-house-schema",
-      "standards/okf-prompt-injection",
-      "vault/concepts/aegis-capability-discovery",
-      "vault/concepts/extending-aegis",
-      "vault/concepts/okf-cognitive-bundle",
-      "vault/playbooks/maintain-aegis-system"
-    ],
     "card": [
-      "standards/okf-house-schema",
-      "vault/concepts/okf-cognitive-bundle"
+      "standards/okf-house-schema"
     ],
     "documents": [
       "standards/okf-house-schema"
     ],
     "durable": [
       "standards/okf-house-schema",
-      "vault/playbooks/maintain-aegis-system"
+      "vault/playbooks/maintain-okf-system"
     ],
     "for": [
       "standards/okf-house-schema",
-      "vault/concepts/aegis-capability-discovery"
+      "standards/python-naming"
     ],
     "frontmatter": [
       "standards/okf-house-schema",
-      "vault/playbooks/maintain-aegis-system"
+      "vault/playbooks/maintain-okf-system"
     ],
     "prompt": [
       "standards/okf-house-schema",
@@ -629,26 +743,7 @@
     "schema": [
       "standards/okf-house-schema"
     ],
-    "back": [
-      "standards/okf-prompt-injection"
-    ],
-    "corpus": [
-      "standards/okf-prompt-injection"
-    ],
-    "inject": [
-      "standards/okf-prompt-injection"
-    ],
     "injection": [
-      "standards/okf-prompt-injection"
-    ],
-    "ladder": [
-      "standards/okf-prompt-injection",
-      "standards/simplicity-first"
-    ],
-    "live": [
-      "standards/okf-prompt-injection"
-    ],
-    "lookup": [
       "standards/okf-prompt-injection"
     ],
     "prompting": [
@@ -660,17 +755,57 @@
     "rule": [
       "standards/okf-prompt-injection"
     ],
-    "slim": [
-      "standards/okf-prompt-injection"
+    "case": [
+      "standards/python-naming"
     ],
-    "write": [
-      "standards/okf-prompt-injection"
+    "identifier": [
+      "standards/python-naming"
+    ],
+    "lint": [
+      "standards/python-naming",
+      "vault/concepts/okf-capability-discovery",
+      "vault/playbooks/maintain-okf-system",
+      "vault/systems/okf-runtime"
+    ],
+    "naming": [
+      "standards/python-naming"
+    ],
+    "pep": [
+      "standards/python-naming"
+    ],
+    "runtime": [
+      "standards/python-naming",
+      "vault/concepts/okf-capability-discovery",
+      "vault/systems/okf-runtime"
+    ],
+    "single": [
+      "standards/python-naming"
+    ],
+    "snake": [
+      "standards/python-naming"
+    ],
+    "style": [
+      "standards/python-naming"
+    ],
+    "the": [
+      "standards/python-naming",
+      "standards/simplicity-first",
+      "vault/concepts/extending-okf"
+    ],
+    "upper": [
+      "standards/python-naming"
+    ],
+    "variable": [
+      "standards/python-naming"
     ],
     "before": [
       "standards/simplicity-first",
-      "vault/concepts/aegis-capability-discovery"
+      "vault/concepts/okf-capability-discovery"
     ],
     "files": [
+      "standards/simplicity-first"
+    ],
+    "ladder": [
       "standards/simplicity-first"
     ],
     "laziness": [
@@ -703,142 +838,143 @@
     "that": [
       "standards/simplicity-first"
     ],
-    "the": [
-      "standards/simplicity-first",
-      "vault/concepts/extending-aegis"
-    ],
     "tooling": [
       "standards/simplicity-first"
     ],
     "works": [
       "standards/simplicity-first"
     ],
-    "blocked": [
-      "vault/concepts/aegis-capability-discovery"
+    "concepts": [
+      "vault/concepts/extending-okf",
+      "vault/concepts/okf-capability-discovery",
+      "vault/concepts/okf-cognitive-bundle"
+    ],
+    "copy": [
+      "vault/concepts/extending-okf"
+    ],
+    "domain": [
+      "vault/concepts/extending-okf"
+    ],
+    "extend": [
+      "vault/concepts/extending-okf"
+    ],
+    "extending": [
+      "vault/concepts/extending-okf"
+    ],
+    "getting": [
+      "vault/concepts/extending-okf"
+    ],
+    "grow": [
+      "vault/concepts/extending-okf"
+    ],
+    "how": [
+      "vault/concepts/extending-okf"
+    ],
+    "kernel": [
+      "vault/concepts/extending-okf"
+    ],
+    "knowledge": [
+      "vault/concepts/extending-okf",
+      "vault/concepts/okf-cognitive-bundle",
+      "vault/playbooks/maintain-okf-system"
+    ],
+    "paste": [
+      "vault/concepts/extending-okf"
+    ],
+    "portable": [
+      "vault/concepts/extending-okf",
+      "vault/concepts/okf-capability-discovery"
+    ],
+    "replicate": [
+      "vault/concepts/extending-okf"
+    ],
+    "rewriting": [
+      "vault/concepts/extending-okf"
+    ],
+    "started": [
+      "vault/concepts/extending-okf"
+    ],
+    "system": [
+      "vault/concepts/extending-okf",
+      "vault/concepts/okf-capability-discovery",
+      "vault/playbooks/maintain-okf-system",
+      "vault/systems/okf-runtime"
+    ],
+    "this": [
+      "vault/concepts/extending-okf",
+      "vault/systems/okf-runtime"
+    ],
+    "vault": [
+      "vault/concepts/extending-okf",
+      "vault/concepts/okf-capability-discovery",
+      "vault/concepts/okf-cognitive-bundle",
+      "vault/playbooks/maintain-okf-system",
+      "vault/systems/okf-runtime"
+    ],
+    "without": [
+      "vault/concepts/extending-okf"
+    ],
+    "as": [
+      "vault/concepts/okf-capability-discovery"
     ],
     "brain": [
-      "vault/concepts/aegis-capability-discovery",
+      "vault/concepts/okf-capability-discovery",
       "vault/concepts/okf-cognitive-bundle"
     ],
     "capabilities": [
-      "vault/concepts/aegis-capability-discovery"
+      "vault/concepts/okf-capability-discovery"
     ],
     "capability": [
-      "vault/concepts/aegis-capability-discovery"
+      "vault/concepts/okf-capability-discovery"
+    ],
+    "caps": [
+      "vault/concepts/okf-capability-discovery"
     ],
     "compile": [
-      "vault/concepts/aegis-capability-discovery",
-      "vault/playbooks/maintain-aegis-system"
-    ],
-    "concepts": [
-      "vault/concepts/aegis-capability-discovery",
-      "vault/concepts/extending-aegis",
-      "vault/concepts/okf-cognitive-bundle"
+      "vault/concepts/okf-capability-discovery",
+      "vault/playbooks/maintain-okf-system",
+      "vault/systems/okf-runtime"
     ],
     "discovery": [
-      "vault/concepts/aegis-capability-discovery"
+      "vault/concepts/okf-capability-discovery"
     ],
     "enabling": [
-      "vault/concepts/aegis-capability-discovery"
+      "vault/concepts/okf-capability-discovery"
+    ],
+    "folded": [
+      "vault/concepts/okf-capability-discovery"
     ],
     "fs": [
-      "vault/concepts/aegis-capability-discovery"
+      "vault/concepts/okf-capability-discovery"
     ],
     "git": [
-      "vault/concepts/aegis-capability-discovery"
+      "vault/concepts/okf-capability-discovery"
     ],
-    "lint": [
-      "vault/concepts/aegis-capability-discovery",
-      "vault/playbooks/maintain-aegis-system"
+    "header": [
+      "vault/concepts/okf-capability-discovery"
     ],
-    "missing": [
-      "vault/concepts/aegis-capability-discovery"
+    "hint": [
+      "vault/concepts/okf-capability-discovery"
     ],
-    "mutate": [
-      "vault/concepts/aegis-capability-discovery"
+    "into": [
+      "vault/concepts/okf-capability-discovery"
     ],
-    "non": [
-      "vault/concepts/aegis-capability-discovery"
+    "line": [
+      "vault/concepts/okf-capability-discovery"
     ],
-    "portable": [
-      "vault/concepts/aegis-capability-discovery",
-      "vault/concepts/extending-aegis"
+    "one": [
+      "vault/concepts/okf-capability-discovery"
     ],
     "probe": [
-      "vault/concepts/aegis-capability-discovery"
+      "vault/concepts/okf-capability-discovery"
     ],
     "py": [
-      "vault/concepts/aegis-capability-discovery",
-      "vault/concepts/okf-cognitive-bundle"
+      "vault/concepts/okf-capability-discovery",
+      "vault/concepts/okf-cognitive-bundle",
+      "vault/systems/okf-runtime"
     ],
     "shell": [
-      "vault/concepts/aegis-capability-discovery"
-    ],
-    "system": [
-      "vault/concepts/aegis-capability-discovery",
-      "vault/concepts/extending-aegis",
-      "vault/playbooks/maintain-aegis-system"
-    ],
-    "trivial": [
-      "vault/concepts/aegis-capability-discovery"
-    ],
-    "vault": [
-      "vault/concepts/aegis-capability-discovery",
-      "vault/concepts/extending-aegis",
-      "vault/concepts/okf-cognitive-bundle",
-      "vault/playbooks/maintain-aegis-system"
-    ],
-    "when": [
-      "vault/concepts/aegis-capability-discovery"
-    ],
-    "copy": [
-      "vault/concepts/extending-aegis"
-    ],
-    "deploy": [
-      "vault/concepts/extending-aegis"
-    ],
-    "domain": [
-      "vault/concepts/extending-aegis"
-    ],
-    "extend": [
-      "vault/concepts/extending-aegis"
-    ],
-    "extending": [
-      "vault/concepts/extending-aegis"
-    ],
-    "getting": [
-      "vault/concepts/extending-aegis"
-    ],
-    "grow": [
-      "vault/concepts/extending-aegis"
-    ],
-    "how": [
-      "vault/concepts/extending-aegis"
-    ],
-    "knowledge": [
-      "vault/concepts/extending-aegis",
-      "vault/playbooks/maintain-aegis-system"
-    ],
-    "package": [
-      "vault/concepts/extending-aegis"
-    ],
-    "paste": [
-      "vault/concepts/extending-aegis"
-    ],
-    "replicate": [
-      "vault/concepts/extending-aegis"
-    ],
-    "rewriting": [
-      "vault/concepts/extending-aegis"
-    ],
-    "started": [
-      "vault/concepts/extending-aegis"
-    ],
-    "this": [
-      "vault/concepts/extending-aegis"
-    ],
-    "without": [
-      "vault/concepts/extending-aegis"
+      "vault/concepts/okf-capability-discovery"
     ],
     "architecture": [
       "vault/concepts/okf-cognitive-bundle"
@@ -861,6 +997,9 @@
     "docs": [
       "vault/concepts/okf-cognitive-bundle"
     ],
+    "format": [
+      "vault/concepts/okf-cognitive-bundle"
+    ],
     "hub": [
       "vault/concepts/okf-cognitive-bundle"
     ],
@@ -873,41 +1012,56 @@
     "modular": [
       "vault/concepts/okf-cognitive-bundle"
     ],
-    "module": [
-      "vault/concepts/okf-cognitive-bundle"
-    ],
-    "toon": [
-      "vault/concepts/okf-cognitive-bundle"
-    ],
     "add": [
-      "vault/playbooks/maintain-aegis-system"
+      "vault/playbooks/maintain-okf-system"
     ],
     "ingest": [
-      "vault/playbooks/maintain-aegis-system"
+      "vault/playbooks/maintain-okf-system"
     ],
     "links": [
-      "vault/playbooks/maintain-aegis-system"
+      "vault/playbooks/maintain-okf-system"
     ],
     "maintain": [
-      "vault/playbooks/maintain-aegis-system"
+      "vault/playbooks/maintain-okf-system"
     ],
     "maintenance": [
-      "vault/playbooks/maintain-aegis-system"
+      "vault/playbooks/maintain-okf-system"
     ],
     "or": [
-      "vault/playbooks/maintain-aegis-system"
+      "vault/playbooks/maintain-okf-system"
     ],
     "playbook": [
-      "vault/playbooks/maintain-aegis-system"
+      "vault/playbooks/maintain-okf-system"
     ],
     "playbooks": [
-      "vault/playbooks/maintain-aegis-system"
+      "vault/playbooks/maintain-okf-system"
     ],
     "procedure": [
-      "vault/playbooks/maintain-aegis-system"
+      "vault/playbooks/maintain-okf-system"
     ],
     "update": [
-      "vault/playbooks/maintain-aegis-system"
+      "vault/playbooks/maintain-okf-system"
+    ],
+    "cli": [
+      "vault/systems/okf-runtime"
+    ],
+    "runnable": [
+      "vault/systems/okf-runtime"
+    ],
+    "scrape": [
+      "vault/systems/okf-runtime"
+    ],
+    "serve": [
+      "vault/systems/okf-runtime"
+    ],
+    "ships": [
+      "vault/systems/okf-runtime"
+    ],
+    "surface": [
+      "vault/systems/okf-runtime"
+    ],
+    "systems": [
+      "vault/systems/okf-runtime"
     ]
   }
 }

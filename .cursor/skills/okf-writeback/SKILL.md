@@ -1,7 +1,7 @@
 ---
 name: okf-writeback
 description: >-
-  Write Aegis Rung 1 inbox notes for durable learnings or change close-out.
+  Write OKF Rung 1 inbox notes for durable learnings or change close-out.
   Use when a write-back trigger fired or the user asks to capture learning to OKF.
 ---
 

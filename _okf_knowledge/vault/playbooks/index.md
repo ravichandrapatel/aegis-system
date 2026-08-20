@@ -5,4 +5,4 @@ Every file is `type: Playbook`.
 
 | Title | Description |
 | :--- | :--- |
-| [Maintain aegis-system](maintain-aegis-system.md) | How to add or update concepts, playbooks, references, scripts, and skills in the OKF vault — with post-change verification. |
+| [Maintain OKF System](maintain-okf-system.md) | How to add or update concepts, playbooks, references, scripts, and skills in the OKF vault — with post-change verification. |

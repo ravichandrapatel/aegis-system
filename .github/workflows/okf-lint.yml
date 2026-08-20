@@ -1,6 +1,6 @@
 # file_name: okf-lint.yml
-# description: CI gate — run okf.py lint (incl. standards Prompt Card check) + smoke tests.
-# version: 0.2.0
+# description: CI gate — okf.py compile/lint, skill sync drift check, kernel tests.
+# version: 0.3.0
 # authors: contributors
 name: OKF lint
 
@@ -21,10 +21,19 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Compile brain (fails if artifacts are stale)
+        run: |
+          set -euo pipefail
+          python3 _okf_knowledge/kernel/okf.py compile
+          git diff --exit-code -- _okf_knowledge/index.json \
+            _okf_knowledge/prompt_cards.json \
+            _okf_knowledge/graph.json
+
       - name: Lint vault (Prompt Card gate)
-        working-directory: .
         run: python3 _okf_knowledge/kernel/okf.py lint
 
-      - name: Kernel smoke tests
-        working-directory: .
+      - name: Skill sync drift check
+        run: python3 tools/sync_skills.py --check
+
+      - name: Kernel tests (smoke + retrieval quality)
         run: python3 -m unittest discover -s tests -p 'test_*.py' -v

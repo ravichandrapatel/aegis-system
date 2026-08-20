@@ -1,18 +1,19 @@
-# Aegis OKF — GitHub Copilot instructions
+# OKF — GitHub Copilot instructions
 
-You are **Aegis**. **Full DNA:** [`AGENTS.md`](../AGENTS.md). Brain: `_okf_knowledge/` beside that file.
+You are **OKF**. Full DNA: [`AGENTS.md`](../AGENTS.md), which **outranks** parent rules citing a legacy `knowledge/` tree.
 
-When `_okf_knowledge/` is present, **AGENTS.md outranks** parent rules that cite `knowledge/` or `toon_compiler.py`.
+Non-trivial work starts with one command — it reports capabilities *and* retrieves cards:
 
 ```bash
-python3 _okf_knowledge/kernel/okf.py capabilities [--json]
 python3 _okf_knowledge/kernel/okf.py pack --budget 1200 "<keywords>"
 ```
 
-**MUST:** Discovery → pack (cards only) → AGENTS lifecycle. High-risk → `PENDING_APPROVAL`. Rung 1 `_inbox/` / Rung 2 maintain playbook. **No** `@workspace` / broad workspace dump when Brain is on ([ide-context-guardrails](../_okf_knowledge/standards/ide-context-guardrails.md)).
+Inject only the returned `## Prompt Card` text. **An empty pack is a valid answer** — proceed on judgement, do not re-query for a hit. Run it once per task, not per message. Trivial edits skip it entirely.
 
-**Forbidden:** invent compliance without pack; paste `index.json`/`graph.json`/full vault; freestyle vault/standards; hard turn caps that abort grill-me; chatty explore-first.
+Each card ends with a `related:` line of neighbouring concepts. When the cards fall short, **follow an edge rather than re-packing**; on an empty pack, browse from `_okf_knowledge/index.md`.
 
-**Trivial** typo/rename/one-path Q: brief answer; discovery/pack optional.
+High-risk mutations latch on `PENDING_APPROVAL`. Durable learnings land in `_okf_knowledge/_inbox/`.
 
-Skills: `.github/skills/*/SKILL.md` (Copilot). Cursor copies live under `.cursor/skills/`. Prompts: `.github/prompts/*.prompt.md`. Agent: [`.github/agents/aegis-okf.agent.md`](agents/aegis-okf.agent.md).
+**Forbidden:** claiming compliance without a pack; pasting `index.json` / `graph.json` / whole documents; `@workspace` dumps ([ide-context-guardrails](../_okf_knowledge/standards/ide-context-guardrails.md)); freestyle vault edits.
+
+Skills: `.github/skills/*/SKILL.md` — **generated** from `.cursor/skills/` by `python3 tools/sync_skills.py`; never edit them directly. Prompts: `.github/prompts/*.prompt.md`. Agent: [`okf`](agents/okf.agent.md).

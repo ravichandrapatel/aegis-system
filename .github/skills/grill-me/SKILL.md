@@ -5,6 +5,9 @@ description: >-
   asks to grill a design, or after OKF pack when branching decisions remain.
 ---
 
+<!-- GENERATED FILE — do not edit.
+     Source: .cursor/skills/grill-me/SKILL.md
+     Regenerate: python3 tools/sync_skills.py -->
 Interview me about every material branch of this plan until we share an understanding. One question per turn. Always give your recommended answer. If the codebase or OKF pack already answers it, explore instead of asking.
 
 ## How to run

@@ -14,7 +14,7 @@ aegis-system/
 ├── docs/                     # This documentation (standalone, human)
 ├── .github/
 │   └── workflows/            # CI (e.g. okf-lint)
-└── _okf_knowledge/           # The Aegis Brain (see 03-brain-zones.md)
+└── _okf_knowledge/           # The OKF Brain (see 03-brain-zones.md)
 ```
 
 ## Root files — when to use each
@@ -39,29 +39,30 @@ aegis-system/
 | `log.md` | — | Append-only mutation history |
 | `index.json` | compiled | Slim lookup index (v2 + inverted tokens; hop-boost from `graph.json`) |
 | `prompt_cards.json` | compiled | Cached Prompt Cards |
-| `aegis-brain.html` | UI | Interactive brain visualizer; graph + lint payloads are **embedded** here by `compile` / `lint`. Compile also writes `kernel/src/graph.json` (no `lint.json` sidecar). |
+| `okf-brain.html` | UI | Interactive brain visualizer; graph + lint payloads are **embedded** here by `compile` / `lint`. Compile also writes `kernel/src/graph.json`, which lookup reads for hop-boost and `pack` for each card's `related:` edges (no `lint.json` sidecar). |
 
 Full zone detail: [Brain zones](03-brain-zones.md).  
-Compiled JSON detail: [Compiled artifacts](08-compiled-artifacts.md).
+Compiled JSON detail: [Compiled artifacts](07-compiled-artifacts.md).
 
 ## Package vs project source
 
-Aegis is designed to sit **beside** application repos (e.g. under `.cursor/agents/aegis-system/`), not inside `src/`.
+OKF is designed to sit **beside** application repos (e.g. under `.cursor/agents/aegis-system/`), not inside `src/`.
 
 | Location | Owns |
 | --- | --- |
 | Your app repo | Application code, IaC for the product |
 | `aegis-system/` | Protocol + curated ops/policy knowledge + tools |
 
-Agents may **generate** artifacts into a target repo during Path A, but durable *Aegis memory* stays under `_okf_knowledge/`.
+Agents may **generate** artifacts into a target repo during Path A, but durable *OKF memory* stays under `_okf_knowledge/`.
 
 ## Versioning note
 
-- Protocol version is declared at the top of `AGENTS.md` (currently `4.9.2`). Treat **`AGENTS.md` as authoritative** for agent behavior.
-- Vault documents carry their own `status` / timestamps in frontmatter.
+- Protocol version is declared at the top of `AGENTS.md` (currently `6.0.0`). Treat **`AGENTS.md` as authoritative** for agent behavior.
+- Kernel version is declared in the header of `_okf_knowledge/kernel/okf.py` (currently `1.9.0`) and moves independently of the protocol.
+- Vault documents carry their own `status` and `generated: { by, at }` provenance in frontmatter; the brain root `index.md` declares the OKF spec version it targets (`okf_version: "0.2"`).
 
 ## Related
 
 - [Overview](01-overview.md)
 - [Brain zones](03-brain-zones.md)
-- [Install & workflows](14-install-and-workflows.md)
+- [Install & workflows](13-install-and-workflows.md)

@@ -1,10 +1,13 @@
 ---
 name: okf-writeback
 description: >-
-  Write Aegis Rung 1 inbox notes for durable learnings or change close-out.
+  Write OKF Rung 1 inbox notes for durable learnings or change close-out.
   Use when a write-back trigger fired or the user asks to capture learning to OKF.
 ---
 
+<!-- GENERATED FILE — do not edit.
+     Source: .cursor/skills/okf-writeback/SKILL.md
+     Regenerate: python3 tools/sync_skills.py -->
 Rung 1 only — inbox create. Triggers and DNA: [`AGENTS.md`](../../../AGENTS.md) §1.2. Vault/standards edits → `okf-maintain`.
 
 ## How to run

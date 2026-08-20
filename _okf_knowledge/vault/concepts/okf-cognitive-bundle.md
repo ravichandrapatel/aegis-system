@@ -2,15 +2,15 @@
 type: Concept
 title: OKF Cognitive Bundle
 description: Modular OKF brain — atomic docs, index hub, inverted cache, prompt cards, autonomous okf.py.
-tags: [okf, architecture, tokens, bundle, aegis]
-timestamp: 2026-07-30T17:30:00Z
-status: active
-pack_force_when: [bundle, module, inverted, prompt card, cognitive, toon]
+tags: [okf, architecture, tokens, bundle, knowledge-format]
+generated: { by: okf-agent/cursor, at: 2026-08-21T00:00:00Z }
+status: stable
+pack_force_when: [cognitive bundle, okf bundle, inverted index]
 ---
 
 # OKF Cognitive Bundle
 
-How the Aegis Open Knowledge Format keeps agents **grounded** and **token-cheap**.
+How the Open Knowledge Format keeps agents **grounded** and **token-cheap**.
 
 ## Pluggable modules
 
@@ -48,11 +48,12 @@ flowchart TB
 ```
 
 1. `okf.py compile` → inverted `index.json` + `prompt_cards.json`
-2. `okf.py pack` / `lookup --card` → **cache hit:** instant inverted lookup; **cache miss / empty lexical hits:** **`rg` only** (never `grep`) over brain markdown
-3. Attach mapped Prompt Cards; emit compact JSON/markdown (no chatty wrappers)
-4. Optional deep read of paths the **current** cards name
-5. Repo corpus via targeted Glob/`rg`/Read
-6. Live upstream only on cache miss; write-back durable pins to `_inbox/`
+2. `okf.py pack` → **cache hit:** instant inverted lookup; **cache miss / empty lexical hits:** **`rg` only** (never `grep`) over brain markdown
+3. Drop ranked hits below the relevance floor (`--min-score`, default 24), then attach mapped Prompt Cards up to 8 cards / the token budget
+4. **No card clears the floor → empty pack.** That is a real answer: the vault has nothing binding. Skip to step 6; do not reword and retry
+5. Optional deep read of paths the **current** cards name
+6. Repo corpus via targeted Glob/`rg`/Read
+7. Live upstream only on cache miss; write-back durable pins to `_inbox/`
 
 IDE-side bans and hygiene: [IDE Context Guardrails](/standards/ide-context-guardrails.md). Pack ladder: [OKF Prompt Injection](/standards/okf-prompt-injection.md).
 
@@ -68,13 +69,14 @@ Agents **SHOULD** run `compile` after durable brain mutations and may refresh in
 ## Prompt Card
 
 ```text
-OKF bundle: atomic md + index.md links; pack cards only (no graph paste).
-Lookup: JSON inverted hit → else ripgrep (rg), never grep → Prompt Cards → compact JSON.
+OKF bundle: atomic md + index.md links; pack cards only (no graph/index paste).
+Lookup: JSON inverted hit → else ripgrep (rg), never grep → floor → Prompt Cards.
+Empty pack = vault has nothing binding; proceed on judgement, do not re-query.
 Grill-me stays multi-turn; compile after brain mutations.
 ```
 
 # Related
 
-- [Extending Aegis](extending-aegis.md)
+- [Extending OKF](extending-okf.md)
 - [IDE Context Guardrails](/standards/ide-context-guardrails.md)
-- [Maintain aegis-system](/vault/playbooks/maintain-aegis-system.md)
+- [Maintain OKF System](/vault/playbooks/maintain-okf-system.md)

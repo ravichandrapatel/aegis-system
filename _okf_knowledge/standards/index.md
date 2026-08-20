@@ -8,4 +8,5 @@ House rules under `standards/`. Every file is `type: Concept` with tag `standard
 * [OKF Prompt Injection](okf-prompt-injection.md) — Rule #1 pack / retrieval ladder
 * [IDE Context Guardrails](ide-context-guardrails.md) — No @workspace; pack cards; rg; no turn-cap vs grill-me
 * [Simplicity First](simplicity-first.md) — Laziness Ladder (after pack)
+* [Python Naming](python-naming.md) — Single-style identifiers (lint-enforced)
 * [Metadata Headers](metadata-headers.md) — Kernel/house Python headers only

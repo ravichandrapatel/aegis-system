@@ -1,0 +1,10 @@
+# Optional but recommended for accurate token budgets (okf.py pack / tokens).
+# Kernel runs without it via a word/punct heuristic.
+tiktoken>=0.7.0
+
+# Optional but required to read OKF bundles. The spec expresses provenance,
+# trust, and computation as nested frontmatter maps (generated / verified /
+# sources / executor); the PyYAML-free fallback parser cannot represent those and
+# reports such documents unparseable. `okf.py capabilities` reports which path is
+# live — the `nested_yaml` feature flag means nested frontmatter parsing is available.
+PyYAML>=6.0

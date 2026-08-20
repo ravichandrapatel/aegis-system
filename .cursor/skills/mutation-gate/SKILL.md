@@ -1,7 +1,7 @@
 ---
 name: mutation-gate
 description: >-
-  Halt for explicit user approval on high-risk mutations (Aegis PENDING_APPROVAL).
+  Halt for explicit user approval on high-risk mutations (OKF PENDING_APPROVAL).
   Use before IAM/secrets/prod deploy, destructive ops, or multi-file contract rewrites.
 ---
 
