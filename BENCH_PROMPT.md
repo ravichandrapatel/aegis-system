@@ -2,7 +2,7 @@
 
 > **Purpose**
 >
-> Benchmark whether the OKF/OKF knowledge system improves engineering outcomes over a baseline model by running two isolated subagents on the same task using the same model.
+> Benchmark whether the OKF knowledge system improves engineering outcomes over a baseline model by running two isolated subagents on the same task using the same model.
 
 Copy this file into a Cursor chat (or `@`-mention it), fill every `{{...}}` placeholder, then send.
 
@@ -11,12 +11,12 @@ If a parent-run gate fails, the parent **must** feed the failure back to that ar
 
 **HTML report must use the checked-in template** — do not hand-author a new layout:
 
-- Template: [`BENCH_REPORT_TEMPLATE.html`](BENCH_REPORT_TEMPLATE.html)
-- Renderer: [`render_bench_report.py`](render_bench_report.py)
+- Template: [`BENCH_REPORT_TEMPLATE.html`](BENCH_REPORT_TEMPLATE.html) (repo root)
+- Renderer: [`render_bench_report.py`](render_bench_report.py) (repo root)
 
 **OKF is not automatic for subagents.** The OKF arm must be told to use OKF; the no-OKF arm must be told not to.
 
-**Compliance knowledge isolation (hard):** Org compliance and the **answer-key sources for this task’s `{{PARENT_GATE}}`** MUST NOT appear in the shared task brief or either arm’s initial prompt. The OKF arm obtains compliance **only** via live `okf.py lookup` / `okf.py card` Prompt Cards (dynamic per domain — see AGENTS.md Rule #1). Fill `{{GATE_ANSWER_KEY_GLOBS}}` with the grader paths for **this** gate only (GHA example: `**/policies/**`, `**/*.rego`). Do not put a universal path ban into AGENTS.md. Parent runs `{{PARENT_GATE}}` and an isolation audit against those globs.
+**Compliance knowledge isolation (hard):** Org compliance and the **answer-key sources for this task’s `{{PARENT_GATE}}`** MUST NOT appear in the shared task brief or either arm’s initial prompt. The OKF arm obtains compliance **only** via a live Prompt Pack from `okf.py pack` (dynamic per domain — see [`AGENTS.md`](AGENTS.md) Rule #1 and [`.cursor/rules/okf.mdc`](.cursor/rules/okf.mdc)). Fill `{{GATE_ANSWER_KEY_GLOBS}}` with the grader paths for **this** gate only (Flask CI example: `**/policies/**`, `**/*.rego`, or the repo’s workflow Conftest dirs). Do not put a universal path ban into AGENTS.md. Parent runs `{{PARENT_GATE}}` and an isolation audit against those globs.
 
 ---
 
@@ -30,65 +30,68 @@ You are the parent. Do **not** implement the task.
 - Do **not** implement the task.
 - Launch **two parallel subagents** (same model).
 - Verify outputs independently (re-run {{PARENT_GATE}} yourself).
-- **Never put {{PARENT_GATE}}, SPVS, Conftest, Rego paths, or SHA-pin rules into the baseline arm’s initial prompt.**
+- **Never put {{PARENT_GATE}}, Conftest, Rego paths, pin/SHA rules, or grader trees into the baseline arm’s initial prompt.**
 - **If the parent gate fails for either arm: feed the failure output back to that arm and make it fix the issues** (do not score a draft FAIL as final).
 - Re-verify after each fix loop until PASS or remediation budget is exhausted.
 - Score **true cost-to-PASS** (initial + all remediation loops).
-- Produce a standalone HTML benchmark report from BENCH_REPORT_TEMPLATE.html.
+- Produce a standalone HTML benchmark report from BENCH_REPORT_TEMPLATE.html via render_bench_report.py.
 
 ## Knowledge isolation (mandatory)
 
 | Source | OKF arm | Baseline arm | Parent |
 | --- | --- | --- | --- |
 | Shared `{{TASK_DESCRIPTION}}` | Functional only | Functional only | — |
-| OKF / OKF Prompt Cards (live lookup) | **Required** (only compliance source) | Forbidden | — |
+| OKF Prompt Pack / Prompt Cards (live `okf.py pack`) | **Required** (only compliance source) | Forbidden | — |
 | `{{GATE_ANSWER_KEY_GLOBS}}` (grader for this gate) | **Forbidden** | **Forbidden** | May read to run gate |
 | Pins/versions/catalogs | From **cards** only | Public knowledge only | — |
 | `{{PARENT_GATE}}` | Not in initial prompt | **Not in initial prompt** | Runs for score |
 | Gate failure stdout on resume | Allowed (fix loop) | Allowed (fix loop) | Pastes raw output |
 
-`{{GATE_ANSWER_KEY_GLOBS}}` is **per task / per gate** — not a global AGENTS.md list. Example for the sample GHA Conftest gate: `**/policies/**`, `**/*.rego`, Conftest policy dirs used by `{{PARENT_GATE}}`. For another domain, name that domain’s grader paths instead.
+`{{GATE_ANSWER_KEY_GLOBS}}` is **per task / per gate** — not a global AGENTS.md list. Example for a sample Flask GHA Conftest gate: `**/policies/**`, `**/*.rego`, Conftest policy dirs used by `{{PARENT_GATE}}`. For another domain, name that domain’s grader paths instead.
 
-Shared task text and both initial arm prompts MUST be free of org-compliance text and those answer-key paths. Compliance lives on Prompt Cards (dynamic lookup) and/or the parent-only gate.
+Shared task text and both initial arm prompts MUST be free of org-compliance text and those answer-key paths. Compliance lives on Prompt Cards (dynamic pack) and/or the parent-only gate.
 
-**OKF discovery budget:** After the mandated `lookup --card`, at most **one** extra `okf.py lookup` or `okf.py card` for a missing card gap. Then **must write**. Do not Grep/Read `{{GATE_ANSWER_KEY_GLOBS}}` to prepare for the gate.
+**OKF discovery budget (aligns with AGENTS.md / .cursor / .github):** Run **one** `okf.py pack` before authoring. Inject **only** returned Prompt Card text. An **empty pack is valid** — proceed on judgement; do **not** re-pack for a hit. Need more? Follow a card’s `related:` / `source:` edge (or browse `_okf_knowledge/index.md`) — do **not** re-query pack. Do not Grep/Read `{{GATE_ANSWER_KEY_GLOBS}}` to prepare for the gate. Do not paste `index.json`, `graph.json`, or full vault/standard bodies.
 
 ## Task Under Test
 
-Create a reusable GitHub Actions workflow (`on: workflow_call`) implementing the following stages:
+Create a **reusable GitHub Actions workflow for a Python Flask application** (`on: workflow_call`) that CI-builds, tests, scans, and publishes a Flask service. Implement these stages:
 
-1. build-preprocess
-2. build-test-lint
-3. owasp
-4. sonarqube
-5. sonarqube-gate
-6. publish-to-nexus
+1. setup-python-deps
+2. lint-format
+3. unit-test
+4. security-scan (SAST / dependency)
+5. coverage-quality-gate
+6. build-package (sdist/wheel or app artifact)
 7. docker-build-publish
-8. notification-email
+8. notification
 
 ### Functional Requirements
 
-- Build once, reuse everywhere.
-- Proper `needs:` graph.
-- Efficient dependency caching.
-- Artifact sharing between stages.
-- OWASP Dependency Check report must be imported into SonarQube.
-- SonarQube Quality Gate must block publish.
-- Publish to Nexus only after Quality Gate passes.
-- Docker stage consumes existing build artifacts.
-- Notification runs with `if: always()`.
+- Target app shape: Flask (WSGI) service with `requirements.txt` or `pyproject.toml`, pytest suite, and a Dockerfile — the workflow must assume that layout via inputs (do not invent a full app unless listed in deliverables).
+- Build / install dependencies **once**; reuse across jobs via cache + artifacts.
+- Proper `needs:` graph; no redundant reinstalls when artifacts exist.
+- Efficient pip/venv (or poetry/uv) caching keyed on the lock/requirements hash.
+- Artifact sharing between stages (test reports, coverage XML, build artifact, image metadata).
+- Security scan results available to the quality gate (fail the pipeline on policy-defined severity).
+- Coverage / quality gate **must block** package publish and image publish.
+- Publish package artifact only after the quality gate passes.
+- Docker stage consumes the **existing** build artifact (do not rebuild the app from scratch in the image job unless inputs say otherwise).
+- Notification job runs with `if: always()`.
+- Pin third-party Actions to full 40-character commit SHAs (with version comments); workflow `permissions:` least privilege.
 - Include README documenting:
   - inputs
   - outputs
   - secrets
+  - Python/Flask assumptions (entry module, test path, Docker context)
   - artifact flow
   - cache strategy
   - dependency graph
-  - usage exampl
+  - usage example (`workflow_call` consumer)
 
 ### Functional Requirements (shared — no policy language)
 
-Document functional needs inside `{{TASK_DESCRIPTION}}` (stages, artifact flow, README sections, etc.). Do **not** encode org compliance there.
+Document functional needs inside `{{TASK_DESCRIPTION}}` (stages, artifact flow, README sections, Flask layout assumptions, etc.). Do **not** encode org compliance there.
 
 ### Parent-only success gate
 
@@ -97,7 +100,7 @@ Parent verifies with `{{PARENT_GATE}}` (customize per task), plus a functional c
 - Required deliverables exist
 - Documented functional requirements are met
 - README / docs completeness (if required by the task)
-- **Org / policy gate** (parent only): e.g. Conftest / lint / tests — **do not paste this command or its rules into the baseline initial prompt**
+- **Org / policy gate** (parent only): e.g. Conftest / actionlint / workflow lint — **do not paste this command or its rules into the baseline initial prompt**
 
 ### Output paths (must differ)
 
@@ -106,11 +109,11 @@ Parent verifies with `{{PARENT_GATE}}` (customize per task), plus a functional c
 
 ### Model
 
-Use the same model for both Tasks: {{MODEL — or "same as parent"}}
+Use the same model for both arms: {{MODEL — or "same as parent"}}
 
 ### Deliverables (per arm)
 
-{{DELIVERABLES — e.g. workflow.yml + README.md}}
+{{DELIVERABLES — e.g. .github/workflows/flask-ci.yml + README.md}}
 
 ---
 
@@ -123,33 +126,37 @@ Use the same model for both Tasks: {{MODEL — or "same as parent"}}
 - prompt:
 
 ```
-You MUST follow the aegis-system protocol for this run.
+You MUST follow the OKF protocol for this run (AGENTS.md + .cursor/rules/okf.mdc).
 
 Package root: {{AEGIS_PATH}}
 Control plane: {{AEGIS_PATH}}/AGENTS.md
 Brain: {{AEGIS_PATH}}/_okf_knowledge/
+Cursor DNA: {{AEGIS_PATH}}/.cursor/rules/okf.mdc
+Copilot DNA (same Rule #1): {{AEGIS_PATH}}/.github/copilot-instructions.md
 
 Must use:
 - OKF
-- AGENTS.md (lookup-first; Prompt Pack is DYNAMIC from live lookup — not a static path ban-list)
-- OKF lookup / card Prompt Cards only for org/compliance
-- Inject Prompt Cards only
+- AGENTS.md Rule #1 — Pack first (Prompt Pack is DYNAMIC from live pack — not a static path ban-list)
+- Live `okf.py pack` Prompt Cards only for org/compliance
+- Inject Prompt Card text only
 
 FORBIDDEN (this bench task):
-- Dumping vault contents (no graph.json, context dumps, or full vault/standard bodies)
+- Dumping vault contents (no graph.json, index.json, context dumps, or full vault/standard bodies)
 - Reading or grepping this task’s gate answer keys: {{GATE_ANSWER_KEY_GLOBS}}
 - Mining the monorepo or network for pins/versions/rule IDs that should be on cards
 - Opening grader sources “to pass the gate” before or while authoring
+- Re-packing after an empty or partial pack (follow related:/source: instead)
+- Claiming compliance without having run pack
 
 Record your start time (`date +%s.%N`) FIRST so you can report wall_s at the end.
 
 BEFORE writing any files:
-1. Run:
-   python3 {{AEGIS_PATH}}/_okf_knowledge/kernel/okf.py lookup --card --limit 3 "{{LOOKUP_QUERY}}"
-2. Inject ONLY the returned ## Prompt Card text into your working context (live pack for this domain).
-3. Do NOT paste graph.json, context dumps, or full vault/standard bodies.
+1. Run ONCE:
+   python3 {{AEGIS_PATH}}/_okf_knowledge/kernel/okf.py pack --budget 1200 "{{LOOKUP_QUERY}}"
+2. Inject ONLY the returned Prompt Card text into your working context (live pack for this domain).
+3. Do NOT paste graph.json, index.json, context dumps, or full vault/standard bodies.
 4. Treat those Prompt Cards as the ONLY source of org/compliance constraints for this task.
-5. Discovery budget: at most ONE extra `okf.py lookup` or `okf.py card` if a required pin/version/rule is missing from the first cards. Then you MUST write — do not Grep {{GATE_ANSWER_KEY_GLOBS}}.
+5. Discovery budget: **one pack only**. If a required pin/version/rule is missing, follow a card’s `related:` / `source:` edge or browse `_okf_knowledge/index.md` — do **not** re-pack and do **not** Grep {{GATE_ANSWER_KEY_GLOBS}}. Empty pack → proceed on judgement and write.
 
 Then complete this task (functional brief only — compliance comes from cards):
 {{TASK_DESCRIPTION}}
@@ -173,7 +180,7 @@ Return JSON ONLY (no markdown fence):
   "prompt_chars": <int approx chars of prompts/cards you used>,
   "output_chars": <int approx chars of assistant text + file contents written>,
   "round_trips": <int count of your tool-call turns, including remediation>,
-  "notes": "<short — must mention if any extra okf lookup was used>"
+  "notes": "<short — must mention pack empty/non-empty and whether related: edges were followed>"
 }
 ```
 
@@ -184,22 +191,25 @@ Return JSON ONLY (no markdown fence):
 - prompt:
 
 ```
-You MUST NOT use aegis-system / OKF for this run.
+You MUST NOT use OKF / the aegis-system brain for this run.
 
 Must NOT use:
 - AGENTS.md
+- .cursor/rules/okf.mdc
+- .github/copilot-instructions.md
 - OKF
-- Prompt Cards
-- Vault
+- Prompt Cards / Prompt Packs
+- Vault under _okf_knowledge/
 - Standards from OKF
 
 FORBIDDEN (this bench task):
 - Reading {{AEGIS_PATH}}/AGENTS.md
 - Reading anything under {{AEGIS_PATH}}/_okf_knowledge/
-- Running okf.py lookup / okf.py card
+- Reading {{AEGIS_PATH}}/.cursor/rules/okf.mdc or OKF skills/commands
+- Running okf.py pack / lookup / card
 - Using Prompt Cards, vault playbooks, or standards from OKF
 - Reading this task’s gate answer keys: {{GATE_ANSWER_KEY_GLOBS}}
-- Using org pin lists, rule IDs, or gate commands from memory of this monorepo’s docs (general public knowledge for the domain only)
+- Using org pin lists, rule IDs, or gate commands from memory of this monorepo’s docs (general public knowledge for Flask/Python CI only)
 
 Record your start time (`date +%s.%N`) FIRST so you can report wall_s at the end.
 
@@ -212,7 +222,7 @@ Deliverables:
 Write outputs ONLY under: {{OUT_DIR_NO_OKF}}
 Stop when the deliverables meet the functional brief, or after at most {{MAX_FIX_TURNS}} remediation turn(s).
 
-There is NO policy/compliance gate in this prompt. Do not hunt for Conftest, SPVS, or Rego.
+There is NO policy/compliance gate in this prompt. Do not hunt for Conftest, Rego, or org grader trees.
 
 Return JSON ONLY (no markdown fence):
 {
@@ -244,9 +254,9 @@ Flag OKF isolation FAIL (even if `{{PARENT_GATE}}` PASSes) if the arm:
 
 - Read/Grep’d any path matching `{{GATE_ANSWER_KEY_GLOBS}}`
 - Mined monorepo/network for org pins/rule IDs that should have come from Prompt Cards
-- Exceeded the discovery budget (more than one extra `okf.py lookup|card` before first write for grader archaeology)
+- Violated pack-once / no-repack rules (re-packed after empty/partial; or dumped graph/index/full docs)
 
-Baseline isolation FAIL if it touched OKF/OKF or `{{GATE_ANSWER_KEY_GLOBS}}`.
+Baseline isolation FAIL if it touched OKF / `_okf_knowledge/` / OKF Cursor·GitHub DNA or `{{GATE_ANSWER_KEY_GLOBS}}`.
 
 Record `isolation_okf` / `isolation_base` as PASS|FAIL in parent findings. Gate PASS + isolation FAIL is **not** a clean OKF win.
 
@@ -274,8 +284,8 @@ Use this as the Task `resume` prompt body (keep arm isolation unchanged):
     Parent verification FAILED the gate. You must fix the issues, then re-check.
 
     Keep the same arm rules as your original run:
-    - OKF: live Prompt Cards only; still FORBIDDEN from {{GATE_ANSWER_KEY_GLOBS}} and pin/rule mining outside cards.
-    - Baseline: still forbidden from OKF/OKF and from {{GATE_ANSWER_KEY_GLOBS}}.
+    - OKF: live Prompt Cards only (pack already done — follow related: edges if needed; still FORBIDDEN from {{GATE_ANSWER_KEY_GLOBS}} and pin/rule mining outside cards).
+    - Baseline: still forbidden from OKF and from {{GATE_ANSWER_KEY_GLOBS}}.
 
     Record remediation start: date +%s.%N
 
@@ -311,24 +321,25 @@ Use this as the Task `resume` prompt body (keep arm isolation unchanged):
 
 ## Runtime Correctness Audit
 
-Check for (adapt to domain; keep as PASS/FAIL per arm):
+Check for (adapt to Flask/Python CI; keep as PASS/FAIL per arm):
 
-- invented actions / APIs / modules
-- placeholder actions or masking stubs
+- invented Actions / APIs / modules
+- placeholder Actions or masking stubs
 - invalid marketplace / registry references
-- deprecated actions or APIs
-- invalid versions / unpinned mutable refs (when policy requires pins)
-- broken SonarQube properties (when applicable)
-- broken OWASP import (when applicable)
-- cache mistakes
-- duplicated builds / duplicated work
+- deprecated Actions or APIs
+- unpinned mutable Action refs (when policy requires 40-char SHA pins)
+- Flask/Python layout mismatches (wrong test path, missing PYTHONPATH, wrong module)
+- broken coverage / quality-gate wiring
+- broken security-scan import into the gate
+- cache mistakes (pip cache key ignores lockfile)
+- duplicated installs / duplicated builds
 - duplicated downloads / redundant I/O
 - missing permissions
 - excessive permissions
 - missing concurrency
 - missing timeout
-- invalid dependency / `needs` graph
-- **card-only isolation** (OKF did not mine `{{GATE_ANSWER_KEY_GLOBS}}`; baseline did not touch OKF/OKF or those globs)
+- invalid `needs:` graph
+- **card-only isolation** (OKF did not mine `{{GATE_ANSWER_KEY_GLOBS}}`; baseline did not touch OKF or those globs)
 
 Score runtime correctness as % of checks PASSED. Isolation FAIL may be tracked separately in Parent Findings even when other checks PASS.
 
@@ -413,7 +424,7 @@ Calculate:
 
 Standalone. Inline CSS. Dark theme. Responsive. No JavaScript.
 
-**Must** render from the template (no custom shells):
+**Must** render from the checked-in template at **repo root** (no custom shells):
 
 ```bash
 python3 {{AEGIS_PATH}}/render_bench_report.py --list-keys
@@ -421,6 +432,8 @@ python3 {{AEGIS_PATH}}/render_bench_report.py \
   --data {{REPORT_DATA_JSON}} \
   --out {{REPORT_HTML}}
 ```
+
+Template file: `{{AEGIS_PATH}}/BENCH_REPORT_TEMPLATE.html`
 
 Build JSON covering every template placeholder. Prefer structured helpers:
 `kpis`, `metrics`, `dashboard`, `architecture`, `runtime`, `parent_findings`,
@@ -486,12 +499,12 @@ Summarize in **maximum 6 lines**:
 - No context sharing between arms.
 - Parent independently verifies via `{{PARENT_GATE}}` **and** isolation audit against `{{GATE_ANSWER_KEY_GLOBS}}`.
 - **Shared task + both initial arm prompts: zero org-compliance text** and no answer-key paths.
-- **OKF compliance source: live Prompt Cards** (dynamic lookup per AGENTS.md). **Forbidden** for this task: `{{GATE_ANSWER_KEY_GLOBS}}` and mining pins outside cards.
-- **OKF discovery budget:** mandated lookup + at most one extra card/lookup, then write.
+- **OKF compliance source: one live `okf.py pack`** (AGENTS.md / `.cursor/rules/okf.mdc` / `.github/copilot-instructions.md` / `.github/instructions/okf-brain.instructions.md`). **Forbidden** for this task: `{{GATE_ANSWER_KEY_GLOBS}}`, re-pack after empty, and mining pins outside cards/`related:` edges.
+- **OKF discovery budget:** one pack; then write (follow edges if needed — never dump graph/index).
 - **Baseline: no OKF; no `{{GATE_ANSWER_KEY_GLOBS}}`.**
 - **Gate FAIL → resume failing arm with failure output and fix until PASS (or budget exhausted); score true totals.**
 - **Isolation FAIL is reported even when the gate PASSes** (not a clean OKF win).
-- HTML report must be self-contained and rendered from `BENCH_REPORT_TEMPLATE.html` via `render_bench_report.py`.
+- HTML report must be self-contained and rendered from `BENCH_REPORT_TEMPLATE.html` via `render_bench_report.py` at repo root.
 - Do **not** bake domain grader paths into AGENTS.md — keep them in this bench prompt’s placeholders.
 ```
 
@@ -501,15 +514,15 @@ Summarize in **maximum 6 lines**:
 
 | Placeholder | Example |
 | --- | --- |
-| `TASK_DESCRIPTION` | Functional brief only (stages, artifacts, README) — **no** SPVS/Conftest/SHA rules |
+| `TASK_DESCRIPTION` | Functional Flask CI brief only (stages, artifacts, README) — **no** Conftest/SHA policy text |
 | `PARENT_GATE` | Parent-only, e.g. `conftest test …` exits 0 — **not** pasted into baseline initial prompt |
-| `DELIVERABLES` | `workflow.yml` and `README.md` |
+| `DELIVERABLES` | `.github/workflows/flask-ci.yml` and `README.md` |
 | `OUT_DIR_OKF` | `{{TARGET_REPO}}/_ab_bench/okf/{{SHORT_NAME}}/` |
 | `OUT_DIR_NO_OKF` | `{{TARGET_REPO}}/_ab_bench/no_okf/{{SHORT_NAME}}/` |
-| `SHORT_NAME` | `foo-bar` |
-| `LOOKUP_QUERY` | task/domain keywords for **live** card lookup (compliance + pin/version cards as needed) |
-| `GATE_ANSWER_KEY_GLOBS` | per-gate grader paths only, e.g. GHA Conftest: `**/policies/**` `**/*.rego` (other domains: that gate’s sources) |
-| `AEGIS_PATH` | `.cursor/agents/aegis-system` |
+| `SHORT_NAME` | `flask-ci` |
+| `LOOKUP_QUERY` | e.g. `flask python github actions workflow ci security pin` for **live** pack |
+| `GATE_ANSWER_KEY_GLOBS` | per-gate grader paths only, e.g. `**/policies/**` `**/*.rego` |
+| `AEGIS_PATH` | repo root of this aegis-system checkout (contains `AGENTS.md`, `_okf_knowledge/`, `render_bench_report.py`) |
 | `MAX_FIX_TURNS` | `1` (self-fixes inside one arm turn) |
 | `MAX_GATE_FIX_LOOPS` | `2` (parent→arm feedback loops after gate FAIL) |
 | `GATE_FAILURE_OUTPUT` | raw stdout/stderr from failed `{{PARENT_GATE}}` (parent pastes on resume only) |
@@ -522,14 +535,19 @@ Summarize in **maximum 6 lines**:
 ### Example `TASK_DESCRIPTION` (functional only)
 
 ```text
-Create a reusable GitHub Actions workflow (`on: workflow_call`) with stages:
-build-preprocess, build-test-lint, owasp, sonarqube, sonarqube-gate,
-publish-to-nexus, docker-build-publish, notification-email.
+Create a reusable GitHub Actions workflow (`on: workflow_call`) for a Python Flask app with stages:
+setup-python-deps, lint-format, unit-test, security-scan, coverage-quality-gate,
+build-package, docker-build-publish, notification.
 
-Requirements: build once; proper needs:; caching; artifact sharing;
-OWASP report imported into SonarQube; quality gate blocks publish;
-Nexus only after gate; Docker consumes build artifacts; notification if: always();
-README covers inputs/outputs/secrets/artifact flow/cache/dependency graph/usage.
+Assumptions (inputs may override): Flask app module `app:app` or `wsgi:app`;
+tests under `tests/` via pytest; deps in `requirements.txt` or `pyproject.toml`;
+Dockerfile at repo root.
+
+Requirements: install once and reuse; proper needs:; pip cache; artifact sharing;
+security findings feed the quality gate; gate blocks package + image publish;
+Docker consumes the build artifact; notification if: always();
+pin third-party Actions by full commit SHA; least-privilege permissions:;
+README covers inputs/outputs/secrets/Flask layout/artifact flow/cache/dependency graph/usage.
 ```
 
 ### Example `PARENT_GATE` (parent only — never in baseline initial prompt)
@@ -538,7 +556,7 @@ README covers inputs/outputs/secrets/artifact flow/cache/dependency graph/usage.
 cd {{TARGET_REPO}} && conftest test --parser yaml -n workflow \
   -p policies/conftest/github_actions/workflow \
   -p policies/conftest/github_actions/lib \
-  {{OUT_DIR}}/workflow.yml
+  {{OUT_DIR}}/.github/workflows/flask-ci.yml
 ```
 
 ---
@@ -551,11 +569,11 @@ cd {{TARGET_REPO}} && conftest test --parser yaml -n workflow \
 | [`render_bench_report.py`](render_bench_report.py) | Fills placeholders; KPI `kind: scored|info`; metric `info: true` for non-scoring rows |
 
 ```bash
-python3 .cursor/agents/aegis-system/render_bench_report.py --list-keys
+python3 render_bench_report.py --list-keys
 
-python3 .cursor/agents/aegis-system/render_bench_report.py \
-  --data _ab_bench/my-task-report-data.json \
-  --out _ab_bench/my-task-okf-vs-no-okf-report.html
+python3 render_bench_report.py \
+  --data _ab_bench/flask-ci-report-data.json \
+  --out _ab_bench/flask-ci-okf-vs-no-okf-report.html
 ```
 
 Set `METHODOLOGY_NOTE_CLASS` to `hidden` when there is no remediation note; otherwise leave it empty and put the note in `METHODOLOGY_NOTE`.
@@ -564,7 +582,11 @@ Set `METHODOLOGY_NOTE_CLASS` to `hidden` when there is no remediation note; othe
 
 ## Related
 
-- Protocol: [`AGENTS.md`](AGENTS.md) (§1.5 lookup)
-- Injection rule: [`_okf_knowledge/standards/okf-prompt-injection.md`](_okf_knowledge/standards/okf-prompt-injection.md)
+- Protocol: [`AGENTS.md`](AGENTS.md) (Rule #1 — Pack first)
+- Cursor rule: [`.cursor/rules/okf.mdc`](.cursor/rules/okf.mdc)
+- Copilot instructions: [`.github/copilot-instructions.md`](.github/copilot-instructions.md)
+- Copilot brain instructions: [`.github/instructions/okf-brain.instructions.md`](.github/instructions/okf-brain.instructions.md)
+- Injection standard: [`_okf_knowledge/standards/okf-prompt-injection.md`](_okf_knowledge/standards/okf-prompt-injection.md)
+- Maintain playbook: [`_okf_knowledge/vault/playbooks/maintain-okf-system.md`](_okf_knowledge/vault/playbooks/maintain-okf-system.md)
 - Report template: [`BENCH_REPORT_TEMPLATE.html`](BENCH_REPORT_TEMPLATE.html)
 - Report renderer: [`render_bench_report.py`](render_bench_report.py)
